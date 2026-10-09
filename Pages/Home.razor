@@ -1,0 +1,154 @@
+﻿
+@page "/"
+
+@using WolfNET.Graphics
+@using SpawnDev.BlazorJS
+@using SpawnDev.BlazorJS.JSObjects
+
+@inject BlazorJSRuntime JS
+@inject HttpClient Http
+
+@implements IDisposable
+
+<canvas @ref="_canvas"
+        width="800"
+        height="600"
+        tabindex="0">
+</canvas>
+
+@if (_error != null)
+{
+    <pre class="game-error">@_error</pre>
+}
+
+@code {
+    private ElementReference _canvas;
+
+    private Window? _window;
+    private WebGpuRenderer? _renderer;
+
+    private string? _error;
+    private bool _running;
+    private int _frameCount;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        Console.WriteLine("[APP] Component initialized");
+
+        try
+        {
+            _window = JS.Get<Window>("window");
+
+            _renderer = new WebGpuRenderer(JS);
+
+            Console.WriteLine("[APP] Loading shader");
+
+            string shader = await Http.GetStringAsync(
+                "shaders/triangle.wgsl");
+
+            Console.WriteLine(
+                $"[APP] Shader loaded: {shader.Length} chars");
+
+            using var canvas = new HTMLCanvasElement(_canvas);
+
+            await _renderer.InitializeAsync(
+                canvas,
+                shader);
+
+            _window.OnKeyDown += OnKeyDown;
+            _window.OnKeyUp += OnKeyUp;
+
+            Console.WriteLine(
+                "[APP] Keyboard handlers registered");
+
+            _running = true;
+
+            Console.WriteLine("[APP] Starting frame loop");
+
+            _window.RequestAnimationFrame(Frame);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.ToString();
+
+            Console.Error.WriteLine(
+                $"[APP] Initialization failed: {ex}");
+
+            StateHasChanged();
+        }
+    }
+
+    private void OnKeyDown(
+        SpawnDev.BlazorJS.JSObjects.KeyboardEvent e)
+    {
+        Console.WriteLine(
+            $"[INPUT] KeyDown: {e.Code}, repeat={e.Repeat}");
+
+        if (e.Code == "Space")
+        {
+            e.PreventDefault();
+
+            if (!e.Repeat)
+                _renderer?.NextBackground();
+        }
+    }
+
+    private void OnKeyUp(
+        SpawnDev.BlazorJS.JSObjects.KeyboardEvent e)
+    {
+        Console.WriteLine(
+            $"[INPUT] KeyUp: {e.Code}");
+    }
+
+    private void Frame()
+    {
+        if (!_running || _window == null)
+            return;
+
+        try
+        {
+            _frameCount++;
+
+            if (_frameCount == 1)
+                Console.WriteLine("[APP] First frame");
+
+            if (_frameCount % 300 == 0)
+                Console.WriteLine(
+                    $"[APP] Frame {_frameCount}");
+
+            _renderer?.Render();
+
+            _window.RequestAnimationFrame(Frame);
+        }
+        catch (Exception ex)
+        {
+            _running = false;
+            _error = ex.ToString();
+
+            Console.Error.WriteLine(
+                $"[APP] Frame failed: {ex}");
+
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("[APP] Disposing");
+
+        _running = false;
+
+        if (_window != null)
+        {
+            _window.OnKeyDown -= OnKeyDown;
+            _window.OnKeyUp -= OnKeyUp;
+        }
+
+        _renderer?.Dispose();
+        _window?.Dispose();
+    }
+}
