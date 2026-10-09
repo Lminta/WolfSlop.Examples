@@ -1,0 +1,81 @@
+
+# ==========================================
+# WolfNET - .NET / Blazor WASM / Rider
+# ==========================================
+
+# .NET build outputs
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+TestResults/
+
+# Build configurations
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+arm64/
+
+# JetBrains Rider / IntelliJ
+.idea/
+*.sln.iml
+*.DotSettings.user
+*.sln.DotSettings.user
+*.csproj.user
+*.user
+
+# Rider / ReSharper caches
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotCover
+*.dotCover
+*.dotTrace
+*.dotMemory
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Blazor / WebAssembly generated output
+wwwroot/_framework/
+wwwroot/_content/
+service-worker-assets.js
+blazor.boot.json
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/packages/
+
+# Logs
+*.log
+logs/
+*.binlog
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Coverage / profiling
+coverage/
+coverage-results/
+*.coverage
+*.coveragexml
+BenchmarkDotNet.Artifacts/
