@@ -1,6 +1,6 @@
-﻿using EventSystem;
+﻿using WolfNET.Game.Core.EventSystem;
 
-namespace WolfNET.InputEvents;
+namespace WolfNET.Game.InputEvents;
 
 public class InputEventSystem : UnorderedEventSystemBase<InputEventSystem>
 {

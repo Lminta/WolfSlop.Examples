@@ -4,12 +4,14 @@
 @using WolfNET.Graphics
 @using SpawnDev.BlazorJS
 @using SpawnDev.BlazorJS.JSObjects
+@using WolfNET.Game
 
 @inject BlazorJSRuntime JS
 @inject HttpClient Http
 
 @inject RendererSettings Settings
 @inject WebGpuRenderer  Renderer
+@inject Wolf Wolf
 
 @implements IDisposable
 
@@ -28,14 +30,9 @@
 @code {
     private ElementReference _canvas;
 
-    private Window? _window;
-
     private string? _error;
-    private bool _running;
-    private int _frameCount;
 
-    protected override async Task OnAfterRenderAsync(
-        bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
             return;
@@ -44,8 +41,6 @@
 
         try
         {
-            _window = JS.Get<Window>("window");
-
             Console.WriteLine("[APP] Loading shader");
 
             string shader = await Http.GetStringAsync(
@@ -59,18 +54,8 @@
             await Renderer.InitializeAsync(
                 canvas,
                 shader);
-
-            _window.OnKeyDown += OnKeyDown;
-            _window.OnKeyUp += OnKeyUp;
-
-            Console.WriteLine(
-                "[APP] Keyboard handlers registered");
-
-            _running = true;
-
-            Console.WriteLine("[APP] Starting frame loop");
-
-            _window.RequestAnimationFrame(Frame);
+            
+            Wolf.Start();
         }
         catch (Exception ex)
         {
@@ -83,71 +68,8 @@
         }
     }
 
-    private void OnKeyDown(KeyboardEvent e)
-    {
-        Console.WriteLine(
-            $"[INPUT] KeyDown: {e.Code}, repeat={e.Repeat}");
-
-        if (e.Code == "Space")
-        {
-            e.PreventDefault();
-
-            // if (!e.Repeat)
-            //     Renderer?.NextBackground();
-        }
-    }
-
-    private void OnKeyUp(KeyboardEvent e)
-    {
-        Console.WriteLine(
-            $"[INPUT] KeyUp: {e.Code}");
-    }
-
-    private void Frame()
-    {
-        if (!_running || _window == null)
-            return;
-
-        try
-        {
-            _frameCount++;
-
-            if (_frameCount == 1)
-                Console.WriteLine("[APP] First frame");
-
-            if (_frameCount % 300 == 0)
-                Console.WriteLine(
-                    $"[APP] Frame {_frameCount}");
-
-            Renderer?.Render();
-
-            _window.RequestAnimationFrame(Frame);
-        }
-        catch (Exception ex)
-        {
-            _running = false;
-            _error = ex.ToString();
-
-            Console.Error.WriteLine(
-                $"[APP] Frame failed: {ex}");
-
-            _ = InvokeAsync(StateHasChanged);
-        }
-    }
-
     public void Dispose()
     {
         Console.WriteLine("[APP] Disposing");
-
-        _running = false;
-
-        if (_window != null)
-        {
-            _window.OnKeyDown -= OnKeyDown;
-            _window.OnKeyUp -= OnKeyUp;
-        }
-
-        Renderer?.Dispose();
-        _window?.Dispose();
     }
 }

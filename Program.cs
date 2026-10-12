@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using SpawnDev.BlazorJS;
 using WolfNET;
+using WolfNET.Game;
+using WolfNET.Game.InputEvents;
 using WolfNET.Graphics;
-using WolfNET.InputEvents;
 
 Console.WriteLine("[C#] Creating Blazor host");
 
@@ -25,6 +26,7 @@ builder.Services.AddScoped(
 builder.Services.AddSingleton<InputEventSystem>();
 builder.Services.AddSingleton(new RendererSettings(800, 600));
 builder.Services.AddSingleton<WebGpuRenderer>();
+builder.Services.AddSingleton<Wolf>();
 
 Console.WriteLine("[C#] Starting BlazorJS runtime");
 

@@ -1,5 +1,4 @@
 
-using System.Drawing;
 using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
@@ -7,11 +6,11 @@ using WolfNET.Graphics.Generators;
 
 namespace WolfNET.Graphics;
 
-public class WebGpuRenderer : IDisposable
+public sealed class WebGpuRenderer : IDisposable
 {
     private readonly RendererSettings _settings;
-    
     private readonly BlazorJSRuntime _js;
+    private readonly LodeCaster _imageGenerator;
 
     private GPUDevice? _device;
     private GPUCanvasContext? _context;
@@ -22,37 +21,32 @@ public class WebGpuRenderer : IDisposable
     private GPUBindGroup? _bindGroup;
 
     private bool _initialized;
+    private bool _disposed;
     private int _frameCount;
-    private int _colorIndex;
-    
-    private LodeCaster _imageGenerator;
 
-    private static readonly double[][] Backgrounds =
-    [
-        [0.08, 0.12, 0.20, 1.0],
-        [0.20, 0.35, 0.25, 1.0],
-        [0.35, 0.12, 0.20, 1.0],
-        [0.15, 0.10, 0.35, 1.0]
-    ];
-
-    public WebGpuRenderer(RendererSettings settings, BlazorJSRuntime js)
+    public WebGpuRenderer(
+        RendererSettings settings,
+        BlazorJSRuntime js)
     {
-        _js = js;
         _settings = settings;
-        _imageGenerator = new LodeCaster(_settings);
+        _js = js;
+
+        _imageGenerator = new LodeCaster(settings);
     }
 
     public async Task InitializeAsync(
         HTMLCanvasElement canvas,
         string shaderSource)
     {
+        if (_initialized)
+            throw new InvalidOperationException(
+                "Renderer is already initialized");
+
         Console.WriteLine("[GPU] Initialization started");
 
         try
         {
-            // -----------------------------
-            // 1. Request GPU adapter/device
-            // -----------------------------
+            // 1. Request GPU adapter and device
 
             using var navigator = _js.Get<Navigator>("navigator");
 
@@ -74,9 +68,7 @@ public class WebGpuRenderer : IDisposable
 
             _device.OnUncapturedError += OnGpuError;
 
-            // -----------------------------
             // 2. Configure canvas
-            // -----------------------------
 
             _context = canvas.GetWebGPUContext()
                 ?? throw new Exception(
@@ -93,19 +85,16 @@ public class WebGpuRenderer : IDisposable
             Console.WriteLine(
                 $"[GPU] Canvas configured: {format}");
 
-            // -----------------------------
             // 3. Compile shader
-            // -----------------------------
 
             Console.WriteLine("[GPU] Creating shader module");
 
-            _device.PushErrorScope(
-                GPUErrorFilter.Validation);
+            _device.PushErrorScope(GPUErrorFilter.Validation);
 
             using var shader = _device.CreateShaderModule(
                 new GPUShaderModuleDescriptor
                 {
-                    Label = "WolfNET Textured Shader",
+                    Label = "WolfNET Framebuffer Shader",
                     Code = shaderSource
                 });
 
@@ -114,20 +103,16 @@ public class WebGpuRenderer : IDisposable
             if (shaderError != null)
             {
                 throw new Exception(
-                    $"Shader validation failed: " +
-                    shaderError.Message);
+                    $"Shader validation failed: {shaderError.Message}");
             }
 
             Console.WriteLine("[GPU] Shader module created");
 
-            // -----------------------------
             // 4. Create render pipeline
-            // -----------------------------
 
-            Console.WriteLine("[GPU] Creating pipeline");
+            Console.WriteLine("[GPU] Creating render pipeline");
 
-            _device.PushErrorScope(
-                GPUErrorFilter.Validation);
+            _device.PushErrorScope(GPUErrorFilter.Validation);
 
             _pipeline = _device.CreateRenderPipeline(
                 new GPURenderPipelineDescriptor
@@ -160,24 +145,17 @@ public class WebGpuRenderer : IDisposable
             if (pipelineError != null)
             {
                 throw new Exception(
-                    $"Pipeline validation failed: " +
-                    pipelineError.Message);
+                    $"Pipeline validation failed: {pipelineError.Message}");
             }
 
-            Console.WriteLine("[GPU] Pipeline created");
+            Console.WriteLine("[GPU] Render pipeline created");
 
-            // -----------------------------
-            // 5. Generate and upload image
-            // -----------------------------
+            // 5. Allocate framebuffer texture
+            // Texture contents will be updated during Render().
 
-            _imageGenerator.SetPosition(new Vector2(22, 12), new Vector2(-1, 0));
-            var pixels = _imageGenerator.Pass();
+            CreateFramebufferTexture();
 
-            UploadTexture(pixels);
-
-            // -----------------------------
             // 6. Create texture sampler
-            // -----------------------------
 
             Console.WriteLine("[GPU] Creating sampler");
 
@@ -190,9 +168,7 @@ public class WebGpuRenderer : IDisposable
 
             Console.WriteLine("[GPU] Sampler created");
 
-            // -----------------------------
             // 7. Create bind group
-            // -----------------------------
 
             Console.WriteLine("[GPU] Creating bind group");
 
@@ -232,11 +208,12 @@ public class WebGpuRenderer : IDisposable
             Console.Error.WriteLine(
                 $"[GPU] Initialization failed: {ex}");
 
+            Dispose();
             throw;
         }
     }
 
-    private void UploadTexture(Texture texture)
+    private void CreateFramebufferTexture()
     {
         if (_device == null)
         {
@@ -244,21 +221,23 @@ public class WebGpuRenderer : IDisposable
                 "GPU device is not initialized");
         }
 
-        if (texture.Pixels.Length != checked(texture.Settings.Width * texture.Settings.Height * 4))
-        {
-            throw new ArgumentException(
-                "Invalid RGBA8 pixel buffer length");
-        }
+        int width = _settings.Width;
+        int height = _settings.Height;
+
+        if (width <= 0 || height <= 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(_settings),
+                "Framebuffer dimensions must be positive");
 
         Console.WriteLine(
-            $"[GPU] Creating texture {texture.Settings.Width}x{texture.Settings.Height}");
+            $"[GPU] Creating framebuffer texture: {width}x{height}");
 
         _texture = _device.CreateTexture(
             new GPUTextureDescriptor
             {
-                Label = "WolfNET Checkerboard",
+                Label = "WolfNET CPU Framebuffer",
 
-                Size = new[] { texture.Settings.Width, texture.Settings.Height, 1 },
+                Size = [width, height, 1],
 
                 Format = "rgba8unorm",
 
@@ -267,15 +246,40 @@ public class WebGpuRenderer : IDisposable
                     GPUTextureUsage.CopyDst
             });
 
-        Console.WriteLine("[GPU] Texture created");
+        Console.WriteLine("[GPU] Framebuffer texture created");
+    }
 
-        // Convert the C# byte array into a JS typed array.
-        // SpawnDev.BlazorJS handles the interop.
-        using var data = new Uint8Array(texture.Pixels);
+    private void UploadTexture(Texture frame)
+    {
+        if (_device == null || _texture == null)
+        {
+            throw new InvalidOperationException(
+                "GPU framebuffer is not initialized");
+        }
 
-        Console.WriteLine(
-            $"[GPU] Uploading {texture.Pixels.Length} bytes");
+        int width = frame.Settings.Width;
+        int height = frame.Settings.Height;
 
+        if (width != _settings.Width ||
+            height != _settings.Height)
+        {
+            throw new ArgumentException(
+                $"Unexpected framebuffer dimensions: " +
+                $"{width}x{height}. Expected " +
+                $"{_settings.Width}x{_settings.Height}");
+        }
+
+        if (frame.Pixels.Length != checked(width * height * 4))
+        {
+            throw new ArgumentException(
+                "Invalid RGBA8 framebuffer size");
+        }
+
+        // Transfer CPU byte[] into a JavaScript Uint8Array.
+        using var data = new Uint8Array(frame.Pixels);
+
+        // Copy pixels into the existing GPU texture.
+        // No GPUTexture allocation happens here.
         _device.Queue.WriteTexture(
             new GPUTexelCopyTextureInfo
             {
@@ -286,28 +290,17 @@ public class WebGpuRenderer : IDisposable
 
             new GPUTexelCopyBufferLayout
             {
-                BytesPerRow = (uint)(texture.Settings.Width * 4),
-                RowsPerImage = (uint)texture.Settings.Height
+                BytesPerRow = (uint)(width * 4),
+                RowsPerImage = (uint)height
             },
 
             new GPUExtent3DDict
             {
-                Width = (uint)texture.Settings.Width,
-                Height = (uint)texture.Settings.Height,
+                Width = (uint)width,
+                Height = (uint)height,
                 DepthOrArrayLayers = 1
             }
         );
-
-        Console.WriteLine("[GPU] Texture upload submitted");
-    }
-
-    public void NextBackground()
-    {
-        _colorIndex =
-            (_colorIndex + 1) % Backgrounds.Length;
-
-        Console.WriteLine(
-            $"[GPU] Background changed: {_colorIndex}");
     }
 
     public void Render()
@@ -323,22 +316,23 @@ public class WebGpuRenderer : IDisposable
 
         _frameCount++;
 
-        if (_frameCount == 1)
-        {
-            Console.WriteLine("[GPU] First render frame");
-        }
+        // 1. CPU renders a new image.
+        _imageGenerator.SetPosition(
+            new Vector2(22, 12),
+            new Vector2(-1, 0));
+        Texture frame = _imageGenerator.Pass();
 
-        if (_frameCount % 300 == 0)
-        {
-            Console.WriteLine(
-                $"[GPU] Frame {_frameCount}");
-        }
+        // 2. Upload the generated image to GPU memory.
+        UploadTexture(frame);
 
-        using var texture = _context.GetCurrentTexture();
-        using var view = texture.CreateView();
+        // 3. Acquire canvas texture.
+        using var canvasTexture = _context.GetCurrentTexture();
+        using var view = canvasTexture.CreateView();
 
+        // 4. Create command encoder.
         using var encoder = _device.CreateCommandEncoder();
 
+        // 5. Start render pass.
         using var pass = encoder.BeginRenderPass(
             new GPURenderPassDescriptor
             {
@@ -348,7 +342,10 @@ public class WebGpuRenderer : IDisposable
                     {
                         View = view,
 
-                        ClearValue = Backgrounds[_colorIndex],
+                        ClearValue = new double[]
+                        {
+                            0.0, 0.0, 0.0, 1.0
+                        },
 
                         LoadOp = GPULoadOp.Clear,
                         StoreOp = GPUStoreOp.Store
@@ -356,19 +353,23 @@ public class WebGpuRenderer : IDisposable
                 ]
             });
 
+        // 6. Draw framebuffer onto the canvas.
         pass.SetPipeline(_pipeline);
-
-        // Bind texture and sampler to shader group 0.
         pass.SetBindGroup(0, _bindGroup);
-
-        // Three vertices form one fullscreen triangle.
         pass.Draw(3);
 
         pass.End();
 
+        // 7. Submit commands to GPU.
         using var commandBuffer = encoder.Finish();
 
         _device.Queue.Submit([commandBuffer]);
+
+        if (_frameCount == 1 || _frameCount % 300 == 0)
+        {
+            Console.WriteLine(
+                $"[GPU] Rendered frame {_frameCount}");
+        }
     }
 
     private void OnGpuError(GPUUncapturedErrorEvent e)
@@ -379,8 +380,12 @@ public class WebGpuRenderer : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+
         Console.WriteLine("[GPU] Disposing renderer");
 
+        _disposed = true;
         _initialized = false;
 
         if (_device != null)
