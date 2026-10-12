@@ -82,8 +82,7 @@
         }
     }
 
-    private void OnKeyDown(
-        SpawnDev.BlazorJS.JSObjects.KeyboardEvent e)
+    private void OnKeyDown(KeyboardEvent e)
     {
         Console.WriteLine(
             $"[INPUT] KeyDown: {e.Code}, repeat={e.Repeat}");
@@ -97,8 +96,7 @@
         }
     }
 
-    private void OnKeyUp(
-        SpawnDev.BlazorJS.JSObjects.KeyboardEvent e)
+    private void OnKeyUp(KeyboardEvent e)
     {
         Console.WriteLine(
             $"[INPUT] KeyUp: {e.Code}");
