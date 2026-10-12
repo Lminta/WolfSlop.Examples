@@ -8,11 +8,15 @@
 @inject BlazorJSRuntime JS
 @inject HttpClient Http
 
+@inject RendererSettings Settings
+@inject WebGpuRenderer  Renderer
+
 @implements IDisposable
 
 <canvas @ref="_canvas"
-        width="800"
-        height="600"
+        width="@Settings.Width"
+        height="@Settings.Height"
+        style="width: @(Settings.Width)px; height: @(Settings.Height)px;"
         tabindex="0">
 </canvas>
 
@@ -25,7 +29,6 @@
     private ElementReference _canvas;
 
     private Window? _window;
-    private WebGpuRenderer? _renderer;
 
     private string? _error;
     private bool _running;
@@ -43,19 +46,17 @@
         {
             _window = JS.Get<Window>("window");
 
-            _renderer = new WebGpuRenderer(JS);
-
             Console.WriteLine("[APP] Loading shader");
 
             string shader = await Http.GetStringAsync(
-                "shaders/triangle.wgsl");
+                "shaders/screen.wgsl");
 
             Console.WriteLine(
                 $"[APP] Shader loaded: {shader.Length} chars");
 
             using var canvas = new HTMLCanvasElement(_canvas);
-
-            await _renderer.InitializeAsync(
+            
+            await Renderer.InitializeAsync(
                 canvas,
                 shader);
 
@@ -91,8 +92,8 @@
         {
             e.PreventDefault();
 
-            if (!e.Repeat)
-                _renderer?.NextBackground();
+            // if (!e.Repeat)
+            //     Renderer?.NextBackground();
         }
     }
 
@@ -118,7 +119,7 @@
                 Console.WriteLine(
                     $"[APP] Frame {_frameCount}");
 
-            _renderer?.Render();
+            Renderer?.Render();
 
             _window.RequestAnimationFrame(Frame);
         }
@@ -146,7 +147,7 @@
             _window.OnKeyUp -= OnKeyUp;
         }
 
-        _renderer?.Dispose();
+        Renderer?.Dispose();
         _window?.Dispose();
     }
 }

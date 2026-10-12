@@ -24,10 +24,6 @@ body {
 
 canvas {
     display: block;
-
-    width: 800px;
-    height: 600px;
-
     flex-shrink: 0;
     outline: none;
 }
