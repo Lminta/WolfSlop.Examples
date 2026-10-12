@@ -58,19 +58,8 @@ public sealed class Wolf : IDisposable
 
         try
         {
-            var now = _clock.Elapsed.TotalMilliseconds;
-            var interval = 1000.0 / _settings.TargetFPS;
-            var elapsed = now - _lastFrameTime;
-
-            if (elapsed >= interval)
-            {
-                // Keep fractional timing remainder.
-                _lastFrameTime = now - (elapsed % interval);
-
-                _renderer.Render();
-            }
-
-            // Schedule exactly one more callback.
+            _renderer.Render();
+            FrameDelay();
             _window.RequestAnimationFrame(Frame);
         }
         catch (Exception ex)
@@ -80,6 +69,19 @@ public sealed class Wolf : IDisposable
             Console.Error.WriteLine(
                 $"[GAME] Frame failed: {ex}");
         }
+    }
+
+    private void FrameDelay()
+    {
+        var elapsed = _clock.Elapsed.TotalMilliseconds - _lastFrameTime;
+        var diff = _settings.TargetFrameInterval - elapsed;
+            
+        if (diff > 0)
+        {
+            Thread.Sleep((int) diff);
+        }
+            
+        _lastFrameTime = _clock.Elapsed.TotalMilliseconds;
     }
 
     public void Stop()
