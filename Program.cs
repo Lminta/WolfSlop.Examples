@@ -29,9 +29,6 @@ builder.Services.AddSingleton<InputEventSystem>();
 builder.Services.AddSingleton(new RendererSettings(800, 600));
 builder.Services.AddSingleton<WebGpuRenderer>();
 builder.Services.AddSingleton<Wolf>();
-builder.Services.AddSingleton<IImageGenerator, LodeCaster>();
-builder.Services.AddSingleton<KeyTracker>();
-builder.Services.AddSingleton<IMap, ConstantMap>();
 
 Console.WriteLine("[C#] Starting BlazorJS runtime");
 

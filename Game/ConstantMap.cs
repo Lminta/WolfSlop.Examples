@@ -2,6 +2,10 @@
 
 public class ConstantMap : ObjectBase, IMap
 {
+    public ConstantMap(Wolf game) : base(game)
+    {
+    }
+
     public int[][] WorldMap { get; } =
     [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],

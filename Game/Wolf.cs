@@ -10,14 +10,15 @@ namespace WolfNET.Game;
 public sealed class Wolf : IDisposable
 {
     private readonly WebGpuRenderer _renderer;
-    private readonly RendererSettings _settings;
     private readonly Window _window;
     private readonly InputEventSystem _inputEvents;
     
     private ObjectCollection _objectCollection;
-    private Player _player;
-    private ICamera _camera;
-    private IMap _map;
+    private PlayerObject _playerObject;
+    public KeyTracker KeyTracker { get; private set;}
+    public ICamera Camera => _playerObject.CameraComponent;
+    public IMap Map { get; private set;}
+    public RendererSettings RendererSettings { get; private set;}
 
     private readonly Stopwatch _clock = new();
     
@@ -32,7 +33,7 @@ public sealed class Wolf : IDisposable
         InputEventSystem inputEvents,
         BlazorJSRuntime js)
     {
-        _settings = settings;
+        RendererSettings = settings;
         _renderer = renderer;
         _inputEvents = inputEvents;
 
@@ -46,8 +47,10 @@ public sealed class Wolf : IDisposable
         _running = true;
         
         _objectCollection = new ObjectCollection();
+        KeyTracker = new KeyTracker(_inputEvents);
+        Map = new ConstantMap(this);
 
-        _player = new Player
+        _playerObject = new PlayerObject(this)
         {
             Transform = new Transform
             {
@@ -56,7 +59,7 @@ public sealed class Wolf : IDisposable
             }
         };
         
-        _objectCollection.Add(_player);
+        _objectCollection.Add(_playerObject);
         
         _running = true;
 
@@ -67,7 +70,7 @@ public sealed class Wolf : IDisposable
         _window.OnKeyUp += OnKeyUp;
 
         Console.WriteLine(
-            $"[GAME] Started. Target FPS: {_settings.TargetFPS}");
+            $"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
 
         _window.RequestAnimationFrame(Frame);
     }
@@ -80,7 +83,7 @@ public sealed class Wolf : IDisposable
         try
         {
             _objectCollection.Update((float) (_lastFrameTime - _clock.Elapsed.TotalMilliseconds));
-            _renderer.Render();
+            _renderer.Render(Camera.GetView());
             FrameDelay();
             _window.RequestAnimationFrame(Frame);
         }
@@ -96,7 +99,7 @@ public sealed class Wolf : IDisposable
     private void FrameDelay()
     {
         var elapsed = _clock.Elapsed.TotalMilliseconds - _lastFrameTime;
-        var diff = _settings.TargetFrameInterval - elapsed;
+        var diff = RendererSettings.TargetFrameInterval - elapsed;
             
         if (diff > 0)
         {

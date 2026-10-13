@@ -1,6 +1,5 @@
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
-using WolfNET.Game.Graphics.Generators;
 
 namespace WolfNET.Game.Graphics;
 
@@ -8,7 +7,6 @@ public sealed class WebGpuRenderer : IDisposable
 {
     private readonly RendererSettings _settings;
     private readonly BlazorJSRuntime _js;
-    private readonly IImageGenerator _imageGenerator;
 
     private GPUDevice? _device;
     private GPUCanvasContext? _context;
@@ -24,12 +22,10 @@ public sealed class WebGpuRenderer : IDisposable
 
     public WebGpuRenderer(
         RendererSettings settings,
-        IImageGenerator imageGenerator,
         BlazorJSRuntime js)
     {
         _settings = settings;
         _js = js;
-        _imageGenerator = imageGenerator;
     }
 
     public async Task InitializeAsync(
@@ -301,7 +297,7 @@ public sealed class WebGpuRenderer : IDisposable
         );
     }
 
-    public void Render()
+    public void Render(Texture frame)
     {
         if (!_initialized ||
             _device == null ||
@@ -314,8 +310,8 @@ public sealed class WebGpuRenderer : IDisposable
 
         _frameCount++;
 
-        // 1. CPU renders a new image.
-        Texture frame = _imageGenerator.Pass();
+        // // 1. CPU renders a new image.
+        // Texture frame = _imageGenerator.Pass();
 
         // 2. Upload the generated image to GPU memory.
         UploadTexture(frame);

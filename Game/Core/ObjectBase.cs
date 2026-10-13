@@ -5,6 +5,12 @@ namespace WolfNET.Game;
 public abstract class ObjectBase
 {
     public Guid Id = Guid.NewGuid();
+    public Wolf Game { get; }
+    
+    public ObjectBase(Wolf game)
+    {
+        Game = game;
+    }
     
     public Dictionary<Guid, ComponentBase> Components { get; } = new();
     

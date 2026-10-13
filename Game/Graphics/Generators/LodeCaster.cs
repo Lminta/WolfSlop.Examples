@@ -7,7 +7,6 @@ public class LodeCaster : IImageGenerator
 {
     private readonly RendererSettings _settings;
     private readonly Wolf _game;
-    private readonly IMap _map;
 
     private float _posX;
     private float _posY;
@@ -17,11 +16,10 @@ public class LodeCaster : IImageGenerator
     private float _planeX;
     private float _planeY;
 
-    public LodeCaster(RendererSettings settings, Wolf game, IMap map)
+    public LodeCaster(Wolf game)
     {
-        _settings = settings;
+        _settings = game.RendererSettings;
         _game = game;
-        _map = map;
     }
 
     private void SetPosition(ICamera camera)
@@ -36,8 +34,7 @@ public class LodeCaster : IImageGenerator
 
     public Texture Pass()
     {
-        SetPosition(_camera);
-        float planeX = 0, planeY = 0.66f; //the 2d raycaster version of camera plane
+        SetPosition(_game.Camera);
         
         var result = new byte[_settings.Width * _settings.Height * 4];
 
@@ -45,8 +42,8 @@ public class LodeCaster : IImageGenerator
         {
             //calculate ray position and direction
             float cameraX = 2 * x / (float)_settings.Width - 1; //x-coordinate in camera space
-            float rayDirX = _dirX + planeX * cameraX;
-            float rayDirY = _dirY + planeY * cameraX;
+            float rayDirX = _dirX + _planeX * cameraX;
+            float rayDirY = _dirY + _planeY * cameraX;
             //which box of the map we're in
             int mapX = (int) _posX;
             int mapY = (int) _posY;
@@ -108,7 +105,7 @@ public class LodeCaster : IImageGenerator
                 }
 
                 //Check if ray has hit a wall
-                if (_map.WorldMap[mapX][mapY] > 0) hit = 1;
+                if (_game.Map.WorldMap[mapX][mapY] > 0) hit = 1;
             }
 
             //Calculate distance projected on camera direction. 
@@ -126,7 +123,7 @@ public class LodeCaster : IImageGenerator
 
             //choose wall color
             Color color;
-            switch (_map.WorldMap[mapX][mapY])
+            switch (_game.Map.WorldMap[mapX][mapY])
             {
                 case 1: color = Color.Red; break; //red
                 case 2: color = Color.Green; break; //green
@@ -156,6 +153,4 @@ public class LodeCaster : IImageGenerator
             Pixels = result,
         };
     }
-    
-    
 }
