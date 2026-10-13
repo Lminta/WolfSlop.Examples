@@ -1,4 +1,4 @@
-﻿namespace WolfNET.Graphics.Generators;
+﻿namespace WolfNET.Game.Graphics.Generators;
 
 public class Checkerboard(int width, int height) : IImageGenerator
 {

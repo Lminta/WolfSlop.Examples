@@ -1,5 +1,5 @@
 ﻿using SpawnDev.BlazorJS.JSObjects;
-using WolfNET.Game.Core.EventSystem.Interfaces;
+using WolfNET.Game.EventSystem.Interfaces;
 
 namespace WolfNET.Game.InputEvents;
 

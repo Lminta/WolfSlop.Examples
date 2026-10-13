@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
+using WolfNET.Game.Graphics;
 using WolfNET.Game.InputEvents;
-using WolfNET.Graphics;
 
 namespace WolfNET.Game;
 
@@ -12,8 +13,14 @@ public sealed class Wolf : IDisposable
     private readonly RendererSettings _settings;
     private readonly Window _window;
     private readonly InputEventSystem _inputEvents;
+    
+    private ObjectCollection _objectCollection;
+    private Player _player;
+    private ICamera _camera;
+    private IMap _map;
 
     private readonly Stopwatch _clock = new();
+    
 
     private double _lastFrameTime;
     private bool _running;
@@ -36,7 +43,21 @@ public sealed class Wolf : IDisposable
     {
         if (_running)
             return;
+        _running = true;
+        
+        _objectCollection = new ObjectCollection();
 
+        _player = new Player
+        {
+            Transform = new Transform
+            {
+                Position = new Vector2(22, 12),
+                Rotation = new Vector2(-1, 0),
+            }
+        };
+        
+        _objectCollection.Add(_player);
+        
         _running = true;
 
         _clock.Restart();
@@ -58,6 +79,7 @@ public sealed class Wolf : IDisposable
 
         try
         {
+            _objectCollection.Update((float) (_lastFrameTime - _clock.Elapsed.TotalMilliseconds));
             _renderer.Render();
             FrameDelay();
             _window.RequestAnimationFrame(Frame);

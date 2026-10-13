@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
-using WolfNET.Game.Core.EventSystem.Interfaces;
+using WolfNET.Game.EventSystem.Interfaces;
 
-namespace WolfNET.Game.Core.EventSystem
+namespace WolfNET.Game.EventSystem
 {
     public abstract class SequentialEventSystemBase<TDerived> : UnorderedEventSystemBase<TDerived>
         where TDerived : SequentialEventSystemBase<TDerived>

@@ -1,67 +1,43 @@
 ﻿using System.Drawing;
-using System.Numerics;
-using WolfNET.Graphics.Utils;
+using WolfNET.Game.Graphics.Utils;
 
-namespace WolfNET.Graphics.Generators;
+namespace WolfNET.Game.Graphics.Generators;
 
 public class LodeCaster : IImageGenerator
 {
     private readonly RendererSettings _settings;
+    private readonly Wolf _game;
+    private readonly IMap _map;
 
     private float _posX;
     private float _posY;
     private float _dirX;
     private float _dirY;
+    
+    private float _planeX;
+    private float _planeY;
 
-    public LodeCaster(RendererSettings settings)
+    public LodeCaster(RendererSettings settings, Wolf game, IMap map)
     {
         _settings = settings;
+        _game = game;
+        _map = map;
     }
 
-    private int[][] worldMap =
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 3, 0, 3, 0, 3, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2, 0, 0, 0, 0, 3, 0, 3, 0, 3, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 0, 0, 0, 0, 5, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ];
-
-    public void SetPosition(Vector2 position, Vector2 direction)
+    private void SetPosition(ICamera camera)
     {
-        _posX = position.X;
-        _posY = position.Y;
-        _dirX = direction.X;
-        _dirY = direction.Y;
+        _posX = camera.Transform.Position.X;
+        _posY = camera.Transform.Position.Y;
+        _dirX = camera.Transform.Rotation.X;
+        _dirY = camera.Transform.Rotation.Y;
+        _planeX = camera.Plane.X;
+        _planeY = camera.Plane.Y;
     }
 
     public Texture Pass()
     {
-        // float posX = 22, posY = 12; //x and y start position
-        // float dirX = -1, dirY = 0; //initial direction vector
+        SetPosition(_camera);
         float planeX = 0, planeY = 0.66f; //the 2d raycaster version of camera plane
-
-        float time = 0; //time of current frame
-        float oldTime = 0; //time of previous frame
         
         var result = new byte[_settings.Width * _settings.Height * 4];
 
@@ -132,7 +108,7 @@ public class LodeCaster : IImageGenerator
                 }
 
                 //Check if ray has hit a wall
-                if (worldMap[mapX][mapY] > 0) hit = 1;
+                if (_map.WorldMap[mapX][mapY] > 0) hit = 1;
             }
 
             //Calculate distance projected on camera direction. 
@@ -150,7 +126,7 @@ public class LodeCaster : IImageGenerator
 
             //choose wall color
             Color color;
-            switch (worldMap[mapX][mapY])
+            switch (_map.WorldMap[mapX][mapY])
             {
                 case 1: color = Color.Red; break; //red
                 case 2: color = Color.Green; break; //green

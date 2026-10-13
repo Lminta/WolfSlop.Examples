@@ -1,4 +1,4 @@
-﻿namespace WolfNET.Game.Core.EventSystem.Interfaces
+﻿namespace WolfNET.Game.EventSystem.Interfaces
 {
     public interface IEventSystem<TDerived> where TDerived : IEventSystem<TDerived>
     {

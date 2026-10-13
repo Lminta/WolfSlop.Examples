@@ -1,4 +1,4 @@
-﻿namespace WolfNET.Graphics.Generators;
+﻿namespace WolfNET.Game.Graphics.Generators;
 
 public interface IImageGenerator
 {

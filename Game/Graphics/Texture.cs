@@ -1,4 +1,4 @@
-﻿namespace WolfNET.Graphics;
+﻿namespace WolfNET.Game.Graphics;
 
 public record Texture()
 {

@@ -1,4 +1,4 @@
-﻿using WolfNET.Game.Core.EventSystem;
+﻿using WolfNET.Game.EventSystem;
 
 namespace WolfNET.Game.InputEvents;
 
