@@ -82,7 +82,7 @@ public sealed class Wolf : IDisposable
 
         try
         {
-            _objectCollection.Update((float) (_lastFrameTime - _clock.Elapsed.TotalMilliseconds));
+            _objectCollection.Update((float) (_clock.Elapsed.TotalMilliseconds - _lastFrameTime));
             _renderer.Render(Camera.GetView());
             FrameDelay();
             _window.RequestAnimationFrame(Frame);

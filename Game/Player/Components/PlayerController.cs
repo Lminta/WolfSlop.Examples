@@ -19,8 +19,8 @@ public class PlayerController : ComponentBase
     public override void Update(float deltaTime)
     {
         //speed modifiers
-        var moveSpeed = deltaTime * 5.0f; //the constant value is in squares/second
-        var rotSpeed = deltaTime * 3.0f; //the constant value is in radians/second
+        var moveSpeed = deltaTime * 0.5f; //the constant value is in squares/second
+        var rotSpeed = deltaTime * 0.1f; //the constant value is in radians/second
 
         var posX = Parent.Transform.Position.X;
         var posY = Parent.Transform.Position.Y;

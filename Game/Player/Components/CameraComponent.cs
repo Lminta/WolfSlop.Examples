@@ -14,7 +14,7 @@ public class CameraComponent : ComponentBase, ICamera
     }
 
     public Transform Transform => Parent.Transform;
-    public Vector2 Plane { get; set; }
+    public Vector2 Plane { get; set; } = new(0, 0.66f);
     
     public Texture GetView() => _imageGenerator.Pass();
 }
