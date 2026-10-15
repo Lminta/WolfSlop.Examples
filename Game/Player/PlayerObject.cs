@@ -1,14 +1,15 @@
-﻿using WolfNET.Game.InputEvents;
+﻿using WolfNET.Game.Core;
+using WolfNET.Game.Player.Components;
 
-namespace WolfNET.Game;
+namespace WolfNET.Game.Player;
 
 public class PlayerObject : ObjectBase
 {
-    public CameraComponent CameraComponent { get; }
+    public CameraComponent Camera { get; }
     public PlayerObject(Wolf game) : base(game)
     {
-        CameraComponent = new CameraComponent(this);
-        base.AddComponent(CameraComponent);
-        base.AddComponent(new PlayerController(game.KeyTracker, game.Map, CameraComponent, this));
+        Camera = new CameraComponent(this);
+        base.AddComponent(Camera);
+        base.AddComponent(new PlayerController(game.KeyTracker, game.Map, Camera, this));
     }
 }

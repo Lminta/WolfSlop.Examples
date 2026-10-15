@@ -3,4 +3,5 @@
 public interface IMap
 {
     int[][] WorldMap { get; }
+    ulong Revision { get; }
 }

@@ -1,4 +1,4 @@
-﻿namespace WolfNET.Game.Graphics;
+﻿namespace WolfNET.Graphics;
 
 public class RendererSettings(int width, int height, int targetFPS = 60)
 {
@@ -8,4 +8,7 @@ public class RendererSettings(int width, int height, int targetFPS = 60)
     
     public int TargetFPS { get; } = targetFPS;
     public float TargetFrameInterval => 1000.0f / TargetFPS;
+    
+    public int MaxMapWidth { get; init; } = 64;
+    public int MaxMapHeight { get; init; } = 64;
 }

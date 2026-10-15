@@ -2,8 +2,10 @@
 using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
-using WolfNET.Game.Graphics;
+using WolfNET.Game.Core;
 using WolfNET.Game.InputEvents;
+using WolfNET.Game.Player;
+using WolfNET.Graphics;
 
 namespace WolfNET.Game;
 
@@ -14,9 +16,8 @@ public sealed class Wolf : IDisposable
     private readonly InputEventSystem _inputEvents;
     
     private ObjectCollection _objectCollection;
-    private PlayerObject _playerObject;
+    private PlayerObject _player;
     public KeyTracker KeyTracker { get; private set;}
-    public ICamera Camera => _playerObject.CameraComponent;
     public IMap Map { get; private set;}
     public RendererSettings RendererSettings { get; private set;}
 
@@ -50,7 +51,7 @@ public sealed class Wolf : IDisposable
         KeyTracker = new KeyTracker(_inputEvents);
         Map = new ConstantMap(this);
 
-        _playerObject = new PlayerObject(this)
+        _player = new PlayerObject(this)
         {
             Transform = new Transform
             {
@@ -59,7 +60,7 @@ public sealed class Wolf : IDisposable
             }
         };
         
-        _objectCollection.Add(_playerObject);
+        _objectCollection.Add(_player);
         
         _running = true;
 
@@ -83,7 +84,12 @@ public sealed class Wolf : IDisposable
         try
         {
             _objectCollection.Update((float) (_clock.Elapsed.TotalMilliseconds - _lastFrameTime));
-            _renderer.Render(Camera.GetView());
+            _renderer.Render(
+                _player.Camera.Transform.Position, 
+                _player.Camera.Transform.Rotation,
+                _player.Camera.Plane,
+                Map.WorldMap,
+                Map.Revision);
             FrameDelay();
             _window.RequestAnimationFrame(Frame);
         }

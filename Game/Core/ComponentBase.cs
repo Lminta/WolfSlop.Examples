@@ -1,4 +1,4 @@
-﻿namespace WolfNET.Game;
+﻿namespace WolfNET.Game.Core;
 
 public abstract class ComponentBase
 {

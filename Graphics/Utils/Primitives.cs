@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace WolfNET.Game.Graphics.Utils;
+namespace WolfNET.Graphics.Utils;
 
 public static class Primitives
 {

@@ -1,12 +1,10 @@
-using System.Numerics;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using SpawnDev.BlazorJS;
 using WolfNET;
 using WolfNET.Game;
-using WolfNET.Game.Graphics;
-using WolfNET.Game.Graphics.Generators;
 using WolfNET.Game.InputEvents;
+using WolfNET.Graphics;
 
 Console.WriteLine("[C#] Creating Blazor host");
 

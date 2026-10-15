@@ -3,7 +3,7 @@
 @using SpawnDev.BlazorJS
 @using SpawnDev.BlazorJS.JSObjects
 @using WolfNET.Game
-@using WolfNET.Game.Graphics
+@using WolfNET.Graphics
 
 @inject BlazorJSRuntime JS
 @inject HttpClient Http
@@ -42,17 +42,18 @@
         {
             Console.WriteLine("[APP] Loading shader");
 
-            string shader = await Http.GetStringAsync(
-                "shaders/screen.wgsl");
+            var computeShader = await Http.GetStringAsync(
+                "shaders/raycast.wgsl");
+
+            var wallsShader = await Http.GetStringAsync(
+                "shaders/walls.wgsl");
 
             Console.WriteLine(
-                $"[APP] Shader loaded: {shader.Length} chars");
+                $"[APP] Shader loaded");
 
             using var canvas = new HTMLCanvasElement(_canvas);
             
-            await Renderer.InitializeAsync(
-                canvas,
-                shader);
+            await Renderer.InitializeAsync(canvas, computeShader, wallsShader);
             
             Wolf.Start();
         }

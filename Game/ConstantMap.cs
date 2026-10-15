@@ -1,12 +1,16 @@
-﻿namespace WolfNET.Game;
+﻿using WolfNET.Game.Core;
+
+namespace WolfNET.Game;
 
 public class ConstantMap : ObjectBase, IMap
 {
+    public ulong Revision { get; private set; }
+    
     public ConstantMap(Wolf game) : base(game)
     {
     }
 
-    public int[][] WorldMap { get; } =
+    public int[][] WorldMap { get; private set; } =
     [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -33,4 +37,19 @@ public class ConstantMap : ObjectBase, IMap
         [1, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     ];
+
+    public void SetCell(int x, int y, int value)
+    {
+        if (WorldMap[x][y] == value)
+            return;
+
+        WorldMap[x][y] = value;
+        Revision++;
+    }
+
+    public void ReplaceMap(int[][] worldMap)
+    {
+        WorldMap = worldMap;
+        Revision++;
+    }
 }
