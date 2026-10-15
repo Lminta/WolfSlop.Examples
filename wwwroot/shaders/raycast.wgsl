@@ -139,6 +139,12 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
         );
 
         wallU = fract(hitCoordinate);
+
+        // Keep opposite wall faces oriented as in Lode's textured raycaster.
+        if ((side == 0u && rayDir.x > 0.0) ||
+            (side == 1u && rayDir.y < 0.0)) {
+            wallU = 1.0 - wallU;
+        }
     }
 
     rayHits[x] = RayHit(

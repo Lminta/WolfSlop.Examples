@@ -13,6 +13,22 @@ public sealed class WebGpuRenderer : IDisposable
     private const int CameraBufferSize = 32;
     private const int MapInfoBufferSize = 16;
 
+    // Map wall IDs are one-based; the first eight match Lode's texture order.
+    private static readonly string[] TexturePaths =
+    [
+        "pics/eagle.png",
+        "pics/redbrick.png",
+        "pics/purplestone.png",
+        "pics/greystone.png",
+        "pics/bluestone.png",
+        "pics/mossy.png",
+        "pics/wood.png",
+        "pics/colorstone.png",
+        "pics/barrel.png",
+        "pics/pillar.png",
+        "pics/greenlight.png"
+    ];
+
     private readonly RendererSettings _settings;
     private readonly BlazorJSRuntime _js;
 
@@ -29,6 +45,8 @@ public sealed class WebGpuRenderer : IDisposable
 
     private GPUBindGroup? _computeBindGroup;
     private GPUBindGroup? _renderBindGroup;
+    private GPUTexture? _wallTextures;
+    private GPUTextureView? _wallTextureView;
 
     // Reusable CPU buffers.
     private readonly float[] _cameraData = new float[8];
@@ -112,6 +130,7 @@ public sealed class WebGpuRenderer : IDisposable
             // 3. Allocate persistent GPU buffers.
 
             CreateBuffers();
+            await LoadTexturesAsync();
 
             // 4. Compile shaders.
 
@@ -250,7 +269,12 @@ public sealed class WebGpuRenderer : IDisposable
                             Entries =
                             [
                                 BufferEntry(0, _rayHitsBuffer!),
-                                BufferEntry(1, _cameraBuffer!)
+                                BufferEntry(1, _cameraBuffer!),
+                                new GPUBindGroupEntry
+                                {
+                                    Binding = 2,
+                                    Resource = _wallTextureView!
+                                }
                             ]
                         });
             }
@@ -270,6 +294,63 @@ public sealed class WebGpuRenderer : IDisposable
             Dispose();
             throw;
         }
+    }
+
+    private async Task LoadTexturesAsync()
+    {
+        uint width = 0;
+        uint height = 0;
+
+        using var queue = _device!.Queue;
+
+        for (int layer = 0; layer < TexturePaths.Length; layer++)
+        {
+            var path = TexturePaths[layer];
+            using var image = new HTMLImageElement();
+            image.Src = path;
+
+            try
+            {
+                await image.Decode();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to load texture '{path}'.", ex);
+            }
+
+            if (layer == 0)
+            {
+                width = (uint)image.NaturalWidth;
+                height = (uint)image.NaturalHeight;
+                _wallTextures = _device.CreateTexture(new GPUTextureDescriptor
+                {
+                    Label = "WolfNET Wall Textures",
+                    Size = [(int)width, (int)height, TexturePaths.Length],
+                    Format = "rgba8unorm",
+                    Usage = GPUTextureUsage.TextureBinding |
+                            GPUTextureUsage.CopyDst |
+                            GPUTextureUsage.RenderAttachment
+                });
+            }
+
+            if (image.NaturalWidth != width || image.NaturalHeight != height)
+            {
+                throw new InvalidOperationException(
+                    $"Texture '{path}' must be {width}x{height} to fit the texture array.");
+            }
+
+            queue.CopyExternalImageToTexture(
+                new GPUCopyExternalImageSourceInfo { Source = image },
+                new GPUCopyExternalImageDestInfo
+                {
+                    Texture = _wallTextures!,
+                    Origin = new GPUOrigin3DDict { Z = (uint)layer }
+                },
+                new GPUExtent3DDict { Width = width, Height = height, DepthOrArrayLayers = 1 });
+        }
+
+        _wallTextureView = _wallTextures!.CreateView();
+        Console.WriteLine($"[GPU] Loaded {TexturePaths.Length} textures ({width}x{height})");
     }
 
     private void ValidateSettings()
@@ -705,6 +786,9 @@ public sealed class WebGpuRenderer : IDisposable
 
         _computeBindGroup?.Dispose();
         _renderBindGroup?.Dispose();
+        _wallTextureView?.Dispose();
+        _wallTextures?.Destroy();
+        _wallTextures?.Dispose();
 
         DestroyBuffer(_cameraBuffer);
         DestroyBuffer(_mapInfoBuffer);

@@ -23,6 +23,9 @@ var<storage, read> rayHits: array<RayHit>;
 @group(0) @binding(1)
 var<uniform> camera: Camera;
 
+@group(0) @binding(2)
+var wallTextures: texture_2d_array<f32>;
+
 @vertex
 fn vertexMain(
     @builtin(vertex_index) index: u32
@@ -38,16 +41,6 @@ fn vertexMain(
         vec4f(positions[index], 0.0, 1.0);
 
     return output;
-}
-
-fn wallColor(wallType: u32) -> vec3f {
-    switch (wallType) {
-        case 1u: { return vec3f(1.0, 0.0, 0.0); }
-        case 2u: { return vec3f(0.0, 1.0, 0.0); }
-        case 3u: { return vec3f(0.0, 0.0, 1.0); }
-        case 4u: { return vec3f(1.0, 1.0, 1.0); }
-        default: { return vec3f(1.0, 1.0, 0.0); }
-    }
 }
 
 @fragment
@@ -85,7 +78,16 @@ fn fragmentMain(
         return vec4f(0.0, 0.0, 0.0, 1.0);
     }
 
-    var color = wallColor(hit.wallType);
+    // Use the full projected wall, even when its top is above the screen.
+    let wallV = (y - screenHeight * 0.5) / lineHeight + 0.5;
+    let dimensions = textureDimensions(wallTextures, 0);
+    let texel = vec2i(clamp(
+        vec2f(hit.wallU, wallV) * vec2f(dimensions),
+        vec2f(0.0),
+        vec2f(dimensions) - vec2f(1.0)
+    ));
+    let layer = i32(min(hit.wallType - 1u, textureNumLayers(wallTextures) - 1u));
+    var color = textureLoad(wallTextures, texel, layer, 0).rgb;
 
     if (hit.side == 1u) {
         color *= 0.5;
