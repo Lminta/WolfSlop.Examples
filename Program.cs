@@ -24,7 +24,7 @@ builder.Services.AddScoped(
 
 
 builder.Services.AddSingleton<InputEventSystem>();
-builder.Services.AddSingleton(new RendererSettings(800, 600));
+builder.Services.AddSingleton(new RendererSettings(1920, 1080));
 builder.Services.AddSingleton<WebGpuRenderer>();
 builder.Services.AddSingleton<Wolf>();
 

@@ -21,8 +21,8 @@ public class PlayerController : ComponentBase
     {
         //speed modifiers
         deltaTime /= 1000f; 
-        var moveSpeed = deltaTime * 10f; //the constant value is in squares/second
-        var rotSpeed = deltaTime * 6f; //the constant value is in radians/second
+        var moveSpeed = deltaTime * 8f; //the constant value is in squares/second
+        var rotSpeed = deltaTime * 3f; //the constant value is in radians/second
 
         var posX = Parent.Transform.Position.X;
         var posY = Parent.Transform.Position.Y;
