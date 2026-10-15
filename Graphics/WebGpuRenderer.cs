@@ -3,6 +3,7 @@ using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using Array = System.Array;
+using WolfNET.Game;
 
 namespace WolfNET.Graphics;
 
@@ -12,6 +13,7 @@ public sealed class WebGpuRenderer : IDisposable
     private const int RayHitSize = 16;
     private const int CameraBufferSize = 32;
     private const int MapInfoBufferSize = 16;
+    private const int SpriteSize = 16;
 
     // Map wall IDs are one-based; the first eight match Lode's texture order.
     private static readonly string[] TexturePaths =
@@ -37,11 +39,16 @@ public sealed class WebGpuRenderer : IDisposable
 
     private GPUComputePipeline? _computePipeline;
     private GPURenderPipeline? _renderPipeline;
+    private GPURenderPipeline? _spritePipeline;
 
     private GPUBuffer? _cameraBuffer;
     private GPUBuffer? _mapInfoBuffer;
     private GPUBuffer? _worldMapBuffer;
     private GPUBuffer? _rayHitsBuffer;
+    private GPUBuffer? _spriteBuffer;
+    private GPUBindGroup? _spriteBindGroup;
+    private int _spriteCapacity;
+    private readonly List<(Sprite Sprite, float Distance)> _sortedSprites = [];
 
     private GPUBindGroup? _computeBindGroup;
     private GPUBindGroup? _renderBindGroup;
@@ -70,7 +77,8 @@ public sealed class WebGpuRenderer : IDisposable
     public async Task InitializeAsync(
         HTMLCanvasElement canvas,
         string computeShaderSource,
-        string screenShaderSource)
+        string screenShaderSource,
+        string spriteShaderSource)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -228,6 +236,32 @@ public sealed class WebGpuRenderer : IDisposable
                     renderError.Message);
             }
 
+            using var spriteShader = _device.CreateShaderModule(new GPUShaderModuleDescriptor
+            {
+                Label = "WolfNET Sprite Shader",
+                Code = spriteShaderSource
+            });
+
+            _device.PushErrorScope(GPUErrorFilter.Validation);
+            _spritePipeline = _device.CreateRenderPipeline(new GPURenderPipelineDescriptor
+            {
+                Label = "WolfNET Sprite Pipeline",
+                Layout = GPUAutoLayoutMode.Auto,
+                Vertex = new GPUVertexState { Module = spriteShader, EntryPoint = "vertexMain" },
+                Fragment = new GPUFragmentState
+                {
+                    Module = spriteShader,
+                    EntryPoint = "fragmentMain",
+                    Targets = [new GPUColorTargetState { Format = format }]
+                }
+            });
+
+            var spriteError = await _device.PopErrorScope();
+            if (spriteError != null)
+            {
+                throw new Exception($"Sprite pipeline validation failed: {spriteError.Message}");
+            }
+
             // 7. Create compute bind group.
 
             Console.WriteLine("[GPU] Creating compute bind group");
@@ -351,6 +385,64 @@ public sealed class WebGpuRenderer : IDisposable
 
         _wallTextureView = _wallTextures!.CreateView();
         Console.WriteLine($"[GPU] Loaded {TexturePaths.Length} textures ({width}x{height})");
+    }
+
+    private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition)
+    {
+        if (sprites.Count == 0)
+            return;
+
+        _sortedSprites.Clear();
+        foreach (var sprite in sprites)
+        {
+            if (sprite.TextureLayer >= TexturePaths.Length)
+                throw new ArgumentException("Sprite texture layer is outside the loaded texture array.", nameof(sprites));
+
+            _sortedSprites.Add((sprite, Vector2.DistanceSquared(cameraPosition, sprite.Position)));
+        }
+
+        // Painter's algorithm: nearer opaque texels cover farther sprites.
+        _sortedSprites.Sort(static (a, b) => b.Distance.CompareTo(a.Distance));
+
+        if (sprites.Count > _spriteCapacity)
+        {
+            _spriteBindGroup?.Dispose();
+            DestroyBuffer(_spriteBuffer);
+            _spriteCapacity = Math.Max(sprites.Count, 16);
+            _spriteBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
+            {
+                Label = "WolfNET Sprites",
+                Size = checked((ulong)_spriteCapacity * SpriteSize),
+                Usage = GPUBufferUsage.Storage | GPUBufferUsage.CopyDst
+            });
+
+            using var layout = _spritePipeline!.GetBindGroupLayout(0);
+            _spriteBindGroup = _device.CreateBindGroup(new GPUBindGroupDescriptor
+            {
+                Label = "WolfNET Sprite Bindings",
+                Layout = layout,
+                Entries =
+                [
+                    BufferEntry(0, _rayHitsBuffer!),
+                    BufferEntry(1, _cameraBuffer!),
+                    new GPUBindGroupEntry { Binding = 2, Resource = _wallTextureView! },
+                    BufferEntry(3, _spriteBuffer)
+                ]
+            });
+        }
+
+        // Matches Sprite in sprites.wgsl: position, texture layer, padding.
+        var upload = new float[checked(sprites.Count * 4)];
+        for (int i = 0; i < _sortedSprites.Count; i++)
+        {
+            var sprite = _sortedSprites[i].Sprite;
+            upload[i * 4] = sprite.Position.X;
+            upload[i * 4 + 1] = sprite.Position.Y;
+            upload[i * 4 + 2] = sprite.TextureLayer;
+        }
+
+        using var data = new Float32Array(upload);
+        _device!.Queue.WriteBuffer(_spriteBuffer!, 0, data);
     }
 
     private void ValidateSettings()
@@ -659,13 +751,15 @@ public sealed class WebGpuRenderer : IDisposable
         Vector2 direction,
         Vector2 plane,
         int[][] worldMap,
-        ulong mapRevision)
+        ulong mapRevision,
+        IReadOnlyList<Sprite> sprites)
     {
         if (!_initialized ||
             _device == null ||
             _context == null ||
             _computePipeline == null ||
             _renderPipeline == null ||
+            _spritePipeline == null ||
             _computeBindGroup == null ||
             _renderBindGroup == null)
         {
@@ -677,6 +771,7 @@ public sealed class WebGpuRenderer : IDisposable
 
         // 2. Update camera every frame.
         UpdateCamera(position, direction, plane);
+        UpdateSprites(sprites, position);
 
         // 3. Create GPU command encoder.
         using var encoder =
@@ -744,6 +839,13 @@ public sealed class WebGpuRenderer : IDisposable
             // Fullscreen triangle.
             pass.Draw(3);
 
+            if (sprites.Count > 0)
+            {
+                pass.SetPipeline(_spritePipeline);
+                pass.SetBindGroup(0, _spriteBindGroup!);
+                pass.Draw(6, (uint)sprites.Count);
+            }
+
             pass.End();
         }
 
@@ -786,6 +888,7 @@ public sealed class WebGpuRenderer : IDisposable
 
         _computeBindGroup?.Dispose();
         _renderBindGroup?.Dispose();
+        _spriteBindGroup?.Dispose();
         _wallTextureView?.Dispose();
         _wallTextures?.Destroy();
         _wallTextures?.Dispose();
@@ -794,14 +897,17 @@ public sealed class WebGpuRenderer : IDisposable
         DestroyBuffer(_mapInfoBuffer);
         DestroyBuffer(_worldMapBuffer);
         DestroyBuffer(_rayHitsBuffer);
+        DestroyBuffer(_spriteBuffer);
 
         _computePipeline?.Dispose();
         _renderPipeline?.Dispose();
+        _spritePipeline?.Dispose();
 
         _context?.Dispose();
         _device?.Dispose();
 
         _mapUploadData = null;
+        _sortedSprites.Clear();
         _uploadedMapRevision = null;
 
         Console.WriteLine("[GPU] Renderer disposed");

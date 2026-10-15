@@ -56,7 +56,7 @@ public sealed class Wolf : IDisposable
         {
             Transform = new Transform
             {
-                Position = new Vector2(22, 12),
+                Position = new Vector2(22, 11.5f),
                 Rotation = new Vector2(-1, 0),
             }
         };
@@ -91,7 +91,8 @@ public sealed class Wolf : IDisposable
                 _player.Camera.Transform.Rotation,
                 _player.Camera.Plane,
                 Map.WorldMap,
-                Map.Revision);
+                Map.Revision,
+                Map.Sprites);
             FrameDelay();
             _lastFrameDeltaTime = _clock.Elapsed.TotalMilliseconds- frameStartTime;
             _window.RequestAnimationFrame(Frame);

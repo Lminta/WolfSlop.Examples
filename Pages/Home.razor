@@ -48,12 +48,15 @@
             var wallsShader = await Http.GetStringAsync(
                 "shaders/walls.wgsl");
 
+            var spritesShader = await Http.GetStringAsync(
+                "shaders/sprites.wgsl");
+
             Console.WriteLine(
                 $"[APP] Shader loaded");
 
             using var canvas = new HTMLCanvasElement(_canvas);
             
-            await Renderer.InitializeAsync(canvas, computeShader, wallsShader);
+            await Renderer.InitializeAsync(canvas, computeShader, wallsShader, spritesShader);
             
             Wolf.Start();
         }
