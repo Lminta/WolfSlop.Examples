@@ -15,6 +15,7 @@ public sealed class Wolf : IDisposable
     private readonly Window _window;
     private readonly InputEventSystem _inputEvents;
     private readonly BlazorJSRuntime _js;
+    private MinimapRenderer? _minimap;
     
     private ObjectCollection _objectCollection;
     private PlayerObject _player;
@@ -45,13 +46,14 @@ public sealed class Wolf : IDisposable
         _window = js.Get<Window>("window");
     }
 
-    public void Start(HTMLCanvasElement canvas)
+    public void Start(HTMLCanvasElement canvas, HTMLCanvasElement minimapCanvas)
     {
         if (_running)
             return;
         _running = true;
         
         _objectCollection = new ObjectCollection();
+        _minimap = new MinimapRenderer(minimapCanvas, _js);
         MouseTracker = new MouseTracker(canvas, _js);
         KeyTracker = new KeyTracker(_inputEvents, _js);
         KeyTracker.EscapePressed += MouseTracker.Release;
@@ -95,6 +97,10 @@ public sealed class Wolf : IDisposable
                 Map.WorldMap,
                 Map.Revision,
                 Map.Sprites);
+            _minimap?.Render(Map,
+                _player.Camera.Transform.Position,
+                _player.Camera.Transform.Rotation,
+                _player.Camera.Plane);
             FrameDelay();
             _lastFrameDeltaTime = _clock.Elapsed.TotalMilliseconds- frameStartTime;
             _window.RequestAnimationFrame(Frame);
@@ -130,6 +136,8 @@ public sealed class Wolf : IDisposable
         _clock.Stop();
         KeyTracker.Dispose();
         MouseTracker.Dispose();
+        _minimap?.Dispose();
+        _minimap = null;
 
         Console.WriteLine("[GAME] Stopped");
     }
