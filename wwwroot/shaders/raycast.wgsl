@@ -9,6 +9,8 @@ struct Camera {
 struct MapInfo {
     width: u32,
     height: u32,
+    spriteCount: u32,
+    padding: u32,
 };
 
 struct RayHit {

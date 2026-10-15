@@ -21,10 +21,6 @@
         tabindex="0">
 </canvas>
 
-<canvas @ref="_minimapCanvas" class="minimap" width="256" height="256"
-        aria-label="Minimap: walls, sprites, and player position and direction">
-</canvas>
-
 @if (_error != null)
 {
     <pre class="game-error">@_error</pre>
@@ -33,8 +29,6 @@
 @code {
     private ElementReference _canvas;
     private HTMLCanvasElement? _canvasElement;
-    private ElementReference _minimapCanvas;
-    private HTMLCanvasElement? _minimapCanvasElement;
 
     private string? _error;
 
@@ -65,8 +59,7 @@
             
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
             
-            _minimapCanvasElement = new HTMLCanvasElement(_minimapCanvas);
-            Wolf.Start(_canvasElement, _minimapCanvasElement);
+            Wolf.Start(_canvasElement);
         }
         catch (Exception ex)
         {
@@ -83,7 +76,6 @@
     {
         Wolf.Stop();
         _canvasElement?.Dispose();
-        _minimapCanvasElement?.Dispose();
         Console.WriteLine("[APP] Disposing");
     }
 }

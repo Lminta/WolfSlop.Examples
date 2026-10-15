@@ -40,6 +40,8 @@ public sealed class WebGpuRenderer : IDisposable
     private GPUComputePipeline? _computePipeline;
     private GPURenderPipeline? _renderPipeline;
     private GPURenderPipeline? _spritePipeline;
+    private GPURenderPipeline? _minimapPipeline;
+    private GPUBindGroup? _minimapBindGroup;
 
     private GPUBuffer? _cameraBuffer;
     private GPUBuffer? _mapInfoBuffer;
@@ -236,6 +238,25 @@ public sealed class WebGpuRenderer : IDisposable
                     renderError.Message);
             }
 
+            // Reuse the screen shader module and all existing scene buffers.
+            _device.PushErrorScope(GPUErrorFilter.Validation);
+            _minimapPipeline = _device.CreateRenderPipeline(new GPURenderPipelineDescriptor
+            {
+                Label = "WolfNET Minimap Pipeline",
+                Layout = GPUAutoLayoutMode.Auto,
+                Vertex = new GPUVertexState { Module = screenShader, EntryPoint = "vertexMain" },
+                Fragment = new GPUFragmentState
+                {
+                    Module = screenShader,
+                    EntryPoint = "minimapMain",
+                    Targets = [new GPUColorTargetState { Format = format }]
+                }
+            });
+
+            var minimapError = await _device.PopErrorScope();
+            if (minimapError != null)
+                throw new Exception($"Minimap pipeline validation failed: {minimapError.Message}");
+
             using var spriteShader = _device.CreateShaderModule(new GPUShaderModuleDescriptor
             {
                 Label = "WolfNET Sprite Shader",
@@ -389,9 +410,6 @@ public sealed class WebGpuRenderer : IDisposable
 
     private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition)
     {
-        if (sprites.Count == 0)
-            return;
-
         _sortedSprites.Clear();
         foreach (var sprite in sprites)
         {
@@ -404,9 +422,10 @@ public sealed class WebGpuRenderer : IDisposable
         // Painter's algorithm: nearer opaque texels cover farther sprites.
         _sortedSprites.Sort(static (a, b) => b.Distance.CompareTo(a.Distance));
 
-        if (sprites.Count > _spriteCapacity)
+        if (Math.Max(1, sprites.Count) > _spriteCapacity)
         {
             _spriteBindGroup?.Dispose();
+            _minimapBindGroup?.Dispose();
             DestroyBuffer(_spriteBuffer);
             _spriteCapacity = Math.Max(sprites.Count, 16);
             _spriteBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
@@ -429,7 +448,29 @@ public sealed class WebGpuRenderer : IDisposable
                     BufferEntry(3, _spriteBuffer)
                 ]
             });
+
+            using var minimapLayout = _minimapPipeline!.GetBindGroupLayout(0);
+            _minimapBindGroup = _device.CreateBindGroup(new GPUBindGroupDescriptor
+            {
+                Label = "WolfNET Minimap Bindings",
+                Layout = minimapLayout,
+                Entries =
+                [
+                    BufferEntry(0, _rayHitsBuffer!),
+                    BufferEntry(1, _cameraBuffer!),
+                    BufferEntry(3, _worldMapBuffer!),
+                    BufferEntry(4, _mapInfoBuffer!),
+                    BufferEntry(5, _spriteBuffer)
+                ]
+            });
         }
+
+        // The third u32 of MapInfo counts active sprites, excluding spare buffer capacity.
+        using (var count = new Uint32Array(new uint[] { (uint)sprites.Count }))
+            _device!.Queue.WriteBuffer(_mapInfoBuffer!, 8, count);
+
+        if (sprites.Count == 0)
+            return;
 
         // Matches Sprite in sprites.wgsl: position, texture layer, padding.
         var upload = new float[checked(sprites.Count * 4)];
@@ -504,6 +545,7 @@ public sealed class WebGpuRenderer : IDisposable
         // Map dimensions:
         // width  u32
         // height u32
+        // spriteCount u32 (updated with the sprite buffer)
         // Padding to 16 bytes
 
         _mapInfoBuffer = _device.CreateBuffer(
@@ -760,6 +802,7 @@ public sealed class WebGpuRenderer : IDisposable
             _computePipeline == null ||
             _renderPipeline == null ||
             _spritePipeline == null ||
+            _minimapPipeline == null ||
             _computeBindGroup == null ||
             _renderBindGroup == null)
         {
@@ -846,6 +889,11 @@ public sealed class WebGpuRenderer : IDisposable
                 pass.Draw(6, (uint)sprites.Count);
             }
 
+            // Draw last so world sprites cannot cover the minimap.
+            pass.SetPipeline(_minimapPipeline);
+            pass.SetBindGroup(0, _minimapBindGroup!);
+            pass.Draw(3);
+
             pass.End();
         }
 
@@ -889,6 +937,7 @@ public sealed class WebGpuRenderer : IDisposable
         _computeBindGroup?.Dispose();
         _renderBindGroup?.Dispose();
         _spriteBindGroup?.Dispose();
+        _minimapBindGroup?.Dispose();
         _wallTextureView?.Dispose();
         _wallTextures?.Destroy();
         _wallTextures?.Dispose();
@@ -902,6 +951,7 @@ public sealed class WebGpuRenderer : IDisposable
         _computePipeline?.Dispose();
         _renderPipeline?.Dispose();
         _spritePipeline?.Dispose();
+        _minimapPipeline?.Dispose();
 
         _context?.Dispose();
         _device?.Dispose();

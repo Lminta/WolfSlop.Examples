@@ -28,21 +28,6 @@ canvas {
     outline: none;
 }
 
-.minimap {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    width: auto;
-    height: auto;
-    max-width: min(256px, 32vmin);
-    max-height: min(256px, 32vmin);
-    border: 1px solid #82919e;
-    border-radius: 8px;
-    box-shadow: 0 4px 16px #0008;
-    pointer-events: none;
-    z-index: 10;
-}
-
 .game-error {
     position: fixed;
     top: 10px;
