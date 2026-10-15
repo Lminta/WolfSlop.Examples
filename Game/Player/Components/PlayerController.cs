@@ -20,7 +20,6 @@ public class PlayerController : ComponentBase
     public override void Update(float deltaTime)
     {
         //speed modifiers
-        Console.WriteLine();
         deltaTime /= 1000f; 
         var moveSpeed = deltaTime * 10f; //the constant value is in squares/second
         var rotSpeed = deltaTime * 6f; //the constant value is in radians/second

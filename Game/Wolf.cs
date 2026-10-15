@@ -24,7 +24,8 @@ public sealed class Wolf : IDisposable
     private readonly Stopwatch _clock = new();
     
 
-    private double _lastFrameTime;
+    private double _lastFrameEndTime;
+    private double _lastFrameDeltaTime;
     private bool _running;
     private bool _disposed;
 
@@ -65,7 +66,7 @@ public sealed class Wolf : IDisposable
         _running = true;
 
         _clock.Restart();
-        _lastFrameTime = 0;
+        _lastFrameEndTime = 0;
         
         _window.OnKeyDown += OnKeyDown;
         _window.OnKeyUp += OnKeyUp;
@@ -83,7 +84,8 @@ public sealed class Wolf : IDisposable
 
         try
         {
-            _objectCollection.Update((float) (_clock.Elapsed.TotalMilliseconds - _lastFrameTime));
+            var frameStartTime = _clock.Elapsed.TotalMilliseconds;
+            _objectCollection.Update((float) _lastFrameDeltaTime);
             _renderer.Render(
                 _player.Camera.Transform.Position, 
                 _player.Camera.Transform.Rotation,
@@ -91,6 +93,7 @@ public sealed class Wolf : IDisposable
                 Map.WorldMap,
                 Map.Revision);
             FrameDelay();
+            _lastFrameDeltaTime = _clock.Elapsed.TotalMilliseconds- frameStartTime;
             _window.RequestAnimationFrame(Frame);
         }
         catch (Exception ex)
@@ -104,7 +107,7 @@ public sealed class Wolf : IDisposable
 
     private void FrameDelay()
     {
-        var elapsed = _clock.Elapsed.TotalMilliseconds - _lastFrameTime;
+        var elapsed = _clock.Elapsed.TotalMilliseconds - _lastFrameEndTime;
         var diff = RendererSettings.TargetFrameInterval - elapsed;
             
         if (diff > 0)
@@ -112,7 +115,7 @@ public sealed class Wolf : IDisposable
             Thread.Sleep((int) diff);
         }
             
-        _lastFrameTime = _clock.Elapsed.TotalMilliseconds;
+        _lastFrameEndTime = _clock.Elapsed.TotalMilliseconds;
     }
 
     public void Stop()
