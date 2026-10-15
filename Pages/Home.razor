@@ -28,6 +28,7 @@
 
 @code {
     private ElementReference _canvas;
+    private HTMLCanvasElement? _canvasElement;
 
     private string? _error;
 
@@ -54,11 +55,11 @@
             Console.WriteLine(
                 $"[APP] Shader loaded");
 
-            using var canvas = new HTMLCanvasElement(_canvas);
+            _canvasElement = new HTMLCanvasElement(_canvas);
             
-            await Renderer.InitializeAsync(canvas, computeShader, wallsShader, spritesShader);
+            await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
             
-            Wolf.Start();
+            Wolf.Start(_canvasElement);
         }
         catch (Exception ex)
         {
@@ -73,6 +74,8 @@
 
     public void Dispose()
     {
+        Wolf.Stop();
+        _canvasElement?.Dispose();
         Console.WriteLine("[APP] Disposing");
     }
 }

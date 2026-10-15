@@ -14,10 +14,12 @@ public sealed class Wolf : IDisposable
     private readonly WebGpuRenderer _renderer;
     private readonly Window _window;
     private readonly InputEventSystem _inputEvents;
+    private readonly BlazorJSRuntime _js;
     
     private ObjectCollection _objectCollection;
     private PlayerObject _player;
     public KeyTracker KeyTracker { get; private set;}
+    public MouseTracker MouseTracker { get; private set; } = null!;
     public IMap Map { get; private set;}
     public RendererSettings RendererSettings { get; private set;}
 
@@ -38,18 +40,21 @@ public sealed class Wolf : IDisposable
         RendererSettings = settings;
         _renderer = renderer;
         _inputEvents = inputEvents;
+        _js = js;
 
         _window = js.Get<Window>("window");
     }
 
-    public void Start()
+    public void Start(HTMLCanvasElement canvas)
     {
         if (_running)
             return;
         _running = true;
         
         _objectCollection = new ObjectCollection();
-        KeyTracker = new KeyTracker(_inputEvents);
+        MouseTracker = new MouseTracker(canvas, _js);
+        KeyTracker = new KeyTracker(_inputEvents, _js);
+        KeyTracker.EscapePressed += MouseTracker.Release;
         Map = new ConstantMap(this);
 
         _player = new PlayerObject(this)
@@ -68,9 +73,6 @@ public sealed class Wolf : IDisposable
         _clock.Restart();
         _lastFrameEndTime = 0;
         
-        _window.OnKeyDown += OnKeyDown;
-        _window.OnKeyUp += OnKeyUp;
-
         Console.WriteLine(
             $"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
 
@@ -99,7 +101,7 @@ public sealed class Wolf : IDisposable
         }
         catch (Exception ex)
         {
-            _running = false;
+            Stop();
 
             Console.Error.WriteLine(
                 $"[GAME] Frame failed: {ex}");
@@ -121,28 +123,17 @@ public sealed class Wolf : IDisposable
 
     public void Stop()
     {
+        if (!_running)
+            return;
+
         _running = false;
         _clock.Stop();
+        KeyTracker.Dispose();
+        MouseTracker.Dispose();
 
         Console.WriteLine("[GAME] Stopped");
     }
     
-    private void OnKeyDown(KeyboardEvent e)
-    {
-        Console.WriteLine(
-            $"[INPUT] KeyDown: {e.Code}, repeat={e.Repeat}");
-        e.PreventDefault();
-        _inputEvents.TriggerEvent(new KeyDownEvent {Event = e});
-    }
-
-    private void OnKeyUp(KeyboardEvent e)
-    {
-        Console.WriteLine(
-            $"[INPUT] KeyUp: {e.Code}");
-        e.PreventDefault();
-        _inputEvents.TriggerEvent(new KeyUpEvent {Event = e});
-    }
-
     public void Dispose()
     {
         if (_disposed)
@@ -151,9 +142,6 @@ public sealed class Wolf : IDisposable
         Stop();
         _disposed = true;
         
-        _window.OnKeyDown -= OnKeyDown;
-        _window.OnKeyUp -= OnKeyUp;
-
         _window.Dispose();
     }
 }

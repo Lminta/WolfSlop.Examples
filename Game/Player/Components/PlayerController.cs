@@ -7,12 +7,16 @@ namespace WolfNET.Game.Player.Components;
 public class PlayerController : ComponentBase
 {
     private readonly KeyTracker _keyTracker;
+    private readonly MouseTracker _mouseTracker;
+    // Radians per pixel; mouse turning is independent of frame duration.
+    private const float MouseSensitivity = 0.0025f;
     private readonly CameraComponent _camera;
     private readonly IMap _map;
     
-    public PlayerController(KeyTracker keyTracker, IMap map, CameraComponent camera, ObjectBase parent) : base(parent)
+    public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, IMap map, CameraComponent camera, ObjectBase parent) : base(parent)
     {
         _keyTracker = keyTracker;
+        _mouseTracker = mouseTracker;
         _map = map;
         _camera = camera;
     }
@@ -32,44 +36,38 @@ public class PlayerController : ComponentBase
         var planeX = _camera.Plane.X;
         var planeY = _camera.Plane.Y;
 
-        //move forward if no wall in front of you
-        if (_keyTracker.KeyState.Forward)
-        {
-            if (_map.WorldMap[(int)(posX + dirX * moveSpeed)][(int)(posY)] == 0) posX += dirX * moveSpeed;
-            if (_map.WorldMap[(int)(posX)][(int)(posY + dirY * moveSpeed)] == 0) posY += dirY * moveSpeed;
-        }
+        var keys = _keyTracker.KeyState;
+        var forward = (keys.Forward ? 1 : 0) - (keys.Backward ? 1 : 0);
+        var strafe = (keys.StrafeRight ? 1 : 0) - (keys.StrafeLeft ? 1 : 0);
+        var movement = new Vector2(dirX, dirY) * forward +
+                       new Vector2(dirY, -dirX) * strafe;
 
-        //move backwards if no wall behind you
-        if (_keyTracker.KeyState.Backward)
+        // Combine inputs before normalizing so diagonal movement has the same speed.
+        if (movement.LengthSquared() > 0)
         {
-            if (_map.WorldMap[(int)(posX - dirX * moveSpeed)][(int)(posY)] == 0) posX -= dirX * moveSpeed;
-            if (_map.WorldMap[(int)(posX)][(int)(posY - dirY * moveSpeed)] == 0) posY -= dirY * moveSpeed;
+            movement = Vector2.Normalize(movement) * moveSpeed;
+            if (_map.WorldMap[(int)(posX + movement.X)][(int)posY] == 0)
+                posX += movement.X;
+            if (_map.WorldMap[(int)posX][(int)(posY + movement.Y)] == 0)
+                posY += movement.Y;
         }
-
-        float cos(float x) => (float)Math.Cos(x);
-        float sin(float x) => (float)Math.Sin(x);
-        //rotate to the right
+        var turn = -_mouseTracker.ConsumeHorizontalMovement() * MouseSensitivity;
         if (_keyTracker.KeyState.Right)
-        {
-            //both camera direction and camera plane must be rotated
-            var oldDirX = dirX;
-            dirX = dirX * cos(-rotSpeed) - dirY * sin(-rotSpeed);
-            dirY = oldDirX * sin(-rotSpeed) + dirY * cos(-rotSpeed);
-            var oldPlaneX = planeX;
-            planeX = planeX * cos(-rotSpeed) - planeY * sin(-rotSpeed);
-            planeY = oldPlaneX * sin(-rotSpeed) + planeY * cos(-rotSpeed);
-        }
-
-        //rotate to the left
+            turn -= rotSpeed;
         if (_keyTracker.KeyState.Left)
+            turn += rotSpeed;
+
+        if (turn != 0)
         {
-            //both camera direction and camera plane must be rotated
+            var cos = MathF.Cos(turn);
+            var sin = MathF.Sin(turn);
+            // Rotate direction and camera plane together to preserve the field of view.
             var oldDirX = dirX;
-            dirX = dirX * cos(rotSpeed) - dirY * sin(rotSpeed);
-            dirY = oldDirX * sin(rotSpeed) + dirY * cos(rotSpeed);
+            dirX = dirX * cos - dirY * sin;
+            dirY = oldDirX * sin + dirY * cos;
             var oldPlaneX = planeX;
-            planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
-            planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
+            planeX = planeX * cos - planeY * sin;
+            planeY = oldPlaneX * sin + planeY * cos;
         }
 
         _camera.Plane = new Vector2(planeX, planeY);

@@ -10,6 +10,6 @@ public class PlayerObject : ObjectBase
     {
         Camera = new CameraComponent(this);
         base.AddComponent(Camera);
-        base.AddComponent(new PlayerController(game.KeyTracker, game.Map, Camera, this));
+        base.AddComponent(new PlayerController(game.KeyTracker, game.MouseTracker, game.Map, Camera, this));
     }
 }
