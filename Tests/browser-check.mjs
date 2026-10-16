@@ -143,6 +143,31 @@ try {
         await send("Input.dispatchKeyEvent",{type,code,key:code.startsWith("Key")?code.slice(3).toLowerCase():code,
             windowsVirtualKeyCode:code==="Escape"?27:code.charCodeAt(3)});
     }
+    async function captureMouse() {
+        await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
+        await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:960,y:540,button:"left",clickCount:1});
+        await waitFor("document.pointerLockElement===document.querySelector('canvas')");
+        await delay(75);
+    }
+    async function assertKeyboardInactive(label) {
+        const before=await evaluate("window.__camera");
+        const cancelled=await evaluate(`(()=>{
+            const events=['KeyW','KeyQ','KeyD'].map(code=>new KeyboardEvent('keydown',{code,bubbles:true,cancelable:true}));
+            events.forEach(event=>window.dispatchEvent(event));
+            return events.some(event=>event.defaultPrevented);
+        })()`);
+        assert(!cancelled,"Unlocked keyboard events were prevented");
+        await delay(150);
+        const after=await evaluate("window.__camera");
+        assert(after.slice(0,6).every((value,i)=>value===before[i]),label);
+        const cancelledUp=await evaluate(`['KeyW','KeyQ','KeyD'].map(code=>{
+            const event=new KeyboardEvent('keyup',{code,bubbles:true,cancelable:true});
+            window.dispatchEvent(event);return event.defaultPrevented;
+        }).some(Boolean)`);
+        assert(!cancelledUp,"Unlocked keyup events were prevented");
+    }
+    await assertKeyboardInactive("Keyboard moved the player before capture");
+    await captureMouse();
     await key("keyDown","KeyQ"); await delay(100); await key("keyUp","KeyQ"); await delay(50);
     const left=await evaluate("window.__camera");
     assert(left[1]<start[1]&&left[0]===start[0]&&left[2]===start[2],"Navigation-map strafing failed");
@@ -156,8 +181,60 @@ try {
     let angle=Math.atan2(turned[3],turned[2])-Math.atan2(left[3],left[2]);
     angle=Math.atan2(Math.sin(angle),Math.cos(angle));
     assert(Math.abs(angle+.25)<.0001,"Mouse turning changed");
-    await key("keyDown","Escape"); await key("keyUp","Escape");
+    const unlockRace=await evaluate(`(async()=>{
+        const before=window.__camera.slice(2,6);
+        document.dispatchEvent(new MouseEvent('mousemove',{movementX:50}));
+        // Model the native lock disappearing before pointerlockchange reaches C#.
+        Object.defineProperty(document,'pointerLockElement',{configurable:true,get:()=>null});
+        try {
+            document.dispatchEvent(new MouseEvent('mousemove',{movementX:1000}));
+            for(let frame=0;frame<3;frame++)await new Promise(requestAnimationFrame);
+            return {before,after:window.__camera.slice(2,6)};
+        } finally { delete document.pointerLockElement; }
+    })()`);
+    assert(unlockRace.after.every((value,i)=>value===unlockRace.before[i]),"Cursor restoration or queued delta changed direction during unlock race");
+    async function assertStopped(label) {
+        await delay(75);
+        const stopped=await evaluate("window.__camera");
+        // Simulate held-key repeats after the browser has swallowed a keyup.
+        await evaluate(`['KeyW','KeyQ','KeyD'].forEach(code=>window.dispatchEvent(new KeyboardEvent('keydown',{code,repeat:true,bubbles:true})))`);
+        await delay(150);
+        const after=await evaluate("window.__camera");
+        assert(after.slice(0,6).every((value,i)=>value===stopped[i]),label);
+        for(const code of ['KeyW','KeyQ','KeyD']) await key('keyUp',code);
+    }
+    for(const code of ['KeyW','KeyQ','KeyD']) await key('keyDown',code);
+    await delay(75);
+    await evaluate("document.exitPointerLock()");
     await waitFor("document.pointerLockElement===null");
+    await assertStopped("Movement or turning stuck after pointer lock loss");
+    await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
+    await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:960,y:540,button:"left",clickCount:1});
+    await waitFor("document.pointerLockElement===document.querySelector('canvas')");
+    for(const code of ['KeyW','KeyQ']) await key('keyDown',code);
+    await delay(75);
+    const beforeEscape=await evaluate(`(()=>{
+        const direction=window.__camera.slice(2,6);
+        document.dispatchEvent(new MouseEvent('mousemove',{movementX:50}));
+        window.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',bubbles:true}));
+        document.dispatchEvent(new MouseEvent('mousemove',{movementX:1000}));
+        return direction;
+    })()`);
+    await key("keyUp","Escape");
+    await waitFor("document.pointerLockElement===null");
+    await assertStopped("Movement or turning stuck after Escape");
+    assert((await evaluate("window.__camera.slice(2,6)")).every((value,i)=>value===beforeEscape[i]),"Escape changed the viewing direction while walking");
+    await assertKeyboardInactive("Keyboard moved the player after Escape");
+    // Programmatic release avoids the browser's Escape recapture cooldown in this check.
+    await captureMouse();
+    const resumedFrom=await evaluate("window.__camera");
+    await key('keyDown','KeyW'); await delay(100); await key('keyUp','KeyW'); await delay(50);
+    const resumed=await evaluate("window.__camera");
+    assert(resumed[0]!==resumedFrom[0]||resumed[1]!==resumedFrom[1],"Fresh key press did not resume movement after recapture");
+    await evaluate("document.exitPointerLock()");
+    await waitFor("document.pointerLockElement===null");
+    await assertKeyboardInactive("Keyboard moved the player after pointer lock loss");
+    console.log("PASS: keyboard controls require mouse capture; Escape clears input and recapture restores controls.");
     async function selectMap(name,spawn,keyboard=false) {
         const buttonExpression=`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='${name}')`;
         assert(!await evaluate(`(${buttonExpression}).disabled`),`${name} button unavailable`);

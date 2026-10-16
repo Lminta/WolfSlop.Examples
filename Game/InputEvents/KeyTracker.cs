@@ -19,17 +19,19 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
 {
     private readonly InputEventSystem _input;
     private readonly Window _window;
+    private readonly Func<bool> _isActive;
     private bool _disposed;
 
     public event Action? EscapePressed;
     
     private KeyState _keyState;
     
-    public KeyState KeyState => _keyState;
+    public KeyState KeyState => _isActive() ? _keyState : default;
     
-    public KeyTracker(InputEventSystem input, BlazorJSRuntime js)
+    public KeyTracker(InputEventSystem input, BlazorJSRuntime js, Func<bool> isActive)
     {
         _input = input;
+        _isActive = isActive;
         _window = js.Get<Window>("window");
         
         _input.AddListener<KeyDownEvent>(this);
@@ -41,18 +43,26 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
 
     private void OnKeyDown(KeyboardEvent e)
     {
+        if (!_isActive()) return;
         if (e.Code == "Escape")
         {
+            Reset();
             EscapePressed?.Invoke();
             return;
         }
 
-        if (IsMovementKey(e.Code)) e.PreventDefault();
+        if (IsMovementKey(e.Code))
+        {
+            e.PreventDefault();
+            // A held key must not restart movement after Esc clears input.
+            if (e.Repeat) return;
+        }
         _input.TriggerEvent(new KeyDownEvent { Event = e });
     }
 
     private void OnKeyUp(KeyboardEvent e)
     {
+        if (!_isActive()) return;
         if (e.Code == "Escape")
             return;
 
@@ -60,13 +70,16 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
         _input.TriggerEvent(new KeyUpEvent { Event = e });
     }
 
-    private void OnBlur(Event e) => _keyState = default;
+    public void Reset() => _keyState = default;
+
+    private void OnBlur(Event e) => Reset();
 
     private static bool IsMovementKey(string code) => code is
         "KeyW" or "KeyS" or "KeyA" or "KeyD" or "KeyQ" or "KeyE";
     
     public Task OnEvent(KeyDownEvent gameEvent)
     {
+        if (!_isActive()) return Task.CompletedTask;
         switch (gameEvent.Event.Code)
         {
             case "KeyW":

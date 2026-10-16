@@ -72,8 +72,9 @@ public sealed class Wolf : IDisposable
 
             _objectCollection = new ObjectCollection();
             MouseTracker = new MouseTracker(canvas, _js);
-            KeyTracker = new KeyTracker(_inputEvents, _js);
+            KeyTracker = new KeyTracker(_inputEvents, _js, () => MouseTracker.IsLocked);
             KeyTracker.EscapePressed += MouseTracker.Release;
+            MouseTracker.PointerLockReleased += KeyTracker.Reset;
             Map = map;
 
             _player = new PlayerObject(this)
