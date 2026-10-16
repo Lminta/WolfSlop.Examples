@@ -59,7 +59,7 @@
       <section id="object-settings" class="settings-panel panel" aria-labelledby="object-settings-heading">
       <div id="object-settings-heading" class="panel-heading">OBJECT SETTINGS <span id="selected-id" class="accent"></span></div>
       <div id="object-summary" class="object-summary"></div>
-      <details id="texture-picker"><summary>Choose a texture</summary><label class="sr-only" for="texture-target">Texture surface</label><select id="texture-target"></select><div id="texture-options" class="texture-options"></div></details>
+      <details id="texture-picker"><summary>Choose a texture</summary><label class="sr-only" for="texture-target">Texture surface</label><select id="texture-target"></select><button id="import-texture" type="button" class="wide">+ Import texture…</button><input id="texture-file" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" hidden><p class="hint">PNG, JPEG, WebP or BMP, up to 10 MB. Images are resized to 64 × 64 using nearest-neighbor sampling and saved as PNG.</p><div id="texture-options" class="texture-options"></div></details>
       <p class="hint">Edit the definition below. Walls, sprites and groups reference a <code>passageId</code>. Changes apply to every matching cell in this map.</p>
       <label class="sr-only" for="object-json">Selected object JSON</label><textarea id="object-json" spellcheck="false" rows="13"></textarea>
       <button id="apply-object" class="wide">Apply definition</button>
@@ -80,7 +80,7 @@
       <button class="wide">Cancel</button>
     </form>
   </dialog>
-  <dialog id="export-dialog"><form method="dialog"><div class="panel-heading">EXPORT MAP</div><p>Use a ZIP bundle to include edited object definitions.</p><button id="export-zip" type="button" class="primary wide">Download map + objects (.zip)</button><button id="export-json" type="button" class="wide">Download map JSON</button><p class="hint">Extract the ZIP into the engine’s <code>wwwroot</code>. Existing engine textures are reused. A standalone JSON keeps its object paths and does not include definitions.</p><button class="wide">Close</button></form></dialog>
+  <dialog id="export-dialog"><form method="dialog"><div class="panel-heading">EXPORT MAP</div><p>Use a ZIP bundle to include edited object definitions.</p><button id="export-zip" type="button" class="primary wide">Download map + objects + textures (.zip)</button><button id="export-json" type="button" class="wide">Download map JSON</button><p class="hint">Extract the ZIP into the engine’s <code>wwwroot</code>. Referenced texture images are included. A standalone JSON keeps its object paths and does not include definitions.</p><button class="wide">Close</button></form></dialog>
   <script type="module" src="editor.js"></script>
 </body>
 </html>

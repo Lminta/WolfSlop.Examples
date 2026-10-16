@@ -591,8 +591,15 @@ window.addEventListener("keydown", act(async event => {
 }));
 window.addEventListener("resize", requestDraw);
 
-try {
-    library = await api("/api/library");
+function chooseTexture(path, field = $("texture-target").value) {
+    const d = JSON.parse($("object-json").value);
+    if (d.type === "wall") { d.textures ??= {}; d.textures[field] = path; }
+    else d[field] = path;
+    $("object-json").value = JSON.stringify(d, null, 2);
+    definitionDirty = true;
+}
+function renderTextures() {
+    $("texture-options").replaceChildren();
     for (const path of library.textures) {
         const button = document.createElement("button"), thumb = document.createElement("img");
         button.type = "button"; button.title = path; button.setAttribute("aria-label", path);
@@ -600,15 +607,48 @@ try {
         button.append(thumb);
         button.onclick = act(() => {
             if (busy) throw Error("Wait for the current file operation to finish.");
-            const d = JSON.parse($("object-json").value), field = $("texture-target").value;
-            if (d.type === "wall") { d.textures ??= {}; d.textures[field] = path; }
-            else d[field] = path;
-            $("object-json").value = JSON.stringify(d, null, 2);
-            definitionDirty = true;
+            chooseTexture(path);
             toast("Texture selected. Apply the definition to update the map.");
         });
         $("texture-options").append(button);
     }
+}
+$("import-texture").onclick = act(() => {
+    if (busy || !doc) throw Error("Wait for the current operation to finish.");
+    $("texture-file").click();
+});
+$("texture-file").onchange = act(async () => {
+    const file = $("texture-file").files[0];
+    $("texture-file").value = "";
+    if (!file) return;
+    if (busy || !doc) throw Error("Wait for the current operation to finish.");
+    if (file.size > 10 * 1024 * 1024) throw Error("Choose an image smaller than 10 MB.");
+    if (!/\.(png|jpe?g|webp|bmp)$/i.test(file.name)) throw Error("Choose a PNG, JPEG, WebP or BMP image.");
+    const targetId = brush, field = $("texture-target").value;
+    busy = true; $("import-texture").disabled = true;
+    try {
+        let bitmap;
+        try { bitmap = await createImageBitmap(file); }
+        catch { throw Error("This file could not be decoded as an image."); }
+        const output = document.createElement("canvas"); output.width = output.height = 64;
+        try {
+            const context = output.getContext("2d"); context.imageSmoothingEnabled = false;
+            context.drawImage(bitmap, 0, 0, 64, 64);
+        } finally { bitmap.close(); }
+        const imported = await api("/api/textures", { name: file.name, png: output.toDataURL("image/png").split(",")[1] });
+        if (!library.textures.includes(imported.path)) { library.textures.push(imported.path); library.textures.sort(); }
+        renderTextures();
+        if (brush === targetId) {
+            chooseTexture(imported.path, field);
+            toast("Texture imported as 64 × 64 PNG. Apply the definition to update the map.");
+        } else toast("Texture imported. Choose it from the texture picker.");
+        $("texture-picker").open = true;
+    } finally { busy = false; $("import-texture").disabled = false; }
+});
+
+try {
+    library = await api("/api/library");
+    renderTextures();
     await refreshMaps();
     await openMap(mapNames.includes("showcase") ? "showcase" : mapNames[0], false);
     try { $("draft-banner").hidden = !localStorage.getItem(draftKey); } catch {}

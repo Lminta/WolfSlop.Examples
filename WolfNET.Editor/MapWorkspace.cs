@@ -8,6 +8,7 @@ namespace WolfNET.Editor;
 
 public sealed record EditorDocument(string Name, MapDefinition Map, Dictionary<int, MapObjectDefinition> Objects, int[]? DeletedObjectIds = null);
 public sealed record SaveRequest(EditorDocument Document, bool Overwrite = false);
+public sealed record TextureImport(string Name, string Png);
 
 public sealed partial class MapWorkspace
 {
@@ -155,12 +156,102 @@ public sealed partial class MapWorkspace
         Validate(document);
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, true))
-        foreach (var (path, json) in Package(document).Files)
         {
-            using var writer = new StreamWriter(archive.CreateEntry(path).Open());
-            writer.Write(json);
+            foreach (var (path, json) in Package(document).Files)
+            {
+                using var writer = new StreamWriter(archive.CreateEntry(path).Open());
+                writer.Write(json);
+            }
+            var textures = new MapCompiler(Used(document), 64, 64).Compile(document.Map, 1).Renderer.Textures;
+            foreach (var texture in textures.Layers.Values.OfType<string>().Select(path => path.Replace('\\', '/')).Distinct())
+            {
+                if (!texture.StartsWith("pics/", StringComparison.Ordinal) || !texture.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
+                var file = AssetPath(texture);
+                if (!File.Exists(file)) continue;
+                using var source = File.OpenRead(file);
+                using var target = archive.CreateEntry(texture).Open();
+                source.CopyTo(target);
+            }
         }
         return stream.ToArray();
+    }
+
+    public async Task<object> ImportTextureAsync(TextureImport request, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(request.Png) || request.Png.Length > 180_000)
+            throw new InvalidDataException("Upload a PNG texture smaller than 128 KB.");
+        byte[] png;
+        try { png = Convert.FromBase64String(request.Png); }
+        catch (FormatException) { throw new InvalidDataException("Invalid PNG data."); }
+        ValidatePng(png);
+        var name = Regex.Replace(Path.GetFileNameWithoutExtension(request.Name ?? "texture").ToLowerInvariant(), "[^a-z0-9_-]+", "-").Trim('-');
+        name = string.IsNullOrEmpty(name) ? "texture" : name[..Math.Min(name.Length, 40)];
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png))[..12].ToLowerInvariant();
+        var relative = $"pics/imported-{name}-{hash}.png";
+        var path = AssetPath(relative);
+        await _saveLock.WaitAsync(token);
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (!File.Exists(path))
+            {
+                var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try { await File.WriteAllBytesAsync(temporary, png, token); File.Move(temporary, path); }
+                finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            }
+        }
+        finally { _saveLock.Release(); }
+        return new { path = relative, width = 64, height = 64 };
+    }
+
+    private static void ValidatePng(byte[] png)
+    {
+        if (png.Length < 57 || png.Length > 131_072 || !png.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
+            throw new InvalidDataException("Import a valid PNG image.");
+        int channels = 0;
+        bool ended = false;
+        using var compressed = new MemoryStream();
+        for (int offset = 8; offset < png.Length;)
+        {
+            if (png.Length - offset < 12) throw new InvalidDataException("Truncated PNG image.");
+            var length = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(offset, 4));
+            if (length > png.Length - offset - 12) throw new InvalidDataException("Invalid PNG chunk.");
+            var count = (int)length;
+            var type = Encoding.ASCII.GetString(png, offset + 4, 4);
+            uint crc = uint.MaxValue;
+            foreach (var value in png.AsSpan(offset + 4, count + 4))
+            {
+                crc ^= value;
+                for (int bit = 0; bit < 8; bit++) crc = (crc >> 1) ^ ((crc & 1) != 0 ? 0xedb88320u : 0);
+            }
+            if (~crc != System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(offset + 8 + count, 4)))
+                throw new InvalidDataException("Corrupted PNG image.");
+            if (offset == 8)
+            {
+                if (type != "IHDR" || count != 13 || System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(16, 4)) != 64 ||
+                    System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(20, 4)) != 64)
+                    throw new InvalidDataException("Engine textures must be 64 × 64 pixels.");
+                if (png[24] != 8 || png[25] is not (2 or 6) || png[26] != 0 || png[27] != 0 || png[28] != 0)
+                    throw new InvalidDataException("Use a non-interlaced RGB or RGBA PNG.");
+                channels = png[25] == 6 ? 4 : 3;
+            }
+            else if (type == "IHDR") throw new InvalidDataException("Duplicate PNG header.");
+            if (type == "IDAT") compressed.Write(png, offset + 8, count);
+            offset += count + 12;
+            if (type == "IEND")
+            {
+                if (count != 0 || offset != png.Length) throw new InvalidDataException("Invalid PNG end marker.");
+                ended = true; break;
+            }
+        }
+        if (!ended || compressed.Length == 0) throw new InvalidDataException("Incomplete PNG image.");
+        compressed.Position = 0;
+        using var decoder = new ZLibStream(compressed, CompressionMode.Decompress);
+        int row = 64 * channels + 1, expected = 64 * row;
+        var pixels = new byte[expected + 1];
+        int read = decoder.ReadAtLeast(pixels, pixels.Length, false);
+        if (read != expected || Enumerable.Range(0, 64).Any(y => pixels[y * row] > 4))
+            throw new InvalidDataException("Invalid PNG pixel data.");
     }
 
     public async Task<object> SaveAsync(EditorDocument document, bool overwrite, CancellationToken token)

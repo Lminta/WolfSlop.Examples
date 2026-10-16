@@ -35,6 +35,11 @@ dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj -- --EngineRoot="C:\pa
 - Edit the selected object's JSON and press **Apply definition**. The texture picker
   updates a floor, ceiling, wall face, or sprite texture before applying. Use **Add object**
   for a new passage, wall, sprite or group. Group members and offsets are edited in JSON.
+- In **Object settings → Choose a texture**, use **Import texture** to upload PNG, JPEG,
+  WebP or BMP images (up to 10 MB). Images are resized to 64 × 64 using nearest-neighbor
+  sampling and converted to PNG, preserving transparency. The imported texture is selected
+  for the current surface; press **Apply definition** to use it. Imports are stored immediately
+  in the game's `wwwroot/pics` with unique filenames; existing textures are never overwritten.
 - **Map settings** and **Object settings** have separate, independently scrolling panels.
   **Delete object** removes the selected definition from this map's library. When it is
   referenced, choose a replacement for its cells, passage references, or group members.
@@ -61,8 +66,8 @@ shared definitions and old snapshots until the new map file is committed. Replac
 existing map requires confirmation. Older unreferenced snapshot files are retained.
 
 **Export → ZIP** downloads `maps/<name>.json` plus every required object definition.
-Extract the archive into the engine's `wwwroot`. Existing engine textures are referenced
-by path; the archive does not contain texture images.
+Extract the archive into the engine's `wwwroot`. The archive includes available PNG images
+referenced by the map, including imported textures. Intentionally missing textures remain missing.
 
 **Export → Map JSON** downloads just the map and its object paths. Save first or use a ZIP
 after editing definitions; a standalone map JSON cannot carry those definitions.

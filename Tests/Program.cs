@@ -372,7 +372,7 @@ try
     Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "pics/colorstone.png", "Editor edited shared engine objects");
     using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
     Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
-    Check(zip.Entries.Count == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
+    Check(zip.Entries.Count(entry => entry.FullName.EndsWith(".json")) == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
     foreach (var path in persisted.Map.Objects.Values)
         Check(zip.GetEntry(path[3..]) != null, "Editor export index points outside bundle");
     var unsafeEditorMap = SmallMap() with { Objects = new() { [1] = "../../outside.json" } };

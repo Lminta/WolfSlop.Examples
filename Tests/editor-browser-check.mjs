@@ -114,6 +114,28 @@ try {
         const result = await send("Page.captureScreenshot", { format: "png" });
         fs.writeFileSync(process.argv[4], Buffer.from(result.data, "base64"));
     }
+    // Exercise browser decoding/conversion without adding files to the user's texture library.
+    await evaluate(`(async()=>{window.__textureUpload=null; const textureFetch=window.fetch; window.fetch=async (...args)=>{
+        if(args[0]==='/api/textures'){window.__textureUpload=JSON.parse(args[1].body);return new Response(JSON.stringify({path:'pics/mossy.png',width:64,height:64}),{headers:{'Content-Type':'application/json'}});}
+        return textureFetch(...args);
+    };
+    document.querySelector('.palette-item[data-id="11"]').click();
+    document.getElementById('texture-target').value='floorTexture';
+    const source=document.createElement('canvas');source.width=32;source.height=16;
+    const context=source.getContext('2d');context.fillStyle='#ff0000';context.fillRect(0,0,16,16);
+    const blob=await new Promise(resolve=>source.toBlob(resolve,'image/png'));
+    const transfer=new DataTransfer();transfer.items.add(new File([blob],'custom-texture.png',{type:'image/png'}));
+    const input=document.getElementById('texture-file');input.files=transfer.files;input.dispatchEvent(new Event('change'));})()`);
+    await waitFor("window.__textureUpload && !document.getElementById('import-texture').disabled");
+    assert.equal(await evaluate("JSON.parse(document.getElementById('object-json').value).floorTexture"), "pics/mossy.png");
+    const pngInfo = await evaluate(`(async()=>{
+        const bytes=Uint8Array.from(atob(window.__textureUpload.png),c=>c.charCodeAt(0)),data=new DataView(bytes.buffer);
+        const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
+        const output=document.createElement('canvas');output.width=output.height=64;const context=output.getContext('2d');context.drawImage(bitmap,0,0);bitmap.close();
+        return {width:data.getUint32(16),height:data.getUint32(20),alpha:context.getImageData(63,0,1,1).data[3]};
+    })()`);
+    assert.deepEqual(pngInfo, { width: 64, height: 64, alpha: 0 }, "Texture import must resize and preserve transparency");
+    await click("apply-object"); await click("undo");
     assert.equal(await evaluate("document.getElementById('map-name').closest('section').id"), "map-settings");
     assert.equal(await evaluate("document.getElementById('object-json').closest('section').id"), "object-settings");
     await evaluate("document.querySelector('.palette-item[data-id=\"11\"]').click()");
