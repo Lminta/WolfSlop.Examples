@@ -147,11 +147,11 @@ Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { TextureL
 var emptyGroup = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [] } });
 Check(emptyGroup.RendererMap.Sprites.Count == 0, "Empty group invalid");
 
-using var duplicate = new HttpClient(new FileHandler(webRoot, path => path == "objects/index.json" ? "[\"0.json\",\"0.json\"]" : null)) { BaseAddress = http.BaseAddress };
+using var duplicate = new HttpClient(new FileHandler(webRoot, path => path == "objects/index.json" ? "[\"passage-mossy-floor-wood-ceiling.json\",\"passage-mossy-floor-wood-ceiling.json\"]" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<InvalidDataException>(duplicate, "Duplicate IDs accepted");
-using var unknownType = new HttpClient(new FileHandler(webRoot, path => path == "objects/0.json" ? "{\"type\":\"unknown\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
+using var unknownType = new HttpClient(new FileHandler(webRoot, path => path == "objects/passage-mossy-floor-wood-ceiling.json" ? "{\"type\":\"unknown\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<JsonException>(unknownType, "Unknown type accepted");
-using var missingFlags = new HttpClient(new FileHandler(webRoot, path => path == "objects/0.json" ? "{\"type\":\"passage\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
+using var missingFlags = new HttpClient(new FileHandler(webRoot, path => path == "objects/passage-mossy-floor-wood-ceiling.json" ? "{\"type\":\"passage\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<JsonException>(missingFlags, "Required flags were not validated");
 using var malformed = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? "{}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<JsonException>(malformed, "Malformed level accepted");

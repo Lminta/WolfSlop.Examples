@@ -34,7 +34,7 @@ socket.onmessage=event=>{
             void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
         } else {
             objectRequests.add(request.url);
-            if(request.url.endsWith("/objects/203.json")) heldObjectRequest=requestId;
+            if(request.url.endsWith("/objects/group-barrels-north-room.json")) heldObjectRequest=requestId;
             else void send("Fetch.continueRequest",{requestId});
         }
     } else if(message.method==="Runtime.consoleAPICalled") {

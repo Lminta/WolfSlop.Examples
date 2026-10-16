@@ -3,6 +3,8 @@
 `index.json` lists every object file, relative to this directory. The game loads all
 definitions before compiling `maps/level1.json`. Grid indexing stays `worldMap[x][y]`;
 every value, including zero, is an object ID.
+Filenames describe the object; references use the `id` inside the file, so renaming
+a file only requires updating its entry in `index.json`.
 
 All objects require `id`, `type`, `raycastTransparent`, and `collides`.
 `collides: true` blocks walking through the entire square. Independently,
