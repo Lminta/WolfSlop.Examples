@@ -201,7 +201,7 @@ Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { TextureL
 var emptyGroup = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [] } });
 Check(emptyGroup.RendererMap.Sprites.Count == 0, "Empty group invalid");
 
-const string passagePath = "objects/level1/passages/passage-mossy-floor-wood-ceiling.json";
+const string passagePath = "objects/passages/passage-mossy-floor-wood-ceiling.json";
 using var wrongId = new HttpClient(new FileHandler(webRoot, path => path == passagePath
     ? "{\"type\":\"passage\",\"id\":999,\"raycastTransparent\":true,\"collides\":false}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<InvalidDataException>(wrongId, "Index/object ID mismatch accepted");

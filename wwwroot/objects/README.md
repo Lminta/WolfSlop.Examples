@@ -4,12 +4,13 @@ Each map JSON has an `objects` index mapping IDs to paths relative to the map fi
 
 ```json
 "objects": {
-  "0": "../objects/level1/passages/passage-mossy-floor-wood-ceiling.json",
-  "1": "../objects/level1/walls/wall-eagle.json"
+  "0": "../objects/passages/passage-mossy-floor-wood-ceiling.json",
+  "1": "../objects/walls/wall-eagle.json"
 }
 ```
 
-Definitions live in `objects/<map>/passages`, `walls`, `sprites`, and `sprite-groups`.
+Definitions live in `objects/passages`, `walls`, `sprites`, and `sprite-groups`.
+Maps share these definitions by referencing the same paths in their own indexes.
 Grid indexing stays `worldMap[x][y]`; every value, including zero, is an object ID.
 Only grid objects and their dependencies (group members and passage references) are
 loaded. Unused index entries are not fetched. An indexed ID must match the JSON's

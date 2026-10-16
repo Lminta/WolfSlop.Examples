@@ -127,7 +127,7 @@ try {
     await send("Fetch.continueRequest",{requestId:heldObjectRequest});
     await waitFor("!!window.__camera");
     assert(objectRequests.size===manifest.length,"Not all map object definitions were loaded");
-    assert([...objectRequests].every(url=>url.includes('/objects/level1/')),"Another map's objects were loaded");
+    assert([...objectRequests].every(url=>manifest.some(path=>new URL(path,appUrl+'/maps/level1.json').href===url)),"An object outside the selected map index was loaded");
     if(missingTextures) {
         assert(failedTextures===expectedImages.size,"Not all texture failures were exercised");
         assert(await evaluate("window.__copiedTextures")===0,"Missing image unexpectedly copied");
