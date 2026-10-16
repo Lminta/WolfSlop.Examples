@@ -12,7 +12,7 @@ to the minimap; coordinates remain the original JSON world coordinates.
 | --- | --- |
 | Top-right: materials | Walk around the pillar at (6,5): north has an eagle, east red brick, south mossy stone, west blue stone. The checkerboard changes both floor and ceiling textures. |
 | Top-left: independent flags | Enter the four lanes from the south. Left to right: a ray-transparent wall you can walk through; a ray-transparent solid wall; a visible wall you can walk through; a visible solid wall. Lights and barrels behind them make occlusion easy to compare. A separate invisible passage barrier at (13,8) demonstrates collision on Passage objects. |
-| Bottom-right: sprites and groups | A normal barrel is walkable and a pillar is solid. The pillar group is walkable despite its solid children. The mixed group is solid despite its walkable barrels and has repeated IDs, offsets, and a child extending into a neighboring tile. All sprites and groups are ray-transparent. |
+| Bottom-right: sprites and groups | Barrels and lights are walkable; pillars are solid. This applies to individual sprites and groups. The barrel-and-light group has repeated barrel IDs and position offsets. Its nearby pillar is placed on its own solid square. All sprites and groups are ray-transparent. |
 | Bottom-left: pink fallback | Compare a wall with no texture fields, a wall missing its west texture, and a wall whose image does not exist. Pink sprite billboards demonstrate absent and unavailable images. Two floor patches demonstrate missing surface fields and unavailable floor/ceiling files. These failures intentionally leave the map playable. |
 
 Collision is per square, not per sprite silhouette. Lane walls define `floorTexture` and `ceilingTexture` to match the surrounding

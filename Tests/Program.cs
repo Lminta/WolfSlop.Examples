@@ -86,7 +86,14 @@ foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, 
     Check(ShowcaseCell(x, 6).Flags.HasFlag(RenderCellFlags.StopsRay) == blocksRays, "Showcase ray-blocking lane incorrect");
     Check(showcase.NavigationMap.IsWalkable(x, 6) == walkable, "Showcase collision lane incorrect");
 }
-Check(showcase.NavigationMap.IsWalkable(3, 21) && !showcase.NavigationMap.IsWalkable(6, 21), "Showcase group flags incorrect");
+Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalkable(6, 21), "Showcase group walkability incorrect");
+foreach (var sprite in showcase.RendererMap.Sprites)
+{
+    var definition = showcase.Objects.Values.OfType<SpriteDefinition>().First(value => value.TextureLayer == sprite.TextureLayer);
+    if (definition.Texture is "pics/barrel.png" or "pics/greenlight.png" or "pics/pillar.png")
+        Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) == (definition.Texture != "pics/pillar.png"),
+            "Showcase sprite walkability disagrees with its appearance");
+}
 Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21, 6).Flags.HasFlag(RenderCellFlags.Wall), "Showcase transparent wall demonstrations missing");
 Check(!showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
       !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Showcase passage collision demonstration missing");

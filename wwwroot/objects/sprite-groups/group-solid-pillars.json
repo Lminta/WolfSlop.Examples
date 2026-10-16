@@ -2,7 +2,7 @@
   "type": "spriteGroup",
   "id": 120,
   "raycastTransparent": true,
-  "collides": false,
+  "collides": true,
   "passageId": 12,
   "sprites": [
     {
