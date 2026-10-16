@@ -1,0 +1,12 @@
+{
+  "type": "wall",
+  "id": 2,
+  "raycastTransparent": false,
+  "collides": true,
+  "textures": {
+    "north": "pics/redbrick.png",
+    "east": "pics/redbrick.png",
+    "south": "pics/redbrick.png",
+    "west": "pics/redbrick.png"
+  }
+}

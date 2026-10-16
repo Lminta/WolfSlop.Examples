@@ -8,14 +8,14 @@ struct Camera {
 struct RayHit {
     distance: f32,
     wallU: f32,
-    wallType: u32,
+    hitCell: u32,
     side: u32,
 };
 
 struct Sprite {
     position: vec2f,
-    textureLayer: f32,
-    padding: f32,
+    textureLayer: u32,
+    ownerCell: u32,
 };
 
 struct VertexOutput {
@@ -23,6 +23,7 @@ struct VertexOutput {
     @location(0) uv: vec2f,
     @location(1) @interpolate(flat) depth: f32,
     @location(2) @interpolate(flat) textureLayer: u32,
+    @location(3) @interpolate(flat) ownerCell: u32,
 };
 
 @group(0) @binding(0) var<storage, read> rayHits: array<RayHit>;
@@ -56,7 +57,8 @@ fn vertexMain(
     var output: VertexOutput;
     output.uv = corners[vertex];
     output.depth = depth;
-    output.textureLayer = u32(sprite.textureLayer);
+    output.textureLayer = sprite.textureLayer;
+    output.ownerCell = sprite.ownerCell;
     // Collapse sprites behind or on the camera plane to an offscreen point.
     output.position = vec4f(2.0, 2.0, 0.0, 1.0);
     if (depth <= 0.0001) {
@@ -79,7 +81,7 @@ fn vertexMain(
 fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
     let hit = rayHits[u32(input.position.x)];
     // The compute ray distances serve as Lode's one-dimensional Z buffer.
-    if (hit.wallType != 0u && input.depth >= hit.distance) {
+    if (hit.hitCell != 0u && hit.hitCell != input.ownerCell && input.depth >= hit.distance) {
         discard;
     }
 

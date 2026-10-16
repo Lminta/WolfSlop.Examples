@@ -1,4 +1,4 @@
-﻿
+
 struct Camera {
     position: vec2f,
     direction: vec2f,
@@ -13,10 +13,16 @@ struct MapInfo {
     padding: u32,
 };
 
+struct RenderCell {
+    materialIndex: u32,
+    floorLayer: u32,
+    ceilingLayer: u32,
+    flags: u32,
+};
 struct RayHit {
     distance: f32,
     wallU: f32,
-    wallType: u32,
+    hitCell: u32,
     side: u32,
 };
 
@@ -24,7 +30,7 @@ struct RayHit {
 var<uniform> camera: Camera;
 
 @group(0) @binding(1)
-var<storage, read> worldMap: array<u32>;
+var<storage, read> worldMap: array<RenderCell>;
 
 @group(0) @binding(2)
 var<storage, read_write> rayHits: array<RayHit>;
@@ -89,7 +95,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     }
 
     var side = 0u;
-    var wallType = 0u;
+    var hitCell = 0u;
     var distance = 1e30;
 
     // Protect against invalid maps or open boundaries.
@@ -118,8 +124,8 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 
         let cell = worldMap[index];
 
-        if (cell > 0u) {
-            wallType = cell;
+        if ((cell.flags & 1u) != 0u) {
+            hitCell = index + 1u;
 
             distance = select(
                 sideDistY - deltaDistY,
@@ -133,7 +139,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 
     var wallU = 0.0;
 
-    if (wallType != 0u) {
+    if (hitCell != 0u) {
         let hitCoordinate = select(
             camera.position.x + distance * rayDir.x,
             camera.position.y + distance * rayDir.y,
@@ -152,7 +158,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     rayHits[x] = RayHit(
         distance,
         wallU,
-        wallType,
+        hitCell,
         side
     );
 }

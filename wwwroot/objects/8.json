@@ -1,0 +1,12 @@
+{
+  "type": "wall",
+  "id": 8,
+  "raycastTransparent": false,
+  "collides": true,
+  "textures": {
+    "north": "pics/colorstone.png",
+    "east": "pics/colorstone.png",
+    "south": "pics/colorstone.png",
+    "west": "pics/colorstone.png"
+  }
+}

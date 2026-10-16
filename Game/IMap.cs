@@ -3,6 +3,7 @@
 public interface IMap
 {
     int[][] WorldMap { get; }
-    IReadOnlyList<Sprite> Sprites { get; }
+    WolfNET.Graphics.RenderMap RendererMap { get; }
+    NavigationMap NavigationMap { get; }
     ulong Revision { get; }
 }

@@ -55,7 +55,9 @@ public sealed class Wolf : IDisposable
             return;
 
         // Do not attach input or schedule frames until the first map revision is loaded.
-        var map = await ConstantMap.LoadAsync(this, _http, "maps/level1.json", cancellationToken);
+        var map = await GameMap.LoadAsync(_http, "maps/level1.json",
+            RendererSettings.MaxMapWidth, RendererSettings.MaxMapHeight, cancellationToken);
+        await _renderer.PrepareSceneAsync(map.RendererMap, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         ObjectDisposedException.ThrowIf(_disposed, this);
         
@@ -102,9 +104,7 @@ public sealed class Wolf : IDisposable
                 _player.Camera.Transform.Position, 
                 _player.Camera.Transform.Rotation,
                 _player.Camera.Plane,
-                Map.WorldMap,
-                Map.Revision,
-                Map.Sprites);
+                Map.RendererMap);
             FrameDelay();
             _lastFrameDeltaTime = _clock.Elapsed.TotalMilliseconds- frameStartTime;
             _window.RequestAnimationFrame(Frame);

@@ -1,4 +1,4 @@
-﻿
+
 struct Camera {
     position: vec2f,
     direction: vec2f,
@@ -6,10 +6,23 @@ struct Camera {
     screenSize: vec2f,
 };
 
+struct RenderCell {
+    materialIndex: u32,
+    floorLayer: u32,
+    ceilingLayer: u32,
+    flags: u32,
+};
+
+struct WallMaterial {
+    north: u32,
+    east: u32,
+    south: u32,
+    west: u32,
+};
 struct RayHit {
     distance: f32,
     wallU: f32,
-    wallType: u32,
+    hitCell: u32,
     side: u32,
 };
 
@@ -26,8 +39,8 @@ struct MapInfo {
 
 struct Sprite {
     position: vec2f,
-    textureLayer: f32,
-    padding: f32,
+    textureLayer: u32,
+    ownerCell: u32,
 };
 
 @group(0) @binding(0)
@@ -40,13 +53,11 @@ var<uniform> camera: Camera;
 var wallTextures: texture_2d_array<f32>;
 
 // Shared with the raycasting and sprite passes; no separate minimap upload.
-@group(0) @binding(3) var<storage, read> worldMap: array<u32>;
+@group(0) @binding(3) var<storage, read> worldMap: array<RenderCell>;
 @group(0) @binding(4) var<uniform> mapInfo: MapInfo;
 @group(0) @binding(5) var<storage, read> sprites: array<Sprite>;
 
-// Zero-based layers in WebGpuRenderer.TexturePaths.
-const FLOOR_TEXTURE: i32 = 5;   // mossy.png
-const CEILING_TEXTURE: i32 = 6; // wood.png
+@group(0) @binding(6) var<storage, read> materials: array<WallMaterial>;
 
 // A final overlay pass on the game canvas, using the compute pass's DDA results.
 @fragment
@@ -74,7 +85,7 @@ fn minimapMain(input: VertexOutput) -> @location(0) vec4f {
 
     let cell = vec2u(world);
     let wall = worldMap[cell.y * mapInfo.width + cell.x];
-    var color = select(vec3f(0.137, 0.192, 0.239), vec3f(0.51, 0.57, 0.62), wall > 0u);
+    var color = select(vec3f(0.137, 0.192, 0.239), vec3f(0.51, 0.57, 0.62), (wall.flags & 2u) != 0u);
     let cellEdge = min(fract(world), vec2f(1.0) - fract(world)) * scale;
     if (min(cellEdge.x, cellEdge.y) < 0.3) {
         color *= 0.55;
@@ -92,7 +103,7 @@ fn minimapMain(input: VertexOutput) -> @location(0) vec4f {
             0.0, camera.screenSize.x - 1.0
         ));
         let hit = rayHits[column];
-        if (hit.wallType == 0u || depth <= hit.distance) {
+        if (hit.hitCell == 0u || depth <= hit.distance) {
             color = mix(color, vec3f(0.27, 0.75, 1.0), 0.35);
         }
     }
@@ -101,9 +112,9 @@ fn minimapMain(input: VertexOutput) -> @location(0) vec4f {
         let sprite = sprites[i];
         if (distance(world, sprite.position) < max(0.18, 1.5 / scale)) {
             color = vec3f(0.89, 0.68, 0.38);
-            if (sprite.textureLayer == 9.0) {
+            if (sprite.textureLayer == 9u) {
                 color = vec3f(0.85, 0.88, 0.91);
-            } else if (sprite.textureLayer == 10.0) {
+            } else if (sprite.textureLayer == 10u) {
                 color = vec3f(0.49, 0.90, 0.43);
             }
         }
@@ -135,31 +146,34 @@ fn vertexMain(
     return output;
 }
 
+fn sampleTexture(layer: u32, uv: vec2f) -> vec3f {
+    if (layer == 0xffffffffu || layer >= textureNumLayers(wallTextures)) {
+        return vec3f(1.0, 0.0, 1.0);
+    }
+    let dimensions = textureDimensions(wallTextures, 0);
+    let texel = vec2i(clamp(uv * vec2f(dimensions), vec2f(0.0), vec2f(dimensions) - vec2f(1.0)));
+    return textureLoad(wallTextures, texel, i32(layer), 0).rgb;
+}
+
 fn floorCeilingColor(position: vec2f) -> vec4f {
     let horizonOffset = position.y - camera.screenSize.y * 0.5;
-
-    // Rays on the horizon run parallel to both planes.
     if (abs(horizonOffset) < 0.0001) {
         return vec4f(0.0, 0.0, 0.0, 1.0);
     }
-
-    // The camera is halfway between the floor (z=0) and ceiling (z=1).
     let distance = camera.screenSize.y * 0.5 / abs(horizonOffset);
-    // Match the column ray used by the compute shader.
     let cameraX = 2.0 * floor(position.x) / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
     let worldPosition = camera.position + rayDir * distance;
-
-    // Repeat one texture tile per map cell, including negative coordinates.
-    let dimensions = textureDimensions(wallTextures, 0);
-    let texel = vec2i(min(
-        fract(worldPosition) * vec2f(dimensions),
-        vec2f(dimensions) - vec2f(1.0)
-    ));
-    let layer = select(CEILING_TEXTURE, FLOOR_TEXTURE, horizonOffset > 0.0);
-    return vec4f(textureLoad(wallTextures, texel, layer, 0).rgb, 1.0);
+    // Surface textures belong to the projected cell, not the camera's current tile.
+    if (any(worldPosition < vec2f(0.0)) ||
+        worldPosition.x >= f32(mapInfo.width) || worldPosition.y >= f32(mapInfo.height)) {
+        return vec4f(1.0, 0.0, 1.0, 1.0);
+    }
+    let tile = vec2u(worldPosition);
+    let cell = worldMap[tile.y * mapInfo.width + tile.x];
+    let layer = select(cell.ceilingLayer, cell.floorLayer, horizonOffset > 0.0);
+    return vec4f(sampleTexture(layer, fract(worldPosition)), 1.0);
 }
-
 @fragment
 fn fragmentMain(
     input: VertexOutput
@@ -172,10 +186,14 @@ fn fragmentMain(
 
     let hit = rayHits[x];
 
-    if (hit.wallType == 0u || hit.distance <= 0.0) {
+    if (hit.hitCell == 0u || hit.distance <= 0.0) {
         return floorCeilingColor(input.position.xy);
     }
 
+    let cell = worldMap[hit.hitCell - 1u];
+    if ((cell.flags & 2u) == 0u) {
+        return floorCeilingColor(input.position.xy);
+    }
     let screenHeight = camera.screenSize.y;
     let lineHeight = screenHeight / hit.distance;
 
@@ -197,18 +215,17 @@ fn fragmentMain(
 
     // Use the full projected wall, even when its top is above the screen.
     let wallV = (y - screenHeight * 0.5) / lineHeight + 0.5;
-    let dimensions = textureDimensions(wallTextures, 0);
-    let texel = vec2i(clamp(
-        vec2f(hit.wallU, wallV) * vec2f(dimensions),
-        vec2f(0.0),
-        vec2f(dimensions) - vec2f(1.0)
-    ));
-    let layer = i32(min(hit.wallType - 1u, textureNumLayers(wallTextures) - 1u));
-    var color = textureLoad(wallTextures, texel, layer, 0).rgb;
-
+    // Side 0 crosses an X face; side 1 crosses a Y face.
+    let cameraX = 2.0 * f32(x) / camera.screenSize.x - 1.0;
+    let rayDir = camera.direction + camera.plane * cameraX;
+    let material = materials[cell.materialIndex];
+    var layer = select(material.east, material.west, rayDir.x > 0.0);
     if (hit.side == 1u) {
+        layer = select(material.south, material.north, rayDir.y > 0.0);
+    }
+    var color = sampleTexture(layer, vec2f(hit.wallU, wallV));
+    if (hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {
         color *= 0.5;
     }
-
     return vec4f(color, 1.0);
 }

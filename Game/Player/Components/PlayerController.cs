@@ -11,9 +11,9 @@ public class PlayerController : ComponentBase
     // Radians per pixel; mouse turning is independent of frame duration.
     private const float MouseSensitivity = 0.0025f;
     private readonly CameraComponent _camera;
-    private readonly IMap _map;
+    private readonly INavigationMap _map;
     
-    public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, IMap map, CameraComponent camera, ObjectBase parent) : base(parent)
+    public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, INavigationMap map, CameraComponent camera, ObjectBase parent) : base(parent)
     {
         _keyTracker = keyTracker;
         _mouseTracker = mouseTracker;
@@ -46,9 +46,9 @@ public class PlayerController : ComponentBase
         if (movement.LengthSquared() > 0)
         {
             movement = Vector2.Normalize(movement) * moveSpeed;
-            if (_map.WorldMap[(int)(posX + movement.X)][(int)posY] == 0)
+            if (_map.IsWalkable((int)MathF.Floor(posX + movement.X), (int)MathF.Floor(posY)))
                 posX += movement.X;
-            if (_map.WorldMap[(int)posX][(int)(posY + movement.Y)] == 0)
+            if (_map.IsWalkable((int)MathF.Floor(posX), (int)MathF.Floor(posY + movement.Y)))
                 posY += movement.Y;
         }
         var turn = -_mouseTracker.ConsumeHorizontalMovement() * MouseSensitivity;

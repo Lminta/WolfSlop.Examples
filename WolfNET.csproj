@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <Content Remove="Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <_ContentIncludedByDefault Remove="Layout\MainLayout.razor" />
     <_ContentIncludedByDefault Remove="Layout\NavMenu.razor" />
     <_ContentIncludedByDefault Remove="wwwroot\sample-data\weather.json" />

@@ -1,0 +1,41 @@
+using WolfNET.Game;
+
+namespace WolfNET.Graphics;
+
+[Flags]
+public enum RenderCellFlags : uint
+{
+    None = 0,
+    StopsRay = 1,
+    Wall = 2
+}
+
+// All GPU records contain four 32-bit values, matching the WGSL structures.
+public readonly record struct RenderCell(
+    uint MaterialIndex, uint FloorTextureLayer, uint CeilingTextureLayer, RenderCellFlags Flags);
+
+public readonly record struct WallMaterial(uint North, uint East, uint South, uint West);
+
+public sealed class TextureCatalog
+{
+    public const uint MissingLayer = uint.MaxValue;
+    public const int TextureSize = 64;
+    public const uint MaxLayers = 256;
+    public IReadOnlyDictionary<uint, string?> Layers { get; }
+    public uint LayerCount { get; }
+
+    internal TextureCatalog(Dictionary<uint, string?> layers)
+    {
+        Layers = new System.Collections.ObjectModel.ReadOnlyDictionary<uint, string?>(layers);
+        LayerCount = layers.Count == 0 ? 1 : checked(layers.Keys.Max() + 1);
+    }
+}
+
+public sealed record RenderMap(
+    int Width,
+    int Height,
+    IReadOnlyList<RenderCell> Cells,
+    IReadOnlyList<WallMaterial> Materials,
+    IReadOnlyList<Sprite> Sprites,
+    TextureCatalog Textures,
+    ulong Revision);

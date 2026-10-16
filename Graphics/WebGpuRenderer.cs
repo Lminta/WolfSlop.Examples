@@ -2,7 +2,6 @@
 using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
-using Array = System.Array;
 using WolfNET.Game;
 
 namespace WolfNET.Graphics;
@@ -14,22 +13,6 @@ public sealed class WebGpuRenderer : IDisposable
     private const int CameraBufferSize = 32;
     private const int MapInfoBufferSize = 16;
     private const int SpriteSize = 16;
-
-    // Map wall IDs are one-based; the first eight match Lode's texture order.
-    private static readonly string[] TexturePaths =
-    [
-        "pics/eagle.png",
-        "pics/redbrick.png",
-        "pics/purplestone.png",
-        "pics/greystone.png",
-        "pics/bluestone.png",
-        "pics/mossy.png",
-        "pics/wood.png",
-        "pics/colorstone.png",
-        "pics/barrel.png",
-        "pics/pillar.png",
-        "pics/greenlight.png"
-    ];
 
     private readonly RendererSettings _settings;
     private readonly BlazorJSRuntime _js;
@@ -59,10 +42,12 @@ public sealed class WebGpuRenderer : IDisposable
 
     // Reusable CPU buffers.
     private readonly float[] _cameraData = new float[8];
-    private uint[]? _mapUploadData;
+    private GPUBuffer? _materialsBuffer;
+    private TextureCatalog? _preparedTextures;
+    private RenderMap? _uploadedMap;
 
     // Null means the map has never been uploaded.
-    private ulong? _uploadedMapRevision;
+
 
     private bool _initialized;
     private bool _disposed;
@@ -140,7 +125,7 @@ public sealed class WebGpuRenderer : IDisposable
             // 3. Allocate persistent GPU buffers.
 
             CreateBuffers();
-            await LoadTexturesAsync();
+
 
             // 4. Compile shaders.
 
@@ -307,34 +292,7 @@ public sealed class WebGpuRenderer : IDisposable
                         });
             }
 
-            // 8. Create screen bind group.
-
-            Console.WriteLine("[GPU] Creating render bind group");
-
-            using (var layout =
-                   _renderPipeline.GetBindGroupLayout(0))
-            {
-                _renderBindGroup =
-                    _device.CreateBindGroup(
-                        new GPUBindGroupDescriptor
-                        {
-                            Label = "WolfNET Render Bindings",
-                            Layout = layout,
-
-                            Entries =
-                            [
-                                BufferEntry(0, _rayHitsBuffer!),
-                                BufferEntry(1, _cameraBuffer!),
-                                new GPUBindGroupEntry
-                                {
-                                    Binding = 2,
-                                    Resource = _wallTextureView!
-                                }
-                            ]
-                        });
-            }
-
-            _uploadedMapRevision = null;
+            _uploadedMap = null;
             _frameCount = 0;
             _initialized = true;
 
@@ -351,71 +309,120 @@ public sealed class WebGpuRenderer : IDisposable
         }
     }
 
-    private async Task LoadTexturesAsync()
+    public async Task PrepareSceneAsync(RenderMap map, CancellationToken cancellationToken = default)
     {
-        uint width = 0;
-        uint height = 0;
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_initialized) throw new InvalidOperationException("Initialize the GPU before preparing a scene.");
+        _preparedTextures = null;
+        _renderBindGroup?.Dispose();
+        _spriteBindGroup?.Dispose();
+        _minimapBindGroup?.Dispose();
+        _renderBindGroup = _spriteBindGroup = _minimapBindGroup = null;
+        DestroyBuffer(_spriteBuffer);
+        _spriteBuffer = null;
+        _spriteCapacity = 0;
+        DestroyBuffer(_materialsBuffer);
+        _materialsBuffer = null;
+        _wallTextureView?.Dispose();
+        _wallTextureView = null;
+        _wallTextures?.Destroy();
+        _wallTextures?.Dispose();
+        _wallTextures = null;
+        await LoadTexturesAsync(map.Textures, cancellationToken);
 
-        using var queue = _device!.Queue;
-
-        for (int layer = 0; layer < TexturePaths.Length; layer++)
+        _materialsBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
         {
-            var path = TexturePaths[layer];
+            Label = "WolfNET Wall Materials",
+            Size = checked((ulong)map.Materials.Count * 16),
+            Usage = GPUBufferUsage.Storage | GPUBufferUsage.CopyDst
+        });
+        var materials = new uint[map.Materials.Count * 4];
+        for (int i = 0; i < map.Materials.Count; i++)
+        {
+            var material = map.Materials[i];
+            materials[i * 4] = material.North;
+            materials[i * 4 + 1] = material.East;
+            materials[i * 4 + 2] = material.South;
+            materials[i * 4 + 3] = material.West;
+        }
+        using (var data = new Uint32Array(materials))
+            _device.Queue.WriteBuffer(_materialsBuffer, 0, data);
+        using var layout = _renderPipeline!.GetBindGroupLayout(0);
+        _renderBindGroup = _device.CreateBindGroup(new GPUBindGroupDescriptor
+        {
+            Label = "WolfNET Render Bindings",
+            Layout = layout,
+            Entries =
+            [
+                BufferEntry(0, _rayHitsBuffer!),
+                BufferEntry(1, _cameraBuffer!),
+                new GPUBindGroupEntry { Binding = 2, Resource = _wallTextureView! },
+                BufferEntry(3, _worldMapBuffer!),
+                BufferEntry(4, _mapInfoBuffer!),
+                BufferEntry(6, _materialsBuffer)
+            ]
+        });
+        _preparedTextures = map.Textures;
+        _uploadedMap = null;
+        UpdateMap(map);
+        Console.WriteLine($"[GPU] Scene prepared: {map.Width}x{map.Height}, {map.Sprites.Count} sprites");
+    }
+
+    private async Task LoadTexturesAsync(TextureCatalog catalog, CancellationToken cancellationToken)
+    {
+        // requestDevice() uses WebGPU's portable default limit of 256 array layers.
+        if (catalog.LayerCount > TextureCatalog.MaxLayers)
+            throw new InvalidDataException("TextureLayer must fit the GPU's 256 texture array layers.");
+        const uint size = TextureCatalog.TextureSize;
+        _wallTextures = _device!.CreateTexture(new GPUTextureDescriptor
+        {
+            Label = "WolfNET Scene Textures",
+            Size = [(int)size, (int)size, (int)catalog.LayerCount],
+            Format = "rgba8unorm",
+            Usage = GPUTextureUsage.TextureBinding | GPUTextureUsage.CopyDst | GPUTextureUsage.RenderAttachment
+        });
+        using var queue = _device.Queue;
+        var pink = new byte[size * size * 4];
+        for (int i = 0; i < pink.Length; i += 4)
+        {
+            pink[i] = pink[i + 2] = pink[i + 3] = 255;
+        }
+        using var pixels = new Uint8Array(pink);
+        for (uint layer = 0; layer < catalog.LayerCount; layer++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Initialize holes and missing images to solid pink, including sprite slots.
+            queue.WriteTexture(new GPUTexelCopyTextureInfo
+                { Texture = _wallTextures, Origin = new GPUOrigin3DDict { Z = layer } },
+                pixels, new GPUTexelCopyBufferLayout { BytesPerRow = size * 4, RowsPerImage = size },
+                new GPUExtent3DDict { Width = size, Height = size, DepthOrArrayLayers = 1 });
+            if (!catalog.Layers.TryGetValue(layer, out var path) || path == null) continue;
             using var image = new HTMLImageElement();
             image.Src = path;
-
             try
             {
                 await image.Decode();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new InvalidOperationException($"Failed to load texture '{path}'.", ex);
+                cancellationToken.ThrowIfCancellationRequested();
+                continue;
             }
-
-            if (layer == 0)
-            {
-                width = (uint)image.NaturalWidth;
-                height = (uint)image.NaturalHeight;
-                _wallTextures = _device.CreateTexture(new GPUTextureDescriptor
-                {
-                    Label = "WolfNET Wall Textures",
-                    Size = [(int)width, (int)height, TexturePaths.Length],
-                    Format = "rgba8unorm",
-                    Usage = GPUTextureUsage.TextureBinding |
-                            GPUTextureUsage.CopyDst |
-                            GPUTextureUsage.RenderAttachment
-                });
-            }
-
-            if (image.NaturalWidth != width || image.NaturalHeight != height)
-            {
-                throw new InvalidOperationException(
-                    $"Texture '{path}' must be {width}x{height} to fit the texture array.");
-            }
-
-            queue.CopyExternalImageToTexture(
-                new GPUCopyExternalImageSourceInfo { Source = image },
+            cancellationToken.ThrowIfCancellationRequested();
+            if (image.NaturalWidth != size || image.NaturalHeight != size) continue;
+            queue.CopyExternalImageToTexture(new GPUCopyExternalImageSourceInfo { Source = image },
                 new GPUCopyExternalImageDestInfo
-                {
-                    Texture = _wallTextures!,
-                    Origin = new GPUOrigin3DDict { Z = (uint)layer }
-                },
-                new GPUExtent3DDict { Width = width, Height = height, DepthOrArrayLayers = 1 });
+                { Texture = _wallTextures, Origin = new GPUOrigin3DDict { Z = layer } },
+                new GPUExtent3DDict { Width = size, Height = size, DepthOrArrayLayers = 1 });
         }
-
-        _wallTextureView = _wallTextures!.CreateView();
-        Console.WriteLine($"[GPU] Loaded {TexturePaths.Length} textures ({width}x{height})");
+        _wallTextureView = _wallTextures.CreateView();
+        Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers)");
     }
-
     private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition)
     {
         _sortedSprites.Clear();
         foreach (var sprite in sprites)
         {
-            if (sprite.TextureLayer >= TexturePaths.Length)
-                throw new ArgumentException("Sprite texture layer is outside the loaded texture array.", nameof(sprites));
-
             _sortedSprites.Add((sprite, Vector2.DistanceSquared(cameraPosition, sprite.Position)));
         }
 
@@ -472,17 +479,18 @@ public sealed class WebGpuRenderer : IDisposable
         if (sprites.Count == 0)
             return;
 
-        // Matches Sprite in sprites.wgsl: position, texture layer, padding.
-        var upload = new float[checked(sprites.Count * 4)];
+        // Matches Sprite in sprites.wgsl: vec2f position, u32 layer, u32 owner cell.
+        var upload = new uint[checked(sprites.Count * 4)];
         for (int i = 0; i < _sortedSprites.Count; i++)
         {
             var sprite = _sortedSprites[i].Sprite;
-            upload[i * 4] = sprite.Position.X;
-            upload[i * 4 + 1] = sprite.Position.Y;
+            upload[i * 4] = BitConverter.SingleToUInt32Bits(sprite.Position.X);
+            upload[i * 4 + 1] = BitConverter.SingleToUInt32Bits(sprite.Position.Y);
             upload[i * 4 + 2] = sprite.TextureLayer;
+            upload[i * 4 + 3] = sprite.OwnerCell;
         }
 
-        using var data = new Float32Array(upload);
+        using var data = new Uint32Array(upload);
         _device!.Queue.WriteBuffer(_spriteBuffer!, 0, data);
     }
 
@@ -521,7 +529,6 @@ public sealed class WebGpuRenderer : IDisposable
             _settings.MaxMapWidth *
             _settings.MaxMapHeight);
 
-        _mapUploadData = new uint[mapCapacity];
 
         // Camera:
         // position   vec2f
@@ -569,7 +576,7 @@ public sealed class WebGpuRenderer : IDisposable
                 Label = "WolfNET World Map",
 
                 Size = checked(
-                    (ulong)mapCapacity * sizeof(uint)),
+                    (ulong)mapCapacity * 16),
 
                 Usage =
                     GPUBufferUsage.Storage |
@@ -612,141 +619,30 @@ public sealed class WebGpuRenderer : IDisposable
         };
     }
 
-    /// <summary>
-    /// Uploads the map only when its revision changes.
-    /// The first call always uploads the map.
-    ///
-    /// Expected C# indexing: worldMap[x][y].
-    /// GPU layout: worldMap[y * width + x].
-    /// </summary>
-    private void UpdateMap(
-        int[][] worldMap,
-        ulong revision)
+    /// <summary>Uploads compiled row-major cells only when their snapshot changes.</summary>
+    private void UpdateMap(RenderMap map)
     {
-        if (_device == null ||
-            _worldMapBuffer == null ||
-            _mapInfoBuffer == null ||
-            _mapUploadData == null)
+        if (ReferenceEquals(_uploadedMap, map)) return;
+        if (!ReferenceEquals(_preparedTextures, map.Textures))
+            throw new InvalidOperationException("Prepare the scene's texture catalog before rendering it.");
+        if (map.Width > _settings.MaxMapWidth || map.Height > _settings.MaxMapHeight)
+            throw new InvalidDataException("Compiled map exceeds GPU buffer capacity.");
+        var cells = new uint[checked(map.Cells.Count * 4)];
+        for (int i = 0; i < map.Cells.Count; i++)
         {
-            throw new InvalidOperationException(
-                "GPU map buffers are not initialized.");
+            var cell = map.Cells[i];
+            cells[i * 4] = cell.MaterialIndex;
+            cells[i * 4 + 1] = cell.FloorTextureLayer;
+            cells[i * 4 + 2] = cell.CeilingTextureLayer;
+            cells[i * 4 + 3] = (uint)cell.Flags;
         }
-
-        // Already synchronized.
-        if (_uploadedMapRevision == revision)
-            return;
-
-        if (worldMap == null || worldMap.Length == 0)
-            throw new ArgumentException(
-                "World map cannot be empty.",
-                nameof(worldMap));
-
-        int width = worldMap.Length;
-
-        if (worldMap[0] == null ||
-            worldMap[0].Length == 0)
-        {
-            throw new ArgumentException(
-                "World map cannot contain empty columns.",
-                nameof(worldMap));
-        }
-
-        int height = worldMap[0].Length;
-
-        if (width > _settings.MaxMapWidth ||
-            height > _settings.MaxMapHeight)
-        {
-            throw new ArgumentException(
-                $"Map dimensions {width}x{height} exceed " +
-                $"the configured maximum " +
-                $"{_settings.MaxMapWidth}x" +
-                $"{_settings.MaxMapHeight}.");
-        }
-
-        // Validate and flatten the map.
-        //
-        // C#:  worldMap[x][y]
-        // GPU: flattened[y * width + x]
-
-        for (int x = 0; x < width; x++)
-        {
-            int[] column = worldMap[x];
-
-            if (column == null ||
-                column.Length != height)
-            {
-                throw new ArgumentException(
-                    "World map must be rectangular.",
-                    nameof(worldMap));
-            }
-
-            for (int y = 0; y < height; y++)
-            {
-                int cell = column[y];
-
-                if (cell < 0)
-                {
-                    throw new ArgumentException(
-                        "Wall IDs cannot be negative.",
-                        nameof(worldMap));
-                }
-
-                _mapUploadData[y * width + x] =
-                    (uint)cell;
-            }
-        }
-
-        int cellCount = checked(width * height);
-
-        // Upload only the active map cells.
-        // Reuse the managed buffer for flattening.
-
-        var activeCells = new uint[cellCount];
-
-        Array.Copy(
-            _mapUploadData,
-            activeCells,
-            cellCount);
-
-        using (var data = new Uint32Array(activeCells))
-        {
-            _device.Queue.WriteBuffer(
-                _worldMapBuffer,
-                0,
-                data);
-        }
-
-        // Update the actual map dimensions.
-        //
-        // The compute shader uses these dimensions
-        // for indexing and bounds checking.
-
-        using (var info = new Uint32Array(
-            new uint[]
-            {
-                (uint)width,
-                (uint)height,
-                0,
-                0
-            }))
-        {
-            _device.Queue.WriteBuffer(
-                _mapInfoBuffer,
-                0,
-                info);
-        }
-
-        // Only mark synchronized after both writes
-        // have been successfully submitted.
-
-        _uploadedMapRevision = revision;
-
-        Console.WriteLine(
-            $"[GPU] Map updated: {width}x{height}, " +
-            $"revision={revision}, " +
-            $"cells={cellCount}");
+        using (var data = new Uint32Array(cells))
+            _device!.Queue.WriteBuffer(_worldMapBuffer!, 0, data);
+        using (var info = new Uint32Array(new uint[] { (uint)map.Width, (uint)map.Height, (uint)map.Sprites.Count, 0 }))
+            _device!.Queue.WriteBuffer(_mapInfoBuffer!, 0, info);
+        _uploadedMap = map;
+        Console.WriteLine($"[GPU] Map updated: {map.Width}x{map.Height}, revision={map.Revision}, cells={map.Cells.Count}");
     }
-
     /// <summary>
     /// Updates GPU camera data every frame.
     /// </summary>
@@ -792,9 +688,7 @@ public sealed class WebGpuRenderer : IDisposable
         Vector2 position,
         Vector2 direction,
         Vector2 plane,
-        int[][] worldMap,
-        ulong mapRevision,
-        IReadOnlyList<Sprite> sprites)
+        RenderMap map)
     {
         if (!_initialized ||
             _device == null ||
@@ -810,7 +704,8 @@ public sealed class WebGpuRenderer : IDisposable
         }
 
         // 1. Synchronize map only if revision changed.
-        UpdateMap(worldMap, mapRevision);
+        UpdateMap(map);
+        var sprites = map.Sprites;
 
         // 2. Update camera every frame.
         UpdateCamera(position, direction, plane);
@@ -949,6 +844,7 @@ public sealed class WebGpuRenderer : IDisposable
         DestroyBuffer(_spriteBuffer);
 
         _computePipeline?.Dispose();
+        DestroyBuffer(_materialsBuffer);
         _renderPipeline?.Dispose();
         _spritePipeline?.Dispose();
         _minimapPipeline?.Dispose();
@@ -956,9 +852,8 @@ public sealed class WebGpuRenderer : IDisposable
         _context?.Dispose();
         _device?.Dispose();
 
-        _mapUploadData = null;
         _sortedSprites.Clear();
-        _uploadedMapRevision = null;
+        _uploadedMap = null;
 
         Console.WriteLine("[GPU] Renderer disposed");
     }

@@ -1,0 +1,12 @@
+{
+  "type": "wall",
+  "id": 3,
+  "raycastTransparent": false,
+  "collides": true,
+  "textures": {
+    "north": "pics/purplestone.png",
+    "east": "pics/purplestone.png",
+    "south": "pics/purplestone.png",
+    "west": "pics/purplestone.png"
+  }
+}
