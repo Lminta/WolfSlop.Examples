@@ -69,6 +69,7 @@ logs/
 Thumbs.db
 
 # Local environment files
+.certs/
 .env
 .env.local
 .env.*.local
