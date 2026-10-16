@@ -6,9 +6,9 @@ import {checkGpu} from "./gpu-check.mjs";
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
 const missingTextures = process.argv.includes("--missing-textures");
-const manifest = Object.values(JSON.parse(fs.readFileSync("wwwroot/maps/level1.json", "utf8")).objects);
+const manifest = Object.values(JSON.parse(fs.readFileSync("WolfNET.Game/wwwroot/maps/level1.json", "utf8")).objects);
 const expectedImages = new Set(manifest.flatMap(file => {
-    const object = JSON.parse(fs.readFileSync(`wwwroot/maps/${file}`, "utf8"));
+    const object = JSON.parse(fs.readFileSync(`WolfNET.Game/wwwroot/maps/${file}`, "utf8"));
     return [object.texture, object.floorTexture, object.ceilingTexture, ...Object.values(object.textures ?? {})].filter(Boolean);
 }));
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:"PUT"})).json();
@@ -336,7 +336,7 @@ try {
     assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");
     console.log("PASS: map buttons, keyboard activation, repeated switches, frame cleanup, and failed-load recovery.");
     const sources=Object.fromEntries(["raycast","walls","sprites"].map(name=>
-        [name,fs.readFileSync(`wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
+        [name,fs.readFileSync(`WolfNET.Game/wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
     console.log("GPU CHECK",await evaluate(`(${checkGpu.toString()})(${JSON.stringify(sources)})`));
     console.log("PASS: browser startup, migrated scene, navigation movement, mouse capture, and Esc release.");
 } finally {

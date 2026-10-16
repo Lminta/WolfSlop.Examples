@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="WolfNET.Game/WolfNET.Game.csproj" />
+  <Project Path="WolfNET.Editor/WolfNET.Editor.csproj" />
+  <Project Path="Tests/WolfNET.MapTests.csproj" />
+</Solution>

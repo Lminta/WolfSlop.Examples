@@ -5,7 +5,7 @@ using WolfNET.Game;
 using WolfNET.Graphics;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
-var webRoot = Path.Combine(root, "wwwroot");
+var webRoot = Path.Combine(root, "WolfNET.Game", "wwwroot");
 var fileHandler = new FileHandler(webRoot);
 using var http = new HttpClient(fileHandler) { BaseAddress = new Uri("https://test.local/") };
 int assertions = 0;
@@ -335,7 +335,52 @@ foreach (int keyboard in new[] { -1, 0, 1 })
     Check(MathF.Abs(MathF.Atan2(player.Transform.Rotation.Y, player.Transform.Rotation.X) - angle) < 0.00001f,
         "Mouse movement was applied more than once");
 }
-Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, surfaces, navigation, revisions, loading failures, movement, and rotation).");
+var editorSource = new WolfNET.Editor.MapWorkspace(webRoot);
+var editorDocument = editorSource.Load("showcase") with { Name = "editor-roundtrip" };
+Check(editorSource.Maps().Contains("showcase"), "Editor map catalog missing showcase");
+Reject(() => editorSource.Load("../showcase"), "Editor accepted a path outside maps");
+Reject(() => editorSource.Validate(editorDocument with { Name = "CON" }), "Editor accepted a reserved filename");
+Reject(() => editorSource.Validate(editorDocument with
+{
+    Objects = new(editorDocument.Objects.Where(pair => pair.Key != 11))
+}), "Editor accepted a missing passage dependency");
+var editorRoot = Path.Combine(Path.GetTempPath(), "wolfnet-editor-check-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(Path.Combine(editorRoot, "maps"));
+try
+{
+    var store = new WolfNET.Editor.MapWorkspace(editorRoot);
+    await store.SaveAsync(editorDocument, false, CancellationToken.None);
+    var persisted = store.Load("editor-roundtrip");
+    Check(persisted.Map.WorldMap.SelectMany(column => column).SequenceEqual(editorDocument.Map.WorldMap.SelectMany(column => column)), "Editor save changed grid orientation");
+    Check(persisted.Map.PlayerStart == editorDocument.Map.PlayerStart, "Editor save changed spawn settings");
+    Check(persisted.Objects.Count == editorDocument.Objects.Count, "Editor lost object dependencies");
+    Check(persisted.Map.Objects.Values.All(path => path.StartsWith("../objects/editor/editor-roundtrip/")), "Editor did not isolate object snapshots");
+    using var savedHttp = new HttpClient(new FileHandler(editorRoot)) { BaseAddress = http.BaseAddress };
+    var engineRoundTrip = await GameMap.LoadAsync(savedHttp, "maps/editor-roundtrip.json", 64, 64);
+    Check(engineRoundTrip.RendererMap.Sprites.Count == showcase.RendererMap.Sprites.Count, "Editor save cannot be read by the engine");
+    var beforeOverwrite = File.ReadAllText(Path.Combine(editorRoot, "maps/editor-roundtrip.json"));
+    try { await store.SaveAsync(editorDocument, false, CancellationToken.None); throw new Exception("Editor silently overwrote a map"); }
+    catch (InvalidDataException) { assertions++; }
+    Check(File.ReadAllText(Path.Combine(editorRoot, "maps/editor-roundtrip.json")) == beforeOverwrite, "Rejected overwrite changed the map");
+    var modifiedObjects = new Dictionary<int, MapObjectDefinition>(editorDocument.Objects)
+    {
+        [11] = (PassageDefinition)editorDocument.Objects[11] with { FloorTexture = "pics/mossy.png" }
+    };
+    await store.SaveAsync(editorDocument with { Objects = modifiedObjects }, true, CancellationToken.None);
+    var edited = store.Load("editor-roundtrip");
+    Check(((PassageDefinition)edited.Objects[11]).FloorTexture == "pics/mossy.png", "Editor overwrite did not persist definition edits");
+    Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "pics/colorstone.png", "Editor edited shared engine objects");
+    using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
+    Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
+    Check(zip.Entries.Count == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
+    foreach (var path in persisted.Map.Objects.Values)
+        Check(zip.GetEntry(path[3..]) != null, "Editor export index points outside bundle");
+    var unsafeEditorMap = SmallMap() with { Objects = new() { [1] = "../../outside.json" } };
+    File.WriteAllText(Path.Combine(editorRoot, "maps/unsafe.json"), JsonSerializer.Serialize(unsafeEditorMap, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+    Reject(() => store.Load("unsafe"), "Editor followed a path outside engine assets");
+}
+finally { Directory.Delete(editorRoot, true); }
+Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler
 {

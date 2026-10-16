@@ -6,16 +6,17 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../Game/MapDefinition.cs" Link="Game/MapDefinition.cs" />
-    <Compile Include="../Game/MapObjects.cs" Link="Game/MapObjects.cs" />
-    <Compile Include="../Game/MapCompiler.cs" Link="Game/MapCompiler.cs" />
-    <Compile Include="../Game/GameMap.cs" Link="Game/GameMap.cs" />
-    <Compile Include="../Game/IMap.cs" Link="Game/IMap.cs" />
-    <Compile Include="../Game/NavigationMap.cs" Link="Game/NavigationMap.cs" />
-    <Compile Include="../Game/Sprite.cs" Link="Game/Sprite.cs" />
-    <Compile Include="../Graphics/RenderMap.cs" Link="Graphics/RenderMap.cs" />
-    <Compile Include="../Game/Player/Components/PlayerController.cs" Link="Game/PlayerController.cs" />
-    <Compile Include="../Game/Core/ComponentBase.cs" Link="Game/ComponentBase.cs" />
-    <Compile Include="../Game/Transform.cs" Link="Game/Transform.cs" />
+    <Compile Include="../WolfNET.Game/Game/MapDefinition.cs" Link="Game/MapDefinition.cs" />
+    <Compile Include="../WolfNET.Game/Game/MapObjects.cs" Link="Game/MapObjects.cs" />
+    <Compile Include="../WolfNET.Game/Game/MapCompiler.cs" Link="Game/MapCompiler.cs" />
+    <Compile Include="../WolfNET.Game/Game/GameMap.cs" Link="Game/GameMap.cs" />
+    <Compile Include="../WolfNET.Game/Game/IMap.cs" Link="Game/IMap.cs" />
+    <Compile Include="../WolfNET.Game/Game/NavigationMap.cs" Link="Game/NavigationMap.cs" />
+    <Compile Include="../WolfNET.Game/Game/Sprite.cs" Link="Game/Sprite.cs" />
+    <Compile Include="../WolfNET.Game/Graphics/RenderMap.cs" Link="Graphics/RenderMap.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/Components/PlayerController.cs" Link="Game/PlayerController.cs" />
+    <Compile Include="../WolfNET.Game/Game/Core/ComponentBase.cs" Link="Game/ComponentBase.cs" />
+    <Compile Include="../WolfNET.Game/Game/Transform.cs" Link="Game/Transform.cs" />
+    <Compile Include="../WolfNET.Editor/MapWorkspace.cs" Link="Editor/MapWorkspace.cs" />
   </ItemGroup>
 </Project>

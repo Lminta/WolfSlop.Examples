@@ -2,6 +2,41 @@
 
 Browser raycasting engine built with Blazor WebAssembly and WebGPU. Requires the .NET 10 SDK and a browser/device with WebGPU support.
 
+The solution contains sibling projects:
+
+- `WolfNET.Game/`: the game, renderer, Blazor UI, launch profiles, and game assets in `wwwroot`.
+- `WolfNET.Editor/`: the browser editor and its own web assets.
+- `Tests/`: compiler, movement, editor, and browser regression checks.
+
+Build both applications with `dotnet build WolfNET.slnx`.
+
+## Map editor
+
+Open `WolfNET.slnx` in Rider to see the engine, browser map editor, and regression checks.
+Start the **WolfNET.Editor** project, or run:
+
+```powershell
+dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj
+```
+
+Open **http://127.0.0.1:5080**. Paint passages, walls, sprites and groups; edit object
+definitions, resize maps, and set the player spawn. Collision and ray-blocking overlays
+show invisible barriers. Maps are validated with the engine's own compiler before saving.
+
+Save writes to the engine's `wwwroot/maps` with separate object snapshots, so other maps
+keep their definitions. ZIP export includes the map and its object dependencies; extract
+it into `wwwroot`. The editor reuses the engine's texture library.
+
+To play a saved custom map, run the engine too:
+
+```powershell
+dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile http
+```
+
+Use **Play** in the editor, or open `http://localhost:5025/?map=your-map-name`.
+The editor's **Engine URL** field can point to another engine launch profile.
+See [the editor guide](WolfNET.Editor/README.md) for shortcuts, imports, and deployment.
+
 ## Player movement
 
 Player movement is configured in each map's `playerStart` object alongside the spawn position and direction:
@@ -24,12 +59,12 @@ Player movement is configured in each map's `playerStart` object alongside the s
 Both launch profiles bind to all IPv4 interfaces. In Rider, select the `https` launch profile, or run:
 
 ```powershell
-dotnet run --launch-profile https
+dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile https
 ```
 
 On another device on the same network, open `https://<server-LAN-IP>:7279`. Use `ipconfig` on the server to find its IPv4 address. The address at setup time was `192.168.50.232`, so the URL was `https://192.168.50.232:7279`. This address can change with DHCP.
 
-The HTTP profile (`dotnet run --launch-profile http`) serves `http://<server-LAN-IP>:5025` for connectivity checks. WebGPU requires a secure context, so HTTP over a LAN IP will load the page but cannot render the game. See the [WebGPU specification](https://www.w3.org/TR/webgpu/#navigator-gpu).
+The HTTP profile (`dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile http`) serves `http://<server-LAN-IP>:5025` for connectivity checks. WebGPU requires a secure context, so HTTP over a LAN IP will load the page but cannot render the game. See the [WebGPU specification](https://www.w3.org/TR/webgpu/#navigator-gpu).
 
 ## HTTPS certificate for LAN devices
 
@@ -43,7 +78,7 @@ New-Item -ItemType Directory -Force .certs | Out-Null
 mkcert -cert-file .certs/lan.pem -key-file .certs/lan-key.pem localhost 127.0.0.1 192.168.50.232
 $env:ASPNETCORE_Kestrel__Certificates__Default__Path = (Resolve-Path .certs/lan.pem).Path
 $env:ASPNETCORE_Kestrel__Certificates__Default__KeyPath = (Resolve-Path .certs/lan-key.pem).Path
-dotnet run --launch-profile https
+dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile https
 ```
 
 Install the `rootCA.pem` from the directory printed by `mkcert -CAROOT` into each client's trusted certificate authorities, following that device's certificate trust instructions. On iOS, also enable full trust in Certificate Trust Settings. Share only the public `rootCA.pem`, never `rootCA-key.pem` or `lan-key.pem`. Regenerate the server certificate if the LAN IP changes. The environment variables above apply to the current terminal; configure them in Rider's run configuration if launching there.

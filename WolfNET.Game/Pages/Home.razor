@@ -47,6 +47,9 @@
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "map")]
+    public string? RequestedMap { get; set; }
+
     private ElementReference _canvas;
     private HTMLCanvasElement? _canvasElement;
     private readonly CancellationTokenSource _lifetime = new();
@@ -99,9 +102,16 @@
 
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
 
-            await Wolf.StartAsync(_canvasElement, _lifetime.Token);
+            var initialMap = OriginalMap;
+            if (!string.IsNullOrWhiteSpace(RequestedMap))
+            {
+                if (!System.Text.RegularExpressions.Regex.IsMatch(RequestedMap, "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$"))
+                    throw new InvalidDataException("Invalid map name in URL.");
+                initialMap = $"maps/{RequestedMap}.json";
+            }
+            await Wolf.SwitchMapAsync(_canvasElement, initialMap, _lifetime.Token);
             ObserveMouse();
-            _selectedMap = OriginalMap;
+            _selectedMap = initialMap;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {

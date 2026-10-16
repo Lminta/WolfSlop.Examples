@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WolfNET · Map editor</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><span class="brand-icon">W</span><div>WOLFNET <span class="tag">MAP EDITOR</span><small>Build a world, one square at a time.</small></div></div>
+    <div class="file-actions">
+      <label class="sr-only" for="map-list">Open map</label><select id="map-list"><option>Loading maps…</option></select>
+      <button id="open">Open</button><button id="new">New map</button>
+      <button id="import">Import</button><input id="import-file" type="file" accept=".json,application/json" hidden>
+      <button id="export">Export ▾</button><button id="play">▷ Play</button><button id="save" class="primary">Save map</button>
+    </div>
+  </header>
+  <div id="draft-banner" class="banner" hidden>There is a browser draft from your last session. <button id="restore-draft">Restore draft</button><button id="dismiss-draft">Dismiss</button></div>
+  <main class="editor-shell">
+    <aside class="library panel">
+      <div class="panel-heading"><span>OBJECT LIBRARY</span><span id="object-count" class="muted"></span></div>
+      <label class="sr-only" for="search">Search objects</label><input id="search" type="search" placeholder="Search by name or ID…">
+      <label class="sr-only" for="type-filter">Object type</label><select id="type-filter"><option value="">All objects</option><option value="passage">Passages</option><option value="wall">Walls</option><option value="sprite">Sprites</option><option value="spriteGroup">Sprite groups</option></select>
+      <div id="palette" class="palette" aria-label="Object palette"></div>
+      <div class="library-bottom"><select id="new-type" aria-label="New object type"><option value="passage">Passage</option><option value="wall">Wall</option><option value="sprite">Sprite</option><option value="spriteGroup">Sprite group</option></select><button id="add-object">+ Add object</button></div>
+    </aside>
+    <section class="workspace">
+      <div class="toolbar">
+        <div class="tools" role="group" aria-label="Drawing tools">
+          <button data-tool="brush" class="active" title="Brush (B)">▧ <span>Brush</span></button>
+          <button data-tool="fill" title="Flood fill (F)">▨ <span>Fill</span></button>
+          <button data-tool="pick" title="Eyedropper (I), or right-click">⌾ <span>Pick</span></button>
+          <button data-tool="spawn" title="Place player (P)">➤ <span>Spawn</span></button>
+        </div>
+        <div class="history"><button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button></div>
+        <div class="view-tools"><button id="zoom-out" aria-label="Zoom out">−</button><output id="zoom-label">100%</output><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button></div>
+      </div>
+      <div class="map-heading"><div><strong id="document-title">Loading workspace…</strong><span id="dirty-dot" hidden> ●</span><span id="map-dimensions" class="muted"></span></div><span class="orientation">N ↑ &nbsp; X → · Y ↓</span></div>
+      <div id="viewport" class="viewport"><div class="canvas-wrap"><canvas id="map-canvas" tabindex="0" aria-label="Map grid. Use the palette and drawing tools to edit cells."></canvas></div></div>
+      <div class="workspace-footer"><span id="cursor-status">Choose an object, then paint the grid.</span><span>Right-click to pick · Ctrl+Z undo · Ctrl+S save</span></div>
+    </section>
+    <aside class="inspector panel">
+      <div class="panel-heading">MAP SETTINGS</div>
+      <label for="map-name">Map name</label><input id="map-name" maxlength="64" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]*" spellcheck="false">
+      <div class="field-row"><label>Width<input id="map-width" type="number" min="3" max="64"></label><label>Height<input id="map-height" type="number" min="3" max="64"></label><button id="resize">Resize</button></div>
+      <p class="hint">Up to 64 × 64. Outer cells must block movement and rays.</p>
+      <label for="engine-url">Engine URL</label><input id="engine-url" type="url" value="http://localhost:5025" placeholder="http://localhost:5025">
+      <div class="section-heading">PLAYER START</div>
+      <div class="field-row"><label>X<input id="spawn-x" type="number" min="0" step="0.1"></label><label>Y<input id="spawn-y" type="number" min="0" step="0.1"></label></div>
+      <label>Facing<select id="spawn-facing"><option value="-1,0">West ←</option><option value="0,-1">North ↑</option><option value="1,0">East →</option><option value="0,1">South ↓</option><option value="custom" hidden>Custom direction</option></select></label>
+      <div class="field-row"><label>Move speed<input id="move-speed" type="number" min="0" step="0.5"></label><label>Turn speed<input id="rot-speed" type="number" min="0" step="0.5"></label></div>
+      <div class="section-heading">VIEW</div>
+      <div class="view-options"><label><input id="show-grid" type="checkbox" checked> Grid</label><label><input id="show-ids" type="checkbox"> Object IDs</label><label><input id="show-collision" type="checkbox"> Collision</label><label><input id="show-rays" type="checkbox"> Ray blockers</label></div>
+      <div class="section-heading">SELECTED OBJECT <span id="selected-id" class="accent"></span></div>
+      <div id="object-summary" class="object-summary"></div>
+      <details id="texture-picker"><summary>Choose a texture</summary><label class="sr-only" for="texture-target">Texture surface</label><select id="texture-target"></select><div id="texture-options" class="texture-options"></div></details>
+      <p class="hint">Edit the definition below. Walls, sprites and groups reference a <code>passageId</code>. Changes apply to every matching cell in this map.</p>
+      <label class="sr-only" for="object-json">Selected object JSON</label><textarea id="object-json" spellcheck="false" rows="13"></textarea>
+      <button id="apply-object" class="wide">Apply definition</button>
+      <p class="hint">Saved maps get their own object files. Other maps keep their definitions.</p>
+      <button id="validate" class="wide">✓ Validate with engine</button>
+      <div id="validation" class="validation" role="status">Ready to edit.</div>
+    </aside>
+  </main>
+  <div id="toast" role="status" hidden></div>
+  <dialog id="export-dialog"><form method="dialog"><div class="panel-heading">EXPORT MAP</div><p>Use a ZIP bundle to include edited object definitions.</p><button id="export-zip" type="button" class="primary wide">Download map + objects (.zip)</button><button id="export-json" type="button" class="wide">Download map JSON</button><p class="hint">Extract the ZIP into the engine’s <code>wwwroot</code>. Existing engine textures are reused. A standalone JSON keeps its object paths and does not include definitions.</p><button class="wide">Close</button></form></dialog>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>
