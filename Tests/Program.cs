@@ -6,7 +6,8 @@ using WolfNET.Graphics;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
 var webRoot = Path.Combine(root, "wwwroot");
-using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
+var fileHandler = new FileHandler(webRoot);
+using var http = new HttpClient(fileHandler) { BaseAddress = new Uri("https://test.local/") };
 int assertions = 0;
 void Check(bool condition, string message)
 {
@@ -63,6 +64,9 @@ var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialI
 Check(map.RendererMap.Textures.Layers[material.North] == "pics/colorstone.png", "Wall material changed");
 Check(material.North == material.East && material.East == material.South && material.South == material.West, "Wall faces changed");
 
+Check(fileHandler.Requests.All(path => !path.Contains("showcase") && !path.EndsWith("index.json")), "Loaded another map or global index");
+Check(fileHandler.Requests.Count == map.Objects.Count + 1, "An object was loaded more than once");
+Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("showcase-missing")), "Unrelated map textures leaked");
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 25 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
@@ -179,16 +183,42 @@ Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { TextureL
 var emptyGroup = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [] } });
 Check(emptyGroup.RendererMap.Sprites.Count == 0, "Empty group invalid");
 
-using var duplicate = new HttpClient(new FileHandler(webRoot, path => path == "objects/index.json" ? "[\"passage-mossy-floor-wood-ceiling.json\",\"passage-mossy-floor-wood-ceiling.json\"]" : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<InvalidDataException>(duplicate, "Duplicate IDs accepted");
-using var unknownType = new HttpClient(new FileHandler(webRoot, path => path == "objects/passage-mossy-floor-wood-ceiling.json" ? "{\"type\":\"unknown\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
+const string passagePath = "objects/level1/passages/passage-mossy-floor-wood-ceiling.json";
+using var wrongId = new HttpClient(new FileHandler(webRoot, path => path == passagePath
+    ? "{\"type\":\"passage\",\"id\":999,\"raycastTransparent\":true,\"collides\":false}" : null)) { BaseAddress = http.BaseAddress };
+await RejectLoad<InvalidDataException>(wrongId, "Index/object ID mismatch accepted");
+using var unknownType = new HttpClient(new FileHandler(webRoot, path => path == passagePath ? "{\"type\":\"unknown\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<JsonException>(unknownType, "Unknown type accepted");
-using var missingFlags = new HttpClient(new FileHandler(webRoot, path => path == "objects/passage-mossy-floor-wood-ceiling.json" ? "{\"type\":\"passage\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
+using var missingFlags = new HttpClient(new FileHandler(webRoot, path => path == passagePath ? "{\"type\":\"passage\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<JsonException>(missingFlags, "Required flags were not validated");
 using var malformed = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? "{}" : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<JsonException>(malformed, "Malformed level accepted");
-using var notFound = new HttpClient(new FileHandler(webRoot, path => path == "objects/index.json" ? "[\"not-found.json\"]" : null)) { BaseAddress = http.BaseAddress };
+string ModifiedMap(Action<System.Text.Json.Nodes.JsonObject> modify)
+{
+    var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(webRoot, "maps/level1.json")))!.AsObject();
+    modify(json);
+    return json.ToJsonString();
+}
+var unusedJson = ModifiedMap(json => json["objects"]!["999"] = "../objects/does-not-exist.json");
+var unusedHandler = new FileHandler(webRoot, path => path == "maps/level1.json" ? unusedJson : null);
+using var unusedHttp = new HttpClient(unusedHandler) { BaseAddress = http.BaseAddress };
+var unusedMap = await GameMap.LoadAsync(unusedHttp, "maps/level1.json", 64, 64);
+Check(!unusedMap.Objects.ContainsKey(999) && unusedHandler.Requests.All(path => !path.Contains("does-not-exist")), "Unused indexed object was loaded");
+var missingJson = ModifiedMap(json => json["objects"]!.AsObject().Remove("0"));
+using var missingIndex = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? missingJson : null)) { BaseAddress = http.BaseAddress };
+await RejectLoad<InvalidDataException>(missingIndex, "Missing index entry accepted");
+var notFoundJson = ModifiedMap(json => json["objects"]!["0"] = "../objects/not-found.json");
+using var notFound = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? notFoundJson : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<HttpRequestException>(notFound, "Missing definition accepted");
+var unusedTexture = Compile(objects: new(definitions) { [99] = wall with { Id = 99, Textures = new() { North = "pics/unused.png" } } });
+Check(!unusedTexture.RendererMap.Textures.Layers.Values.Contains("pics/unused.png"), "Unused texture included in catalog");
+var childSurfaces = Compile(SmallMap(3), new(definitions)
+{
+    [5] = Passage(5) with { FloorTexture = "pics/child-only-floor.png", CeilingTexture = "pics/child-only-ceiling.png" },
+    [2] = spriteDef with { PassageId = 5 }
+});
+Check(childSurfaces.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("child-only")), "Unused child surfaces included in catalog");
+
 using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
 await RejectLoad<OperationCanceledException>(http, "Cancellation ignored", cancellation.Token);
 foreach (bool wallsPresent in new[] { false, true })
@@ -223,10 +253,12 @@ Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, sur
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler
 {
+    public List<string> Requests { get; } = [];
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         var path = request.RequestUri!.AbsolutePath.TrimStart('/');
+        Requests.Add(path);
         var value = replacement?.Invoke(path);
         var file = Path.Combine(root, path);
         return Task.FromResult(value != null || File.Exists(file)

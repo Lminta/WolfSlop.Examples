@@ -1,4 +1,37 @@
 {
+  "objects": {
+    "0": "../objects/showcase/passages/passage-mossy-floor-wood-ceiling.json",
+    "1": "../objects/showcase/walls/wall-eagle.json",
+    "3": "../objects/showcase/walls/wall-purplestone.json",
+    "4": "../objects/showcase/walls/wall-greystone.json",
+    "10": "../objects/showcase/passages/passage-showcase-blue-stone.json",
+    "11": "../objects/showcase/passages/passage-showcase-color-stone.json",
+    "12": "../objects/showcase/passages/passage-showcase-wood-moss.json",
+    "13": "../objects/showcase/passages/passage-showcase-purple-stone.json",
+    "14": "../objects/showcase/passages/passage-showcase-wood-color-stone.json",
+    "15": "../objects/showcase/passages/passage-missing-surfaces.json",
+    "16": "../objects/showcase/passages/passage-unavailable-surfaces.json",
+    "20": "../objects/showcase/walls/wall-four-materials.json",
+    "22": "../objects/showcase/walls/wall-showcase-solid.json",
+    "23": "../objects/showcase/walls/wall-showcase-walk-through.json",
+    "24": "../objects/showcase/walls/wall-showcase-transparent-solid.json",
+    "25": "../objects/showcase/walls/wall-showcase-transparent-walk-through.json",
+    "26": "../objects/showcase/passages/passage-invisible-barrier.json",
+    "30": "../objects/showcase/walls/wall-missing-all-faces.json",
+    "31": "../objects/showcase/walls/wall-missing-west-face.json",
+    "32": "../objects/showcase/walls/wall-unavailable-image.json",
+    "110": "../objects/showcase/sprites/sprite-showcase-greenlight.json",
+    "111": "../objects/showcase/sprites/sprite-showcase-barrel.json",
+    "112": "../objects/showcase/sprites/sprite-solid-pillar.json",
+    "113": "../objects/showcase/sprites/sprite-opaque-barrel.json",
+    "115": "../objects/showcase/sprites/sprite-showcase-lane-barrel.json",
+    "116": "../objects/showcase/sprites/sprite-showcase-gallery-greenlight.json",
+    "117": "../objects/showcase/sprites/sprite-unavailable-image.json",
+    "118": "../objects/showcase/sprites/sprite-missing-image.json",
+    "120": "../objects/showcase/sprite-groups/group-walk-through-pillars.json",
+    "121": "../objects/showcase/sprite-groups/group-solid-mixed-display.json",
+    "122": "../objects/showcase/sprite-groups/group-opaque-display.json"
+  },
   "worldMap": [
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
     [4, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 4, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
@@ -26,5 +59,10 @@
     [4, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 4, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 4],
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
   ],
-  "playerStart": {"x":6.5,"y":10.5,"directionX":0,"directionY":-1}
+  "playerStart": {
+    "x": 6.5,
+    "y": 10.5,
+    "directionX": 0,
+    "directionY": -1
+  }
 }

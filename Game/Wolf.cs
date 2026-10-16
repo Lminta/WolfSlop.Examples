@@ -33,6 +33,7 @@ public sealed class Wolf : IDisposable
     private bool _disposed;
     private int _frameGeneration;
     private readonly SemaphoreSlim _mapSwitchLock = new(1, 1);
+    private TextureCatalog? _sceneTextures;
     public string? CurrentMapPath { get; private set; }
 
     public Wolf(
@@ -94,12 +95,18 @@ public sealed class Wolf : IDisposable
             _lastFrameEndTime = 0;
             _lastFrameDeltaTime = 0;
             CurrentMapPath = mapPath;
+            _sceneTextures = map.RendererMap.Textures;
             int generation = ++_frameGeneration;
 
             Console.WriteLine(
                 $"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
 
             _window.RequestAnimationFrame(() => Frame(generation));
+        }
+        catch
+        {
+            _renderer.ReleaseScene();
+            throw;
         }
         finally
         {
@@ -116,6 +123,11 @@ public sealed class Wolf : IDisposable
         {
             var frameStartTime = _clock.Elapsed.TotalMilliseconds;
             _objectCollection.Update((float) _lastFrameDeltaTime);
+            if (!ReferenceEquals(_sceneTextures, Map.RendererMap.Textures))
+            {
+                _ = RefreshSceneAsync(generation);
+                return;
+            }
             _renderer.Render(
                 _player.Camera.Transform.Position, 
                 _player.Camera.Transform.Rotation,
@@ -131,6 +143,35 @@ public sealed class Wolf : IDisposable
 
             Console.Error.WriteLine(
                 $"[GAME] Frame failed: {ex}");
+        }
+    }
+
+    // Edits can introduce a previously unused texture. Serialize that upload with map switches.
+    private async Task RefreshSceneAsync(int generation)
+    {
+        await _mapSwitchLock.WaitAsync();
+        try
+        {
+            if (!_running || generation != _frameGeneration) return;
+            var map = Map.RendererMap;
+            await _renderer.PrepareSceneAsync(map);
+            if (!_running || generation != _frameGeneration)
+            {
+                _renderer.ReleaseScene();
+                return;
+            }
+            _sceneTextures = map.Textures;
+            _lastFrameDeltaTime = 0;
+            _window.RequestAnimationFrame(() => Frame(generation));
+        }
+        catch (Exception ex)
+        {
+            if (generation == _frameGeneration) Stop();
+            Console.Error.WriteLine($"[GAME] Scene update failed: {ex}");
+        }
+        finally
+        {
+            _mapSwitchLock.Release();
         }
     }
 
@@ -157,6 +198,15 @@ public sealed class Wolf : IDisposable
         _clock.Stop();
         KeyTracker.Dispose();
         MouseTracker.Dispose();
+        _objectCollection.Dispose();
+        _objectCollection = null!;
+        _player = null!;
+        KeyTracker = null!;
+        MouseTracker = null!;
+        Map = null!;
+        CurrentMapPath = null;
+        _sceneTextures = null;
+        _renderer.ReleaseScene();
 
         Console.WriteLine("[GAME] Stopped");
     }

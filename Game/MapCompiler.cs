@@ -11,6 +11,7 @@ public sealed class MapCompiler
     private readonly Dictionary<int, CompiledObject> _objects = [];
     private readonly WallMaterial[] _materials;
     private readonly TextureCatalog _textures;
+    private TextureCatalog? _sceneTextures;
     private readonly int _maxWidth;
     private readonly int _maxHeight;
 
@@ -152,7 +153,15 @@ public sealed class MapCompiler
         if (!float.IsFinite(direction.LengthSquared()) || direction.LengthSquared() <= 0)
             throw new InvalidDataException("Player start direction must be finite and nonzero.");
 
+        var usedLayers = cells.SelectMany(cell => new[] { cell.FloorTextureLayer, cell.CeilingTextureLayer }
+            .Concat(cell.Flags.HasFlag(RenderCellFlags.Wall)
+                ? new[] { _materials[cell.MaterialIndex].North, _materials[cell.MaterialIndex].East,
+                    _materials[cell.MaterialIndex].South, _materials[cell.MaterialIndex].West } : []))
+            .Concat(sprites.Select(sprite => sprite.TextureLayer)).ToHashSet();
+        var layers = _textures.Layers.Where(pair => usedLayers.Contains(pair.Key)).ToDictionary();
+        if (_sceneTextures == null || !_sceneTextures.Layers.OrderBy(pair => pair.Key).SequenceEqual(layers.OrderBy(pair => pair.Key)))
+            _sceneTextures = new TextureCatalog(layers);
         return (new RenderMap(width, height, Array.AsReadOnly(cells), Array.AsReadOnly(_materials),
-            sprites.AsReadOnly(), _textures, revision), walkable);
+            sprites.AsReadOnly(), _sceneTextures, revision), walkable);
     }
 }

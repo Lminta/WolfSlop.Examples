@@ -313,21 +313,7 @@ public sealed class WebGpuRenderer : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_initialized) throw new InvalidOperationException("Initialize the GPU before preparing a scene.");
-        _preparedTextures = null;
-        _renderBindGroup?.Dispose();
-        _spriteBindGroup?.Dispose();
-        _minimapBindGroup?.Dispose();
-        _renderBindGroup = _spriteBindGroup = _minimapBindGroup = null;
-        DestroyBuffer(_spriteBuffer);
-        _spriteBuffer = null;
-        _spriteCapacity = 0;
-        DestroyBuffer(_materialsBuffer);
-        _materialsBuffer = null;
-        _wallTextureView?.Dispose();
-        _wallTextureView = null;
-        _wallTextures?.Destroy();
-        _wallTextures?.Dispose();
-        _wallTextures = null;
+        ReleaseScene();
         await LoadTexturesAsync(map.Textures, cancellationToken);
 
         _materialsBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
@@ -366,6 +352,27 @@ public sealed class WebGpuRenderer : IDisposable
         _uploadedMap = null;
         UpdateMap(map);
         Console.WriteLine($"[GPU] Scene prepared: {map.Width}x{map.Height}, {map.Sprites.Count} sprites");
+    }
+
+    public void ReleaseScene()
+    {
+        _preparedTextures = null;
+        _renderBindGroup?.Dispose();
+        _spriteBindGroup?.Dispose();
+        _minimapBindGroup?.Dispose();
+        _renderBindGroup = _spriteBindGroup = _minimapBindGroup = null;
+        DestroyBuffer(_spriteBuffer);
+        _spriteBuffer = null;
+        _spriteCapacity = 0;
+        DestroyBuffer(_materialsBuffer);
+        _materialsBuffer = null;
+        _wallTextureView?.Dispose();
+        _wallTextureView = null;
+        _wallTextures?.Destroy();
+        _wallTextures?.Dispose();
+        _wallTextures = null;
+        _uploadedMap = null;
+        _sortedSprites.Clear();
     }
 
     private async Task LoadTexturesAsync(TextureCatalog catalog, CancellationToken cancellationToken)
@@ -830,21 +837,14 @@ public sealed class WebGpuRenderer : IDisposable
         }
 
         _computeBindGroup?.Dispose();
-        _renderBindGroup?.Dispose();
-        _spriteBindGroup?.Dispose();
-        _minimapBindGroup?.Dispose();
-        _wallTextureView?.Dispose();
-        _wallTextures?.Destroy();
-        _wallTextures?.Dispose();
+        ReleaseScene();
 
         DestroyBuffer(_cameraBuffer);
         DestroyBuffer(_mapInfoBuffer);
         DestroyBuffer(_worldMapBuffer);
         DestroyBuffer(_rayHitsBuffer);
-        DestroyBuffer(_spriteBuffer);
 
         _computePipeline?.Dispose();
-        DestroyBuffer(_materialsBuffer);
         _renderPipeline?.Dispose();
         _spritePipeline?.Dispose();
         _minimapPipeline?.Dispose();

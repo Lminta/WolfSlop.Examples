@@ -31,11 +31,10 @@ public sealed class GameMap : IMap
     public static async Task<GameMap> LoadAsync(HttpClient http, string path, int maxWidth, int maxHeight,
         CancellationToken cancellationToken = default)
     {
-        var mapTask = http.GetFromJsonAsync<MapDefinition>(path, cancellationToken);
-        var objectsTask = MapObjectLoader.LoadAsync(http, "objects/index.json", cancellationToken);
-        await Task.WhenAll(mapTask, objectsTask);
-        var definition = await mapTask ?? throw new InvalidDataException($"Map '{path}' is empty.");
-        return new GameMap(definition, await objectsTask, maxWidth, maxHeight);
+        var definition = await http.GetFromJsonAsync<MapDefinition>(path, cancellationToken)
+            ?? throw new InvalidDataException($"Map '{path}' is empty.");
+        var objects = await MapObjectLoader.LoadAsync(http, path, definition, cancellationToken);
+        return new GameMap(definition, objects, maxWidth, maxHeight);
     }
 
     public void SetCell(int x, int y, int objectId)

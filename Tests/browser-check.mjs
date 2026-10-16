@@ -6,9 +6,9 @@ import {checkGpu} from "./gpu-check.mjs";
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
 const missingTextures = process.argv.includes("--missing-textures");
-const manifest = JSON.parse(fs.readFileSync("wwwroot/objects/index.json", "utf8"));
+const manifest = Object.values(JSON.parse(fs.readFileSync("wwwroot/maps/level1.json", "utf8")).objects);
 const expectedImages = new Set(manifest.flatMap(file => {
-    const object = JSON.parse(fs.readFileSync(`wwwroot/objects/${file}`, "utf8"));
+    const object = JSON.parse(fs.readFileSync(`wwwroot/maps/${file}`, "utf8"));
     return [object.texture, object.floorTexture, object.ceilingTexture, ...Object.values(object.textures ?? {})].filter(Boolean);
 }));
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:"PUT"})).json();
@@ -43,7 +43,7 @@ socket.onmessage=event=>{
             void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
         } else {
             objectRequests.add(request.url);
-            if(request.url.endsWith("/objects/group-barrels-north-room.json")) heldObjectRequest=requestId;
+            if(request.url.endsWith("/sprite-groups/group-barrels-north-room.json")) heldObjectRequest=requestId;
             else void send("Fetch.continueRequest",{requestId});
         }
     } else if(message.method==="Runtime.consoleAPICalled") {
@@ -75,6 +75,31 @@ try {
         window.__copiedTextures=0;
         window.__cameraWrites=0;
         window.__duplicateFrames=0;
+        window.__sceneTextures=new Set();
+        window.__sceneBuffers=new Set();
+        window.__destroyedSceneTextures=0;
+        const createTexture=GPUDevice.prototype.createTexture;
+        GPUDevice.prototype.createTexture=function(descriptor) {
+            const texture=createTexture.call(this,descriptor);
+            if(descriptor.label==='WolfNET Scene Textures') window.__sceneTextures.add(texture);
+            return texture;
+        };
+        const destroyTexture=GPUTexture.prototype.destroy;
+        GPUTexture.prototype.destroy=function() {
+            if(window.__sceneTextures.delete(this)) window.__destroyedSceneTextures++;
+            return destroyTexture.call(this);
+        };
+        const createBuffer=GPUDevice.prototype.createBuffer;
+        GPUDevice.prototype.createBuffer=function(descriptor) {
+            const buffer=createBuffer.call(this,descriptor);
+            if(['WolfNET Wall Materials','WolfNET Sprites'].includes(descriptor.label))window.__sceneBuffers.add(buffer);
+            return buffer;
+        };
+        const destroyBuffer=GPUBuffer.prototype.destroy;
+        GPUBuffer.prototype.destroy=function() {
+            window.__sceneBuffers.delete(this);
+            return destroyBuffer.call(this);
+        };
         const raf=window.requestAnimationFrame;
         window.requestAnimationFrame=function(callback) {
             return raf.call(this,timestamp=>{window.__frameStamp=timestamp;return callback(timestamp);});
@@ -101,7 +126,8 @@ try {
     assert(!await evaluate("!!window.__camera"),"Game rendered before all definitions loaded");
     await send("Fetch.continueRequest",{requestId:heldObjectRequest});
     await waitFor("!!window.__camera");
-    assert(objectRequests.size===manifest.length+1,"Not all object definitions and the manifest were loaded");
+    assert(objectRequests.size===manifest.length,"Not all map object definitions were loaded");
+    assert([...objectRequests].every(url=>url.includes('/objects/level1/')),"Another map's objects were loaded");
     if(missingTextures) {
         assert(failedTextures===expectedImages.size,"Not all texture failures were exercised");
         assert(await evaluate("window.__copiedTextures")===0,"Missing image unexpectedly copied");
@@ -136,6 +162,8 @@ try {
         const buttonExpression=`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='${name}')`;
         assert(!await evaluate(`(${buttonExpression}).disabled`),`${name} button unavailable`);
         const before=await evaluate("window.__cameraWrites");
+        const destroyedBefore=await evaluate("window.__destroyedSceneTextures");
+        const hadScene=await evaluate("window.__sceneTextures.size>0");
         if(keyboard) {
             await evaluate(`(${buttonExpression}).focus()`);
             await send("Input.dispatchKeyEvent",{type:"keyDown",key:"Enter",code:"Enter",windowsVirtualKeyCode:13,text:"\r",unmodifiedText:"\r"});
@@ -147,6 +175,8 @@ try {
         }
         await waitFor(`window.__cameraWrites>${before}&&window.__camera[0]===${spawn[0]}&&window.__camera[1]===${spawn[1]}&&(${buttonExpression}).getAttribute('aria-pressed')==='true'`);
         assert(await evaluate("document.pointerLockElement===null"),"Map switch did not release the mouse");
+        assert(await evaluate("window.__sceneTextures.size===1&&window.__sceneBuffers.size===2"),"Old scene GPU resources retained");
+        if(hadScene) assert(await evaluate("window.__destroyedSceneTextures")>destroyedBefore,"Old textures were not destroyed");
     }
     await selectMap("Showcase",[6.5,10.5]);
     assert(logs.some(line=>line.includes("25x25")&&line.includes("25 sprites")),"Showcase was not prepared");
@@ -165,6 +195,7 @@ try {
     failNextShowcase=true;
     await evaluate("Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='Showcase').click()");
     await waitFor("!!document.querySelector('.game-error')&&!Array.from(document.querySelectorAll('.map-switcher button')).some(button=>button.disabled)");
+    assert(await evaluate("window.__sceneTextures.size===0&&window.__sceneBuffers.size===0"),"Failed switch retained scene resources");
     await send("Fetch.disable");
     await selectMap("Original",[22,11.5]);
     assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");

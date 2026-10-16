@@ -2,7 +2,7 @@
 
 namespace WolfNET.Game.Core;
 
-public abstract class ObjectBase
+public abstract class ObjectBase : IDisposable
 {
     public Guid Id = Guid.NewGuid();
     public Wolf Game { get; }
@@ -28,6 +28,12 @@ public abstract class ObjectBase
         }
     }
     
+    public virtual void Dispose()
+    {
+        foreach (var component in Components.Values.OfType<IDisposable>()) component.Dispose();
+        Components.Clear();
+    }
+
     public void AddComponent(ComponentBase component)
     {
         Components.TryAdd(component.Id, component);

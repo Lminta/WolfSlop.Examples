@@ -1,10 +1,22 @@
 # Map objects
 
-`index.json` lists every object file, relative to this directory. The game loads all
-definitions before compiling `maps/level1.json`. Grid indexing stays `worldMap[x][y]`;
-every value, including zero, is an object ID.
-Filenames describe the object; references use the `id` inside the file, so renaming
-a file only requires updating its entry in `index.json`.
+Each map JSON has an `objects` index mapping IDs to paths relative to the map file:
+
+```json
+"objects": {
+  "0": "../objects/level1/passages/passage-mossy-floor-wood-ceiling.json",
+  "1": "../objects/level1/walls/wall-eagle.json"
+}
+```
+
+Definitions live in `objects/<map>/passages`, `walls`, `sprites`, and `sprite-groups`.
+Grid indexing stays `worldMap[x][y]`; every value, including zero, is an object ID.
+Only grid objects and their dependencies (group members and passage references) are
+loaded. Unused index entries are not fetched. An indexed ID must match the JSON's
+`id`. Renaming a file requires updating its path in the owning map's index.
+Only textures referenced by compiled cells and placed sprites are requested.
+Switching maps disposes old game objects and input handlers, destroys scene GPU
+textures and buffers, and releases references to the old map. GPU pipelines are reused.
 
 All objects require `id`, `type`, `raycastTransparent`, and `collides`.
 `collides: true` blocks walking through the entire square. Independently,

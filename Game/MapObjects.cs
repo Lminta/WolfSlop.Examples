@@ -69,29 +69,36 @@ public static class MapObjectLoader
     };
 
     public static async Task<IReadOnlyDictionary<int, MapObjectDefinition>> LoadAsync(
-        HttpClient http, string manifestPath, CancellationToken cancellationToken = default)
+        HttpClient http, string mapPath, MapDefinition map, CancellationToken cancellationToken = default)
     {
-        var files = await http.GetFromJsonAsync<string[]>(manifestPath, cancellationToken)
-            ?? throw new InvalidDataException("Object manifest is empty.");
-        var manifestUri = new Uri(http.BaseAddress
-            ?? throw new InvalidOperationException("Map loading requires an HTTP base address."), manifestPath);
-        var definitions = await Task.WhenAll(files.Select(async file =>
-        {
-            if (string.IsNullOrWhiteSpace(file))
-                throw new InvalidDataException("Object manifest contains an empty filename.");
-            var uri = new Uri(manifestUri, file);
-            return await http.GetFromJsonAsync<MapObjectDefinition>(uri, Options, cancellationToken)
-                ?? throw new InvalidDataException($"Object file '{file}' is empty.");
-        }));
-
+        var mapUri = new Uri(http.BaseAddress
+            ?? throw new InvalidOperationException("Map loading requires an HTTP base address."), mapPath);
+        if (map.WorldMap == null || map.WorldMap.Any(column => column == null) || map.Objects == null)
+            throw new InvalidDataException("Map grid and object index are required.");
         var objects = new Dictionary<int, MapObjectDefinition>();
-        foreach (var definition in definitions)
+        var pending = map.WorldMap.SelectMany(column => column).Distinct().ToArray();
+        while (pending.Length > 0)
         {
-            if (definition.Id < 0 || !objects.TryAdd(definition.Id, definition))
-                throw new InvalidDataException($"Invalid or duplicate object ID {definition.Id}.");
+            var definitions = await Task.WhenAll(pending.Select(async id =>
+            {
+                if (id < 0 || !map.Objects.TryGetValue(id, out var file) || string.IsNullOrWhiteSpace(file))
+                    throw new InvalidDataException($"No object path for ID {id} in '{mapPath}'.");
+                var definition = await http.GetFromJsonAsync<MapObjectDefinition>(new Uri(mapUri, file), Options, cancellationToken)
+                    ?? throw new InvalidDataException($"Object file '{file}' is empty.");
+                if (definition.Id != id)
+                    throw new InvalidDataException($"Object '{file}' has ID {definition.Id}, expected {id}.");
+                return definition;
+            }));
+            foreach (var definition in definitions) objects.Add(definition.Id, definition);
+            pending = definitions.SelectMany(definition => definition switch
+            {
+                SpriteDefinition sprite => new[] { sprite.PassageId },
+                SpriteGroupDefinition group => new[] { group.PassageId }.Concat(
+                    (group.Sprites ?? throw new InvalidDataException($"Sprite group {group.Id} has no sprite list."))
+                    .Select(member => member?.SpriteId ?? throw new InvalidDataException($"Sprite group {group.Id} has a null member."))),
+                _ => Enumerable.Empty<int>()
+            }).Where(id => !objects.ContainsKey(id)).Distinct().ToArray();
         }
-        if (objects.Count == 0)
-            throw new InvalidDataException("Object manifest must define at least one object.");
         return new ReadOnlyDictionary<int, MapObjectDefinition>(objects);
     }
 }
