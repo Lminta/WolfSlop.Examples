@@ -96,8 +96,9 @@ foreach (var sprite in showcase.RendererMap.Sprites)
             "Showcase sprite walkability disagrees with its appearance");
 }
 Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21, 6).Flags.HasFlag(RenderCellFlags.Wall), "Showcase transparent wall demonstrations missing");
-Check(!showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
-      !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Showcase passage collision demonstration missing");
+Check(showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
+      !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Open floor outside the test lanes is blocked");
+Check(!showcase.Objects.ContainsKey(26), "Stray invisible passage barrier is still loaded");
 var fourFaces = showcase.RendererMap.Materials[(int)ShowcaseCell(6, 5).MaterialIndex];
 Check(new[] { fourFaces.North, fourFaces.East, fourFaces.South, fourFaces.West }.Distinct().Count() == 4, "Showcase wall needs four different faces");
 Check(ShowcaseCell(3, 4).FloorTextureLayer != ShowcaseCell(3, 3).FloorTextureLayer, "Showcase floor variation missing");
