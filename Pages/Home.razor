@@ -2,6 +2,7 @@
 @using SpawnDev.BlazorJS
 @using SpawnDev.BlazorJS.JSObjects
 @using WolfNET.Game
+@using WolfNET.Game.InputEvents
 @using WolfNET.Graphics
 
 @inject BlazorJSRuntime JS
@@ -27,7 +28,7 @@
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
-    <p role="status">@(_loading ? "Loading map..." : "Click the game to capture the mouse. Esc releases it.")</p>
+    <p role="status">@(_loading ? "Loading map..." : _observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
     @if (_selectedMap == ShowcaseMap)
     {
         <ul class="showcase-guide">
@@ -57,6 +58,19 @@
     private bool _errorPresent => _error != null;
 
     private string? _error;
+    private MouseTracker? _observedMouse;
+
+    private void ObserveMouse()
+    {
+        if (_observedMouse != null) _observedMouse.CaptureStateChanged -= OnCaptureStateChanged;
+        _observedMouse = Wolf.MouseTracker;
+        _observedMouse.CaptureStateChanged += OnCaptureStateChanged;
+    }
+
+    private void OnCaptureStateChanged()
+    {
+        if (!_disposed) _ = InvokeAsync(StateHasChanged);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -86,6 +100,7 @@
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
 
             await Wolf.StartAsync(_canvasElement, _lifetime.Token);
+            ObserveMouse();
             _selectedMap = OriginalMap;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
@@ -115,6 +130,7 @@
         try
         {
             await Wolf.SwitchMapAsync(_canvasElement, mapPath, _lifetime.Token);
+            ObserveMouse();
             _selectedMap = mapPath;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
@@ -133,6 +149,7 @@
     public void Dispose()
     {
         _disposed = true;
+        if (_observedMouse != null) _observedMouse.CaptureStateChanged -= OnCaptureStateChanged;
         _lifetime.Cancel();
         Wolf.Stop();
         _canvasElement?.Dispose();

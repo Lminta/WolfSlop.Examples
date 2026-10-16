@@ -235,6 +235,62 @@ try {
     await waitFor("document.pointerLockElement===null");
     await assertKeyboardInactive("Keyboard moved the player after pointer lock loss");
     console.log("PASS: keyboard controls require mouse capture; Escape clears input and recapture restores controls.");
+    // Exercise repeated captures, including event-only browser implementations.
+    for(let cycle=0;cycle<6;cycle++) {
+        if(cycle===3) await evaluate(`(()=>{
+            const canvas=document.querySelector('canvas');
+            const native=canvas.requestPointerLock;
+            canvas.requestPointerLock=function(){native.call(this)?.catch(()=>{});};
+        })()`);
+        await captureMouse();
+        await evaluate("document.exitPointerLock()");
+        await waitFor("document.pointerLockElement===null");
+        await delay(75);
+        if(cycle===3) await evaluate("delete document.querySelector('canvas').requestPointerLock");
+    }
+    await captureMouse();
+    const beforeStaleError=await evaluate("window.__camera");
+    await evaluate(`document.dispatchEvent(new Event('pointerlockerror'));document.dispatchEvent(new MouseEvent('mousemove',{movementX:40}))`);
+    await delay(100);
+    const afterStaleError=await evaluate("window.__camera");
+    assert(afterStaleError[2]!==beforeStaleError[2]||afterStaleError[3]!==beforeStaleError[3],"Delayed pointerlockerror disabled an active capture");
+    await evaluate("document.exitPointerLock()");
+    await waitFor("document.pointerLockElement===null"); await delay(75);
+    await evaluate(`(()=>{
+        const canvas=document.querySelector('canvas');
+        const native=canvas.requestPointerLock;
+        canvas.requestPointerLock=function(){return native.call(this).then(()=>new Promise(resolve=>window.__settleOldCapture=resolve));};
+    })()`);
+    await captureMouse();
+    await evaluate("document.exitPointerLock()");
+    await waitFor("document.pointerLockElement===null"); await delay(75);
+    await evaluate("delete document.querySelector('canvas').requestPointerLock");
+    await captureMouse();
+    await evaluate("window.__settleOldCapture()"); await delay(75);
+    assert(await evaluate("document.pointerLockElement===document.querySelector('canvas')"),"Old request completion released the new capture");
+    await evaluate("document.exitPointerLock()");
+    await waitFor("document.pointerLockElement===null"); await delay(75);
+    await evaluate(`(()=>{
+        window.__unhandledCaptureErrors=[];
+        window.addEventListener('unhandledrejection',event=>window.__unhandledCaptureErrors.push(String(event.reason)));
+        window.__captureRequestCount=0;
+        const canvas=document.querySelector('canvas');
+        canvas.requestPointerLock=function(){
+            window.__captureRequestCount++;
+            return new Promise((resolve,reject)=>window.__rejectCapture=reject);
+        };
+        canvas.click();canvas.click();
+    })()`);
+    assert(await evaluate("window.__captureRequestCount")===1,"Overlapping capture requests were sent");
+    await evaluate("window.__rejectCapture(new DOMException('Simulated browser cooldown','NotAllowedError'))");
+    await waitFor("document.querySelector('[role=status]').textContent.includes('Mouse capture was blocked')");
+    assert(await evaluate("window.__unhandledCaptureErrors.length")===0,"Capture promise rejection was unhandled");
+    await evaluate("delete document.querySelector('canvas').requestPointerLock");
+    await captureMouse();
+    assert(!await evaluate("document.querySelector('[role=status]').textContent.includes('Mouse capture was blocked')"),"Successful retry did not clear capture error");
+    await evaluate("document.exitPointerLock()");
+    await waitFor("document.pointerLockElement===null"); await delay(75);
+    console.log("PASS: repeated recapture, event-only requests, stale errors, overlapping-click protection, and rejected-request recovery.");
     async function selectMap(name,spawn,keyboard=false) {
         const buttonExpression=`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='${name}')`;
         assert(!await evaluate(`(${buttonExpression}).disabled`),`${name} button unavailable`);

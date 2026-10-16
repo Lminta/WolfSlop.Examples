@@ -807,7 +807,7 @@ public sealed class WebGpuRenderer : IDisposable
         _frameCount++;
 
         if (_frameCount == 1 ||
-            _frameCount % 300 == 0)
+            _frameCount % 1000 == 0)
         {
             Console.WriteLine(
                 $"[GPU] Frame {_frameCount}");
