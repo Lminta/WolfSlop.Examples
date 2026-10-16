@@ -1,0 +1,9 @@
+{
+  "type": "sprite",
+  "id": 112,
+  "raycastTransparent": true,
+  "collides": true,
+  "texture": "pics/pillar.png",
+  "textureLayer": 9,
+  "passageId": 12
+}

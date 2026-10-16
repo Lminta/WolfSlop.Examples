@@ -1,0 +1,23 @@
+{
+  "type": "spriteGroup",
+  "id": 120,
+  "raycastTransparent": true,
+  "collides": false,
+  "passageId": 12,
+  "sprites": [
+    {
+      "spriteId": 112,
+      "offset": {
+        "x": -0.25,
+        "y": -0.15
+      }
+    },
+    {
+      "spriteId": 112,
+      "offset": {
+        "x": 0.35,
+        "y": 0.25
+      }
+    }
+  ]
+}

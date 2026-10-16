@@ -47,7 +47,7 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
             return;
         }
 
-        e.PreventDefault();
+        if (IsMovementKey(e.Code)) e.PreventDefault();
         _input.TriggerEvent(new KeyDownEvent { Event = e });
     }
 
@@ -56,11 +56,14 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
         if (e.Code == "Escape")
             return;
 
-        e.PreventDefault();
+        if (IsMovementKey(e.Code)) e.PreventDefault();
         _input.TriggerEvent(new KeyUpEvent { Event = e });
     }
 
     private void OnBlur(Event e) => _keyState = default;
+
+    private static bool IsMovementKey(string code) => code is
+        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "KeyQ" or "KeyE";
     
     public Task OnEvent(KeyDownEvent gameEvent)
     {

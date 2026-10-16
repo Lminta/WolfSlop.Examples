@@ -1,0 +1,6 @@
+{
+  "type": "wall",
+  "id": 30,
+  "raycastTransparent": false,
+  "collides": true
+}

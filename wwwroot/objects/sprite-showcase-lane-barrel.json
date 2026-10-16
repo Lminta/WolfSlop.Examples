@@ -1,0 +1,9 @@
+{
+  "type": "sprite",
+  "id": 115,
+  "raycastTransparent": true,
+  "collides": false,
+  "texture": "pics/barrel.png",
+  "textureLayer": 8,
+  "passageId": 11
+}

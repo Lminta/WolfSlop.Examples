@@ -1,0 +1,8 @@
+{
+  "type": "passage",
+  "id": 12,
+  "raycastTransparent": true,
+  "collides": false,
+  "floorTexture": "pics/wood.png",
+  "ceilingTexture": "pics/mossy.png"
+}

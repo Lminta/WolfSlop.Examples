@@ -28,6 +28,57 @@ canvas {
     outline: none;
 }
 
+.map-switcher {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: min(330px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923ee;
+    color: #e0e8ee;
+    font: 13px/1.45 system-ui, sans-serif;
+    z-index: 20;
+}
+
+.map-switcher nav {
+    display: flex;
+    gap: 8px;
+}
+
+.map-switcher button {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #657a8c;
+    border-radius: 4px;
+    background: #23313d;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.map-switcher button[aria-pressed="true"] {
+    border-color: #45bfff;
+    background: #194a64;
+}
+
+.map-switcher button:disabled {
+    cursor: default;
+}
+
+.map-switcher button:focus-visible {
+    outline: 2px solid #45bfff;
+    outline-offset: 2px;
+}
+
+.map-switcher p { margin: 10px 0 0; }
+.map-switcher .controls-hint { color: #adbeca; }
+.showcase-guide { margin: 10px 0 0; padding-left: 18px; }
+.showcase-guide li + li { margin-top: 5px; }
+
 .game-error {
     position: fixed;
     top: 10px;

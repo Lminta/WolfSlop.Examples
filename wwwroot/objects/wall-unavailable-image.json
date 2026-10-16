@@ -1,0 +1,12 @@
+{
+  "type": "wall",
+  "id": 32,
+  "raycastTransparent": false,
+  "collides": true,
+  "textures": {
+    "north": "pics/showcase-missing-wall.png",
+    "east": "pics/showcase-missing-wall.png",
+    "south": "pics/showcase-missing-wall.png",
+    "west": "pics/showcase-missing-wall.png"
+  }
+}

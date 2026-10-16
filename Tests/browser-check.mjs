@@ -6,6 +6,11 @@ import {checkGpu} from "./gpu-check.mjs";
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
 const missingTextures = process.argv.includes("--missing-textures");
+const manifest = JSON.parse(fs.readFileSync("wwwroot/objects/index.json", "utf8"));
+const expectedImages = new Set(manifest.flatMap(file => {
+    const object = JSON.parse(fs.readFileSync(`wwwroot/objects/${file}`, "utf8"));
+    return [object.texture, object.floorTexture, object.ceilingTexture, ...Object.values(object.textures ?? {})].filter(Boolean);
+}));
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:"PUT"})).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
@@ -14,6 +19,7 @@ const pending=new Map(), logs=[];
 const objectRequests=new Set();
 let heldObjectRequest;
 let failedTextures=0;
+let failNextShowcase=false;
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function send(method,params={}) {
     return new Promise((resolve,reject)=>{
@@ -29,7 +35,10 @@ socket.onmessage=event=>{
         message.error?request.reject(message.error):request.resolve(message.result);
     } else if(message.method==="Fetch.requestPaused") {
         const {requestId,request}=message.params;
-        if(request.url.includes("/pics/")) {
+        if(failNextShowcase&&request.url.endsWith("/maps/showcase.json")) {
+            failNextShowcase=false;
+            void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
+        } else if(request.url.includes("/pics/")) {
             failedTextures++;
             void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
         } else {
@@ -64,11 +73,22 @@ try {
         const write=GPUQueue.prototype.writeBuffer;
         const copy=GPUQueue.prototype.copyExternalImageToTexture;
         window.__copiedTextures=0;
+        window.__cameraWrites=0;
+        window.__duplicateFrames=0;
+        const raf=window.requestAnimationFrame;
+        window.requestAnimationFrame=function(callback) {
+            return raf.call(this,timestamp=>{window.__frameStamp=timestamp;return callback(timestamp);});
+        };
         GPUQueue.prototype.copyExternalImageToTexture=function(...args) {
             window.__copiedTextures++; return copy.apply(this,args);
         };
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...rest) {
-            if(buffer.label==='WolfNET Camera') window.__camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,8));
+            if(buffer.label==='WolfNET Camera') {
+                window.__camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,8));
+                window.__cameraWrites++;
+                if(window.__frameStamp!==undefined&&window.__lastCameraStamp===window.__frameStamp)window.__duplicateFrames++;
+                window.__lastCameraStamp=window.__frameStamp;
+            }
             return write.call(this,buffer,offset,data,...rest);
         };
     `});
@@ -81,11 +101,11 @@ try {
     assert(!await evaluate("!!window.__camera"),"Game rendered before all definitions loaded");
     await send("Fetch.continueRequest",{requestId:heldObjectRequest});
     await waitFor("!!window.__camera");
-    assert(objectRequests.size===17,"Not all 16 object definitions and the manifest were loaded");
+    assert(objectRequests.size===manifest.length+1,"Not all object definitions and the manifest were loaded");
     if(missingTextures) {
-        assert(failedTextures===11,"Not all texture failures were exercised");
+        assert(failedTextures===expectedImages.size,"Not all texture failures were exercised");
         assert(await evaluate("window.__copiedTextures")===0,"Missing image unexpectedly copied");
-        console.log("PASS: all 11 unavailable textures use pink and the game still starts.");
+        console.log(`PASS: all ${failedTextures} unavailable textures use pink and the game still starts.`);
     }
     await send("Fetch.disable");
     assert(logs.some(line=>line.includes("revision=1, cells=576")),"Initial compiled revision missing");
@@ -112,13 +132,46 @@ try {
     assert(Math.abs(angle+.25)<.0001,"Mouse turning changed");
     await key("keyDown","Escape"); await key("keyUp","Escape");
     await waitFor("document.pointerLockElement===null");
-    const sources=Object.fromEntries(["raycast","walls","sprites"].map(name=>
-        [name,fs.readFileSync(`wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
-    console.log("GPU CHECK",await evaluate(`(${checkGpu.toString()})(${JSON.stringify(sources)})`));
+    async function selectMap(name,spawn,keyboard=false) {
+        const buttonExpression=`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='${name}')`;
+        assert(!await evaluate(`(${buttonExpression}).disabled`),`${name} button unavailable`);
+        const before=await evaluate("window.__cameraWrites");
+        if(keyboard) {
+            await evaluate(`(${buttonExpression}).focus()`);
+            await send("Input.dispatchKeyEvent",{type:"keyDown",key:"Enter",code:"Enter",windowsVirtualKeyCode:13,text:"\r",unmodifiedText:"\r"});
+            await send("Input.dispatchKeyEvent",{type:"keyUp",key:"Enter",code:"Enter",windowsVirtualKeyCode:13});
+        } else {
+            const rect=await evaluate(`(()=>{const r=(${buttonExpression}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+            await send("Input.dispatchMouseEvent",{type:"mousePressed",...rect,button:"left",clickCount:1});
+            await send("Input.dispatchMouseEvent",{type:"mouseReleased",...rect,button:"left",clickCount:1});
+        }
+        await waitFor(`window.__cameraWrites>${before}&&window.__camera[0]===${spawn[0]}&&window.__camera[1]===${spawn[1]}&&(${buttonExpression}).getAttribute('aria-pressed')==='true'`);
+        assert(await evaluate("document.pointerLockElement===null"),"Map switch did not release the mouse");
+    }
+    await selectMap("Showcase",[6.5,10.5]);
+    assert(logs.some(line=>line.includes("25x25")&&line.includes("25 sprites")),"Showcase was not prepared");
+    assert(await evaluate("!!document.querySelector('.showcase-guide')"),"Showcase guide missing");
     if(process.env.WOLFNET_SCREENSHOT) {
         const screenshot=await send("Page.captureScreenshot",{format:"png"});
         fs.writeFileSync(process.env.WOLFNET_SCREENSHOT,Buffer.from(screenshot.data,"base64"));
     }
+    await selectMap("Original",[22,11.5],true);
+    await selectMap("Showcase",[6.5,10.5]);
+    await selectMap("Original",[22,11.5]);
+    await delay(150);
+    assert(await evaluate("window.__duplicateFrames")===0,"Repeated switches duplicated animation loops");
+    // A failed request must leave the controls available for retrying the old map.
+    await send("Fetch.enable",{patterns:[{urlPattern:"*maps/showcase.json"}]});
+    failNextShowcase=true;
+    await evaluate("Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='Showcase').click()");
+    await waitFor("!!document.querySelector('.game-error')&&!Array.from(document.querySelectorAll('.map-switcher button')).some(button=>button.disabled)");
+    await send("Fetch.disable");
+    await selectMap("Original",[22,11.5]);
+    assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");
+    console.log("PASS: map buttons, keyboard activation, repeated switches, frame cleanup, and failed-load recovery.");
+    const sources=Object.fromEntries(["raycast","walls","sprites"].map(name=>
+        [name,fs.readFileSync(`wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
+    console.log("GPU CHECK",await evaluate(`(${checkGpu.toString()})(${JSON.stringify(sources)})`));
     console.log("PASS: browser startup, migrated scene, navigation movement, mouse capture, and Esc release.");
 } finally {
     socket.close();

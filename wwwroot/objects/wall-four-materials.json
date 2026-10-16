@@ -1,0 +1,12 @@
+{
+  "type": "wall",
+  "id": 20,
+  "raycastTransparent": false,
+  "collides": true,
+  "textures": {
+    "north": "pics/eagle.png",
+    "east": "pics/redbrick.png",
+    "south": "pics/mossy.png",
+    "west": "pics/bluestone.png"
+  }
+}

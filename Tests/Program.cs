@@ -63,6 +63,38 @@ var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialI
 Check(map.RendererMap.Textures.Layers[material.North] == "pics/colorstone.png", "Wall material changed");
 Check(material.North == material.East && material.East == material.South && material.South == material.West, "Wall faces changed");
 
+var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
+Check(showcase.RendererMap.Width == 25 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
+Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
+Check(showcase.RendererMap.Sprites.Count == 25, "Showcase sprite demonstrations missing");
+RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * 25 + x];
+foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, true), (19, false, false), (21, false, true) })
+{
+    Check(ShowcaseCell(x, 6).Flags.HasFlag(RenderCellFlags.StopsRay) == blocksRays, "Showcase ray-blocking lane incorrect");
+    Check(showcase.NavigationMap.IsWalkable(x, 6) == walkable, "Showcase collision lane incorrect");
+}
+Check(showcase.NavigationMap.IsWalkable(3, 21) && !showcase.NavigationMap.IsWalkable(6, 21), "Showcase group flags incorrect");
+Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21, 6).Flags.HasFlag(RenderCellFlags.Wall), "Showcase transparent wall demonstrations missing");
+Check(!showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
+      !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Showcase passage collision demonstration missing");
+var fourFaces = showcase.RendererMap.Materials[(int)ShowcaseCell(6, 5).MaterialIndex];
+Check(new[] { fourFaces.North, fourFaces.East, fourFaces.South, fourFaces.West }.Distinct().Count() == 4, "Showcase wall needs four different faces");
+Check(ShowcaseCell(3, 4).FloorTextureLayer != ShowcaseCell(3, 3).FloorTextureLayer, "Showcase floor variation missing");
+Check(ShowcaseCell(15, 21).FloorTextureLayer == TextureCatalog.MissingLayer && ShowcaseCell(15, 21).CeilingTextureLayer == TextureCatalog.MissingLayer, "Showcase missing surface fields not demonstrated");
+Check(showcase.RendererMap.Materials[(int)ShowcaseCell(18, 17).MaterialIndex].West == TextureCatalog.MissingLayer, "Showcase missing wall face not demonstrated");
+Check(showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 11) && showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 12), "Showcase missing sprites not demonstrated");
+var reachable = new HashSet<(int X, int Y)> { (6, 10) };
+var frontier = new Queue<(int X, int Y)>(); frontier.Enqueue((6, 10));
+while (frontier.TryDequeue(out var cell))
+foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
+{
+    var next = (X: cell.X + dx, Y: cell.Y + dy);
+    if (showcase.NavigationMap.IsWalkable(next.X, next.Y) && reachable.Add(next)) frontier.Enqueue(next);
+}
+for (int x = 0; x < 25; x++)
+for (int y = 0; y < 25; y++)
+    Check(!showcase.NavigationMap.IsWalkable(x, y) || reachable.Contains((x, y)), $"Unreachable showcase cell at {x},{y}");
+
 PassageDefinition Passage(int id, bool transparent = true, bool collides = false) => new()
 { Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "pics/mossy.png", CeilingTexture = "pics/wood.png" };
 var wall = new WallDefinition { Id = 1, RaycastTransparent = false, Collides = true, Textures = new WallTextures

@@ -1,0 +1,9 @@
+{
+  "type": "sprite",
+  "id": 110,
+  "raycastTransparent": true,
+  "collides": false,
+  "texture": "pics/greenlight.png",
+  "textureLayer": 10,
+  "passageId": 11
+}

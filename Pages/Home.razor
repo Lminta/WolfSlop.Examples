@@ -21,6 +21,26 @@
         tabindex="0">
 </canvas>
 
+<aside class="map-switcher" aria-label="Map selection">
+    <nav aria-label="Maps">
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
+                aria-pressed="@(_selectedMap == OriginalMap ? "true" : "false")" @onclick="() => SelectMapAsync(OriginalMap)">Original</button>
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
+                aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
+    </nav>
+    <p role="status">@(_loading ? "Loading map…" : "Click the game to capture the mouse. Esc releases it.")</p>
+    @if (_selectedMap == ShowcaseMap)
+    {
+        <ul class="showcase-guide">
+            <li><strong>NW:</strong> different floors, ceilings, and four wall faces.</li>
+            <li><strong>NE:</strong> lanes from left: solid wall, walk-through wall, invisible barrier, clear path.</li>
+            <li><strong>SW:</strong> sprites and groups; some block movement or visibility.</li>
+            <li><strong>SE:</strong> missing textures. Pink is intentional.</li>
+        </ul>
+    }
+    <p class="controls-hint">W/S move · Q/E strafe · A/D or mouse turn</p>
+</aside>
+
 @if (_error != null)
 {
     <pre class="game-error">@_error</pre>
@@ -30,6 +50,12 @@
     private ElementReference _canvas;
     private HTMLCanvasElement? _canvasElement;
     private readonly CancellationTokenSource _lifetime = new();
+    private const string OriginalMap = "maps/level1.json";
+    private const string ShowcaseMap = "maps/showcase.json";
+    private string? _selectedMap;
+    private bool _loading = true;
+    private bool _disposed;
+    private bool _errorPresent => _error != null;
 
     private string? _error;
 
@@ -61,6 +87,7 @@
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
             
             await Wolf.StartAsync(_canvasElement, _lifetime.Token);
+            _selectedMap = OriginalMap;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -74,10 +101,39 @@
 
             StateHasChanged();
         }
+        finally
+        {
+            _loading = false;
+            if (!_disposed) StateHasChanged();
+        }
+    }
+
+    private async Task SelectMapAsync(string mapPath)
+    {
+        if (_loading || _disposed || _canvasElement == null) return;
+        _loading = true;
+        _error = null;
+        try
+        {
+            await Wolf.SwitchMapAsync(_canvasElement, mapPath, _lifetime.Token);
+            _selectedMap = mapPath;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load map: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     public void Dispose()
     {
+        _disposed = true;
         _lifetime.Cancel();
         Wolf.Stop();
         _canvasElement?.Dispose();
