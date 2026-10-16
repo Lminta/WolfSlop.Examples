@@ -70,8 +70,17 @@ Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.C
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 25 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 25, "Showcase sprite demonstrations missing");
+Check(showcase.RendererMap.Sprites.Count == 21, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * 25 + x];
+Check(showcase.Objects.Values.Where(value => value is SpriteDefinition or SpriteGroupDefinition).All(value => value.RaycastTransparent), "Showcase contains ray-blocking sprites");
+Check(!showcase.Objects.ContainsKey(113) && !showcase.Objects.ContainsKey(122), "Removed sprite examples still loaded");
+foreach (var x in new[] { 15, 17, 19, 21 })
+{
+    var cell = ShowcaseCell(x, 6);
+    Check(showcase.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "pics/colorstone.png" &&
+          showcase.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "pics/wood.png", "Lane wall surfaces missing");
+}
+
 foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, true), (19, false, false), (21, false, true) })
 {
     Check(ShowcaseCell(x, 6).Flags.HasFlag(RenderCellFlags.StopsRay) == blocksRays, "Showcase ray-blocking lane incorrect");
@@ -146,6 +155,15 @@ Check(groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12
       groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].CeilingTextureLayer] == "pics/greystone.png", "Group did not use its own passage reference");
 var walls = group.RendererMap.Materials[1];
 Check(walls.West == TextureCatalog.MissingLayer, "Missing wall side not pink");
+var wallSurfaces = Compile(SmallMap(1), new(definitions)
+{
+    [1] = wall with { FloorTexture = "pics/wall-floor.png", CeilingTexture = "pics/wall-ceiling.png" }
+});
+var wallCell = wallSurfaces.RendererMap.Cells[12];
+Check(wallSurfaces.RendererMap.Textures.Layers[wallCell.FloorTextureLayer] == "pics/wall-floor.png" &&
+      wallSurfaces.RendererMap.Textures.Layers[wallCell.CeilingTextureLayer] == "pics/wall-ceiling.png", "Wall surfaces not compiled");
+var missingWallCell = Compile(SmallMap(1)).RendererMap.Cells[12];
+Check(missingWallCell.FloorTextureLayer == TextureCatalog.MissingLayer && missingWallCell.CeilingTextureLayer == TextureCatalog.MissingLayer, "Missing wall surfaces should fall back to pink");
 var noWallTextures = Compile(objects: new(definitions) { [1] = wall with { Textures = null } }).RendererMap.Materials[1];
 Check(new[] { noWallTextures.North, noWallTextures.East, noWallTextures.South, noWallTextures.West }.All(layer => layer == TextureCatalog.MissingLayer), "Omitted wall textures did not fall back");
 Check(group.RendererMap.Textures.Layers[walls.North] == "pics/north.png" && group.RendererMap.Textures.Layers[walls.South] == "pics/south.png", "Wall side mapping incorrect");

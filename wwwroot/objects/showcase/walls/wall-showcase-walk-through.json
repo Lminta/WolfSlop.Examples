@@ -8,5 +8,7 @@
     "east": "pics/wood.png",
     "south": "pics/wood.png",
     "west": "pics/wood.png"
-  }
+  },
+  "floorTexture": "pics/colorstone.png",
+  "ceilingTexture": "pics/wood.png"
 }

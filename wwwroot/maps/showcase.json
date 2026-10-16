@@ -23,14 +23,12 @@
     "110": "../objects/showcase/sprites/sprite-showcase-greenlight.json",
     "111": "../objects/showcase/sprites/sprite-showcase-barrel.json",
     "112": "../objects/showcase/sprites/sprite-solid-pillar.json",
-    "113": "../objects/showcase/sprites/sprite-opaque-barrel.json",
     "115": "../objects/showcase/sprites/sprite-showcase-lane-barrel.json",
     "116": "../objects/showcase/sprites/sprite-showcase-gallery-greenlight.json",
     "117": "../objects/showcase/sprites/sprite-unavailable-image.json",
     "118": "../objects/showcase/sprites/sprite-missing-image.json",
     "120": "../objects/showcase/sprite-groups/group-walk-through-pillars.json",
-    "121": "../objects/showcase/sprite-groups/group-solid-mixed-display.json",
-    "122": "../objects/showcase/sprite-groups/group-opaque-display.json"
+    "121": "../objects/showcase/sprite-groups/group-solid-mixed-display.json"
   },
   "worldMap": [
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
@@ -40,9 +38,9 @@
     [4, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 10, 4, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 10, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 0, 12, 12, 12, 12, 112, 12, 12, 12, 12, 12, 12, 4],
     [4, 10, 10, 14, 10, 20, 10, 14, 10, 10, 10, 10, 0, 12, 12, 12, 12, 12, 12, 12, 12, 121, 12, 12, 4],
-    [4, 10, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 0, 12, 12, 12, 12, 113, 12, 12, 116, 12, 12, 12, 4],
+    [4, 10, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 0, 12, 12, 12, 12, 12, 12, 12, 116, 12, 12, 12, 4],
     [4, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 10, 4, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
-    [4, 10, 10, 3, 14, 10, 14, 10, 14, 10, 10, 10, 4, 12, 12, 12, 12, 12, 122, 12, 12, 116, 12, 12, 4],
+    [4, 10, 10, 3, 14, 10, 14, 10, 14, 10, 10, 10, 4, 12, 12, 12, 12, 12, 12, 12, 12, 116, 12, 12, 4],
     [4, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4],

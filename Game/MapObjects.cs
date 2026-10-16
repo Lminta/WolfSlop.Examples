@@ -26,6 +26,8 @@ public sealed record PassageDefinition : MapObjectDefinition
 public sealed record WallDefinition : MapObjectDefinition
 {
     public WallTextures? Textures { get; init; }
+    public string? FloorTexture { get; init; }
+    public string? CeilingTexture { get; init; }
 }
 
 public sealed record WallTextures

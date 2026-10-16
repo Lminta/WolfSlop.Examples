@@ -27,7 +27,9 @@ Types:
 
 - `passage`: `floorTexture` and `ceilingTexture`.
 - `wall`: `textures` with `north`, `east`, `south`, and `west` paths. North is -Y;
-  east is +X. Each face can use a different image.
+  east is +X. Each face can use a different image. Optional `floorTexture` and
+  `ceilingTexture` define the surfaces inside the wall tile, useful for
+  walk-through and ray-transparent walls.
 - `sprite`: `texture`, zero-based GPU `textureLayer`, and `passageId` for the floor
   and ceiling. A sprite is placed at the center of its tile.
 - `spriteGroup`: `passageId` and a `sprites` list containing
@@ -40,8 +42,7 @@ Texture paths are relative to the application base, e.g. `pics/wood.png`.
 Images use the existing 64x64 format. Missing fields, failed image loads, and images
 of other sizes render pink. Different images cannot claim the same explicit sprite
 layer. Sprite layers must fit the GPU's default 256-layer array; other surfaces
-are assigned unused layers automatically. Walls have no floor/ceiling definition,
-so any sampled surface inside a wall tile is pink.
+are assigned unused layers automatically. Omitted wall floor/ceiling textures also use the pink fallback.
 
 The compiled renderer map, navigation map, sprite list, and minimap all update
 together when a cell changes. Invalid edits leave the previous revision intact.

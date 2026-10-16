@@ -1,4 +1,3 @@
-﻿
 @page "/"
 @using SpawnDev.BlazorJS
 @using SpawnDev.BlazorJS.JSObjects
@@ -28,17 +27,17 @@
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
-    <p role="status">@(_loading ? "Loading map…" : "Click the game to capture the mouse. Esc releases it.")</p>
+    <p role="status">@(_loading ? "Loading map..." : "Click the game to capture the mouse. Esc releases it.")</p>
     @if (_selectedMap == ShowcaseMap)
     {
         <ul class="showcase-guide">
             <li><strong>Top right:</strong> different floors, ceilings, and four wall faces.</li>
-            <li><strong>Top left:</strong> lanes from left: clear path, invisible barrier, walk-through wall, solid wall.</li>
-            <li><strong>Bottom right:</strong> sprites and groups; some block movement or visibility.</li>
+            <li><strong>Top left:</strong> lanes from left: clear path, invisible barrier, walk-through wall, solid wall. All have textured floors and ceilings.</li>
+            <li><strong>Bottom right:</strong> sprites and groups; some block movement, all let rays through.</li>
             <li><strong>Bottom left:</strong> missing textures. Pink is intentional.</li>
         </ul>
     }
-    <p class="controls-hint">W/S move · Q/E strafe · A/D or mouse turn</p>
+    <p class="controls-hint">W/S move &middot; Q/E strafe &middot; A/D or mouse turn</p>
 </aside>
 
 @if (_error != null)

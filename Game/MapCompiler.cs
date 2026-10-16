@@ -73,6 +73,8 @@ public sealed class MapCompiler
                     passage = value;
                     break;
                 case WallDefinition wall:
+                    floor = Resolve(wall.FloorTexture);
+                    ceiling = Resolve(wall.CeilingTexture);
                     flags |= RenderCellFlags.Wall;
                     material = (uint)materials.Count;
                     materials.Add(new WallMaterial(Resolve(wall.Textures?.North), Resolve(wall.Textures?.East),
