@@ -57,8 +57,8 @@ export async function checkGpu(sources) {
         values.forEach(([x,y,layer,owner], i) => data.set([floatBits(x),floatBits(y),layer,owner], i * 4));
         device.queue.writeBuffer(sprites, 0, data);
     }
-    async function draw(dx = -1, dy = 0, count = 0, overlay = false) {
-        device.queue.writeBuffer(camera, 0, new Float32Array([2.5,2.5,dx,dy,dy*.66,-dx*.66,128,128]));
+    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5) {
+        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,128,128]));
         device.queue.writeBuffer(info, 0, new Uint32Array([5,5,count,0]));
         device.queue.writeBuffer(cells, 0, map);
         const encoder = device.createCommandEncoder();
@@ -121,6 +121,17 @@ export async function checkGpu(sources) {
     assert(!equal((await draw(-1,0,1)).pixel(64,64),colors[1]), "Sprite behind camera remained visible");
     result = await draw(-1,0,0,true);
     assert(equal(result.pixel(36,36),[69,191,255,255]), "GPU minimap player marker missing");
+    // Facing north, Q moves toward +world X: the minimap marker must move left.
+    result = await draw(0,-1,0,true,3.25,2.5);
+    assert(equal(result.pixel(31,36),[69,191,255,255]), "North-facing left strafe moved minimap marker right");
+    assert(!equal(result.pixel(42,36),[69,191,255,255]), "Minimap player marker remained mirrored");
+    result = await draw(0,-1,0,true,1.75,2.5);
+    assert(equal(result.pixel(42,36),[69,191,255,255]), "North-facing right strafe moved minimap marker left");
+    resetMap(); map.set([1,4,5,3],11*4);
+    setSprites([[1.5,3.5,1,17]]);
+    result = await draw(0,-1,1,true);
+    assert(equal(result.pixel(44,36),[130,145,158,255]), "Minimap wall did not follow horizontal reflection");
+    assert(equal(result.pixel(44,44),[227,173,97,255]), "Minimap sprite did not follow horizontal reflection");
     await device.queue.onSubmittedWorkDone();
     assert(errors.length === 0, "GPU validation errors: " + errors.join("; "));
     device.destroy();

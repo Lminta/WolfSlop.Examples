@@ -32,10 +32,10 @@
     @if (_selectedMap == ShowcaseMap)
     {
         <ul class="showcase-guide">
-            <li><strong>NW:</strong> different floors, ceilings, and four wall faces.</li>
-            <li><strong>NE:</strong> lanes from left: solid wall, walk-through wall, invisible barrier, clear path.</li>
-            <li><strong>SW:</strong> sprites and groups; some block movement or visibility.</li>
-            <li><strong>SE:</strong> missing textures. Pink is intentional.</li>
+            <li><strong>Top right:</strong> different floors, ceilings, and four wall faces.</li>
+            <li><strong>Top left:</strong> lanes from left: clear path, invisible barrier, walk-through wall, solid wall.</li>
+            <li><strong>Bottom right:</strong> sprites and groups; some block movement or visibility.</li>
+            <li><strong>Bottom left:</strong> missing textures. Pink is intentional.</li>
         </ul>
     }
     <p class="controls-hint">W/S move · Q/E strafe · A/D or mouse turn</p>
@@ -83,9 +83,9 @@
                 $"[APP] Shader loaded");
 
             _canvasElement = new HTMLCanvasElement(_canvas);
-            
+
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
-            
+
             await Wolf.StartAsync(_canvasElement, _lifetime.Token);
             _selectedMap = OriginalMap;
         }

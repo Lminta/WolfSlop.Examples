@@ -78,12 +78,15 @@ fn minimapMain(input: VertexOutput) -> @location(0) vec4f {
         return vec4f(0.51, 0.57, 0.62, 1.0);
     }
 
-    let world = (pixel - vec2f(padding)) / scale;
-    if (any(world < vec2f(0.0)) || any(world >= mapSize)) {
+    let mapPoint = (pixel - vec2f(padding)) / scale;
+    if (any(mapPoint < vec2f(0.0)) || any(mapPoint >= mapSize)) {
         return vec4f(0.067, 0.098, 0.137, 1.0);
     }
+    // Lode's camera has screen-right toward -X when facing north (-Y).
+    // Mirror the complete overlay so strafing and its view cone match that handedness.
+    let world = vec2f(mapSize.x - mapPoint.x, mapPoint.y);
 
-    let cell = vec2u(world);
+    let cell = min(vec2u(world), vec2u(mapSize) - vec2u(1u));
     let wall = worldMap[cell.y * mapInfo.width + cell.x];
     var color = select(vec3f(0.137, 0.192, 0.239), vec3f(0.51, 0.57, 0.62), (wall.flags & 2u) != 0u);
     let cellEdge = min(fract(world), vec2f(1.0) - fract(world)) * scale;
