@@ -59,6 +59,7 @@ foreach (var sprite in map.RendererMap.Sprites)
     Check(sprite.OwnerCell > 0 && sprite.OwnerCell <= 576, "Sprite owner cell invalid");
 }
 Check(map.PlayerStartPosition == new Vector2(22, 11.5f) && map.PlayerStartDirection == new Vector2(-1, 0), "Spawn changed");
+Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 2, "Map player speeds not loaded");
 Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(24, 24), "Outside map is walkable");
 var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialIndex];
 Check(map.RendererMap.Textures.Layers[material.North] == "pics/colorstone.png", "Wall material changed");
@@ -126,7 +127,7 @@ var definitions = new Dictionary<int, MapObjectDefinition> { [0] = Passage(0), [
 MapDefinition SmallMap(int center = 0) => new()
 {
     WorldMap = [[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, center, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]],
-    PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = -1, DirectionY = 0 }
+    PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = -1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2 }
 };
 GameMap Compile(MapDefinition? definition = null, Dictionary<int, MapObjectDefinition>? objects = null) => new(definition ?? SmallMap(), objects ?? definitions, 64, 64);
 foreach (bool transparent in new[] { false, true })
@@ -197,8 +198,13 @@ Check(group.Revision == 3 && nav.IsWalkable(2, 2) && group.RendererMap.Sprites.C
 Reject(() => Compile(SmallMap(999)), "Unknown cell ID accepted");
 Reject(() => Compile(SmallMap() with { WorldMap = [[1], [1, 0]] }), "Ragged map accepted");
 Reject(() => Compile(SmallMap() with { WorldMap = [] }), "Empty map accepted");
-Reject(() => Compile(SmallMap() with { PlayerStart = new() { X = 0, Y = 0, DirectionX = 1, DirectionY = 0 } }), "Blocked spawn accepted");
-Reject(() => Compile(SmallMap() with { PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = 0, DirectionY = 0 } }), "Zero direction accepted");
+Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { X = 0, Y = 0 } }), "Blocked spawn accepted");
+Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { DirectionX = 0, DirectionY = 0 } }), "Zero direction accepted");
+foreach (var invalid in new[] { -1f, float.NaN, float.PositiveInfinity })
+{
+    Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { MoveSpeed = invalid } }), "Invalid movement speed accepted");
+    Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { RotSpeed = invalid } }), "Invalid rotation speed accepted");
+}
 Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { PassageId = 1 } }), "Non-passage reference accepted");
 Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 3, Offset = new() { X = 0, Y = 0 } }] } }), "Nested group accepted");
 Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 999, Offset = new() { X = 0, Y = 0 } }] } }), "Missing child accepted");
@@ -247,11 +253,12 @@ Check(childSurfaces.RendererMap.Textures.Layers.Values.All(path => path == null 
 using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
 await RejectLoad<OperationCanceledException>(http, "Cancellation ignored", cancellation.Token);
 foreach (bool wallsPresent in new[] { false, true })
+foreach (float configuredSpeed in new[] { 0f, 2f, 5f })
 foreach (float milliseconds in new[] { 16f, 33f, 100f })
 for (int heading = 0; heading < 12; heading++)
 for (int keys = 0; keys < 16; keys++)
 {
-    var level = SmallMap();
+    var level = SmallMap() with { PlayerStart = SmallMap().PlayerStart with { MoveSpeed = configuredSpeed } };
     if (wallsPresent) level.WorldMap[3][2] = 1;
     var navigation = Compile(level).NavigationMap;
     var start = wallsPresent ? new Vector2(2.99f, 2.5f) : new Vector2(2.5f, 2.5f);
@@ -263,18 +270,47 @@ for (int keys = 0; keys < 16; keys++)
         StrafeLeft = (keys & 4) != 0, StrafeRight = (keys & 8) != 0
     } };
     var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(direction.Y, -direction.X) * 0.66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, new(), navigation, camera, player);
+    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, new(), navigation, camera, level.PlayerStart, player);
     controller.Update(milliseconds);
     var speed = Vector2.Distance(start, player.Transform.Position) / (milliseconds / 1000);
-    Check(speed <= 8.0001f, "Movement exceeded the speed cap");
+    Check(speed <= configuredSpeed + 0.0001f, "Movement exceeded the configured speed cap");
     if (!wallsPresent)
     {
         bool active = tracker.KeyState.Forward != tracker.KeyState.Backward || tracker.KeyState.StrafeLeft != tracker.KeyState.StrafeRight;
-        Check(MathF.Abs(speed - (active ? 8 : 0)) < 0.0001f, "Combined movement speed changed");
+        Check(MathF.Abs(speed - (active ? configuredSpeed : 0)) < 0.0001f, "Combined movement speed changed");
     }
     Check(navigation.IsWalkable((int)player.Transform.Position.X, (int)player.Transform.Position.Y), "Controller entered a blocked cell");
 }
-Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, surfaces, navigation, revisions, loading failures, and movement).");
+foreach (float configuredSpeed in new[] { 0f, 0.5f, 2f, 4f })
+foreach (float milliseconds in new[] { 16f, 33f, 100f })
+foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })
+foreach (int keyboard in new[] { -1, 0, 1 })
+{
+    var level = Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { RotSpeed = configuredSpeed } });
+    var player = new WolfNET.Game.Core.ObjectBase
+    {
+        Transform = new Transform { Position = new Vector2(2.5f), Rotation = Vector2.UnitX }
+    };
+    var tracker = new WolfNET.Game.InputEvents.KeyTracker
+    {
+        KeyState = new() { Left = keyboard > 0, Right = keyboard < 0 }
+    };
+    var mouse = new WolfNET.Game.InputEvents.MouseTracker { HorizontalMovement = pixels };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(0, -0.66f) };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, mouse, level.NavigationMap, camera, level.PlayerStart, player);
+    controller.Update(milliseconds);
+    var limit = configuredSpeed * milliseconds / 1000f;
+    var expected = Math.Clamp(-pixels * 0.0025f + keyboard * limit, -limit, limit);
+    var angle = MathF.Atan2(player.Transform.Rotation.Y, player.Transform.Rotation.X);
+    Check(MathF.Abs(angle - expected) < 0.00001f, "Mouse/keyboard turning did not respect the configured rate");
+    Check(MathF.Abs(camera.Plane.Length() - 0.66f) < 0.00001f &&
+          MathF.Abs(Vector2.Dot(camera.Plane, player.Transform.Rotation)) < 0.00001f, "Turning changed camera field of view");
+    tracker.KeyState = new();
+    controller.Update(milliseconds);
+    Check(MathF.Abs(MathF.Atan2(player.Transform.Rotation.Y, player.Transform.Rotation.X) - angle) < 0.00001f,
+        "Mouse movement was applied more than once");
+}
+Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, surfaces, navigation, revisions, loading failures, movement, and rotation).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler
 {

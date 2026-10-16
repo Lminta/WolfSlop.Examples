@@ -47,6 +47,8 @@
     "x": 22,
     "y": 11.5,
     "directionX": -1,
-    "directionY": 0
+    "directionY": 0,
+    "moveSpeed": 5,
+    "rotSpeed": 3
   }
 }

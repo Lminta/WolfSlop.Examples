@@ -2,6 +2,23 @@
 
 Browser raycasting engine built with Blazor WebAssembly and WebGPU. Requires the .NET 10 SDK and a browser/device with WebGPU support.
 
+## Player movement
+
+Player movement is configured in each map's `playerStart` object alongside the spawn position and direction:
+
+```json
+"playerStart": {
+  "x": 22,
+  "y": 11.5,
+  "directionX": -1,
+  "directionY": 0,
+  "moveSpeed": 5,
+  "rotSpeed": 2
+}
+```
+
+`moveSpeed` is measured in map squares per second. `rotSpeed` is the maximum rotation in radians per second for mouse and keyboard combined. Mouse movement uses 0.0025 radians per pixel, capped at `rotSpeed` times the frame duration; excess movement is discarded. Both speeds are required, must be finite and nonnegative, and can be zero to disable that motion. Reload the map after editing its settings.
+
 ## Run on the local network
 
 Both launch profiles bind to all IPv4 interfaces. In Rider, select the `https` launch profile, or run:

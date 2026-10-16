@@ -23,7 +23,13 @@ namespace WolfNET.Game.InputEvents
 
     public sealed class MouseTracker
     {
-        public float ConsumeHorizontalMovement() => 0;
+        public float HorizontalMovement { get; set; }
+        public float ConsumeHorizontalMovement()
+        {
+            var movement = HorizontalMovement;
+            HorizontalMovement = 0;
+            return movement;
+        }
     }
 }
 

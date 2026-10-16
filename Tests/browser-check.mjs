@@ -176,11 +176,13 @@ try {
     await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
     await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:960,y:540,button:"left",clickCount:1});
     await waitFor("document.pointerLockElement===document.querySelector('canvas')"); await delay(100);
-    await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementX:100}))"); await delay(100);
+    // A small delta stays below the per-frame turn cap. Large-delta limits are
+    // checked deterministically with the real controller in the .NET checks.
+    await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementX:1}))"); await delay(100);
     const turned=await evaluate("window.__camera");
     let angle=Math.atan2(turned[3],turned[2])-Math.atan2(left[3],left[2]);
     angle=Math.atan2(Math.sin(angle),Math.cos(angle));
-    assert(Math.abs(angle+.25)<.0001,"Mouse turning changed");
+    assert(Math.abs(angle+.0025)<.0001,"Mouse turning changed below the configured rate limit");
     const unlockRace=await evaluate(`(async()=>{
         const before=window.__camera.slice(2,6);
         document.dispatchEvent(new MouseEvent('mousemove',{movementX:50}));

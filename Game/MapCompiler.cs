@@ -152,6 +152,9 @@ public sealed class MapCompiler
             start.X < 0 || start.Y < 0 || start.X >= width || start.Y >= height || !walkable[(int)start.X][(int)start.Y])
             throw new InvalidDataException("Player start must be in a walkable map cell.");
         var direction = new Vector2(start.DirectionX, start.DirectionY);
+        if (!float.IsFinite(start.MoveSpeed) || start.MoveSpeed < 0 ||
+            !float.IsFinite(start.RotSpeed) || start.RotSpeed < 0)
+            throw new InvalidDataException("Player speeds must be finite and nonnegative.");
         if (!float.IsFinite(direction.LengthSquared()) || direction.LengthSquared() <= 0)
             throw new InvalidDataException("Player start direction must be finite and nonzero.");
 

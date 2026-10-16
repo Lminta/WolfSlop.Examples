@@ -61,6 +61,8 @@
     "x": 6.5,
     "y": 10.5,
     "directionX": 0,
-    "directionY": -1
+    "directionY": -1,
+    "moveSpeed": 5,
+    "rotSpeed": 3
   }
 }

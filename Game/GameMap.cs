@@ -13,6 +13,7 @@ public sealed class GameMap : IMap
     public RenderMap RendererMap { get; private set; }
     public NavigationMap NavigationMap { get; } = new();
     public ulong Revision => RendererMap.Revision;
+    public PlayerStartDefinition PlayerStart => _definition.PlayerStart;
     public Vector2 PlayerStartPosition => new(_definition.PlayerStart.X, _definition.PlayerStart.Y);
     public Vector2 PlayerStartDirection => Vector2.Normalize(new Vector2(
         _definition.PlayerStart.DirectionX, _definition.PlayerStart.DirectionY));

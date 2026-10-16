@@ -6,4 +6,5 @@ public interface IMap
     WolfNET.Graphics.RenderMap RendererMap { get; }
     NavigationMap NavigationMap { get; }
     ulong Revision { get; }
+    PlayerStartDefinition PlayerStart { get; }
 }

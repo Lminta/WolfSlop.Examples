@@ -8,25 +8,26 @@ public class PlayerController : ComponentBase
 {
     private readonly KeyTracker _keyTracker;
     private readonly MouseTracker _mouseTracker;
-    // Radians per pixel; mouse turning is independent of frame duration.
+    // Radians per pixel before applying the map's maximum turn rate.
     private const float MouseSensitivity = 0.0025f;
     private readonly CameraComponent _camera;
     private readonly INavigationMap _map;
+    private readonly PlayerStartDefinition _settings;
     
-    public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, INavigationMap map, CameraComponent camera, ObjectBase parent) : base(parent)
+    public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, INavigationMap map, CameraComponent camera, PlayerStartDefinition settings, ObjectBase parent) : base(parent)
     {
         _keyTracker = keyTracker;
         _mouseTracker = mouseTracker;
         _map = map;
         _camera = camera;
+        _settings = settings;
     }
 
     public override void Update(float deltaTime)
     {
-        //speed modifiers
-        deltaTime /= 1000f; 
-        var moveSpeed = deltaTime * 8f; //the constant value is in squares/second
-        var rotSpeed = deltaTime * 3f; //the constant value is in radians/second
+        deltaTime /= 1000f;
+        var moveSpeed = deltaTime * _settings.MoveSpeed;
+        var rotSpeed = deltaTime * _settings.RotSpeed;
 
         var posX = Parent.Transform.Position.X;
         var posY = Parent.Transform.Position.Y;
@@ -56,6 +57,7 @@ public class PlayerController : ComponentBase
             turn -= rotSpeed;
         if (_keyTracker.KeyState.Left)
             turn += rotSpeed;
+        turn = Math.Clamp(turn, -rotSpeed, rotSpeed);
 
         if (turn != 0)
         {

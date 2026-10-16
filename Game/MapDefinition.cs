@@ -15,4 +15,7 @@ public sealed record PlayerStartDefinition
     public required float Y { get; init; }
     public required float DirectionX { get; init; }
     public required float DirectionY { get; init; }
+    // Squares per second and maximum radians per second, respectively.
+    public required float MoveSpeed { get; init; }
+    public required float RotSpeed { get; init; }
 }
