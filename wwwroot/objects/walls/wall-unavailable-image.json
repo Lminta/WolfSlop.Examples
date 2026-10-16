@@ -3,6 +3,7 @@
   "id": 32,
   "raycastTransparent": false,
   "collides": true,
+  "passageId": 0,
   "textures": {
     "north": "pics/showcase-missing-wall.png",
     "east": "pics/showcase-missing-wall.png",

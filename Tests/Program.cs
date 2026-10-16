@@ -59,7 +59,7 @@ foreach (var sprite in map.RendererMap.Sprites)
     Check(sprite.OwnerCell > 0 && sprite.OwnerCell <= 576, "Sprite owner cell invalid");
 }
 Check(map.PlayerStartPosition == new Vector2(22, 11.5f) && map.PlayerStartDirection == new Vector2(-1, 0), "Spawn changed");
-Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 2, "Map player speeds not loaded");
+Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 3, "Map player speeds not loaded");
 Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(24, 24), "Outside map is walkable");
 var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialIndex];
 Check(map.RendererMap.Textures.Layers[material.North] == "pics/colorstone.png", "Wall material changed");
@@ -118,7 +118,7 @@ for (int y = 0; y < 25; y++)
 
 PassageDefinition Passage(int id, bool transparent = true, bool collides = false) => new()
 { Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "pics/mossy.png", CeilingTexture = "pics/wood.png" };
-var wall = new WallDefinition { Id = 1, RaycastTransparent = false, Collides = true, Textures = new WallTextures
+var wall = new WallDefinition { Id = 1, RaycastTransparent = false, Collides = true, PassageId = 0, Textures = new WallTextures
 { North = "pics/north.png", East = "pics/east.png", South = "pics/south.png" } };
 var spriteDef = new SpriteDefinition { Id = 2, RaycastTransparent = false, Collides = true, PassageId = 0, Texture = "pics/barrel.png", TextureLayer = 8 };
 var groupDef = new SpriteGroupDefinition { Id = 3, RaycastTransparent = true, Collides = false, PassageId = 0,
@@ -165,12 +165,17 @@ var walls = group.RendererMap.Materials[1];
 Check(walls.West == TextureCatalog.MissingLayer, "Missing wall side not pink");
 var wallSurfaces = Compile(SmallMap(1), new(definitions)
 {
-    [1] = wall with { FloorTexture = "pics/wall-floor.png", CeilingTexture = "pics/wall-ceiling.png" }
+    [4] = Passage(4, false, true) with { FloorTexture = "pics/wall-floor.png", CeilingTexture = "pics/wall-ceiling.png" },
+    [1] = wall with { PassageId = 4 }
 });
 var wallCell = wallSurfaces.RendererMap.Cells[12];
 Check(wallSurfaces.RendererMap.Textures.Layers[wallCell.FloorTextureLayer] == "pics/wall-floor.png" &&
       wallSurfaces.RendererMap.Textures.Layers[wallCell.CeilingTextureLayer] == "pics/wall-ceiling.png", "Wall surfaces not compiled");
-var missingWallCell = Compile(SmallMap(1)).RendererMap.Cells[12];
+var missingWallCell = Compile(SmallMap(1), new(definitions)
+{
+    [4] = Passage(4) with { FloorTexture = null, CeilingTexture = null },
+    [1] = wall with { PassageId = 4 }
+}).RendererMap.Cells[12];
 Check(missingWallCell.FloorTextureLayer == TextureCatalog.MissingLayer && missingWallCell.CeilingTextureLayer == TextureCatalog.MissingLayer, "Missing wall surfaces should fall back to pink");
 var noWallTextures = Compile(objects: new(definitions) { [1] = wall with { Textures = null } }).RendererMap.Materials[1];
 Check(new[] { noWallTextures.North, noWallTextures.East, noWallTextures.South, noWallTextures.West }.All(layer => layer == TextureCatalog.MissingLayer), "Omitted wall textures did not fall back");
@@ -206,6 +211,8 @@ foreach (var invalid in new[] { -1f, float.NaN, float.PositiveInfinity })
     Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { RotSpeed = invalid } }), "Invalid rotation speed accepted");
 }
 Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { PassageId = 1 } }), "Non-passage reference accepted");
+Reject(() => Compile(objects: new(definitions) { [1] = wall with { PassageId = 2 } }), "Wall non-passage reference accepted");
+Reject(() => Compile(objects: new(definitions) { [1] = wall with { PassageId = 999 } }), "Wall missing passage reference accepted");
 Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 3, Offset = new() { X = 0, Y = 0 } }] } }), "Nested group accepted");
 Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 999, Offset = new() { X = 0, Y = 0 } }] } }), "Missing child accepted");
 Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 2, Offset = new() { X = 100, Y = 0 } }] } }), "Outside sprite accepted");
@@ -230,6 +237,23 @@ string ModifiedMap(Action<System.Text.Json.Nodes.JsonObject> modify)
     modify(json);
     return json.ToJsonString();
 }
+var wallDependencyJson = ModifiedMap(json => json["objects"]!["999"] = "../objects/passages/wall-only-passage.json");
+var wallDependencyHandler = new FileHandler(webRoot, path => path switch
+{
+    "maps/level1.json" => wallDependencyJson,
+    "objects/walls/wall-eagle.json" => JsonSerializer.Serialize<MapObjectDefinition>(wall with { PassageId = 999 }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+    "objects/passages/wall-only-passage.json" => JsonSerializer.Serialize<MapObjectDefinition>(Passage(999) with { FloorTexture = "pics/wall-only-floor.png" }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+    _ => null
+});
+using var wallDependencyHttp = new HttpClient(wallDependencyHandler) { BaseAddress = http.BaseAddress };
+var wallDependencyMap = await GameMap.LoadAsync(wallDependencyHttp, "maps/level1.json", 64, 64);
+Check(wallDependencyMap.Objects.ContainsKey(999) && wallDependencyHandler.Requests.Count(path => path.EndsWith("wall-only-passage.json")) == 1,
+    "Wall-only passage dependency was not loaded exactly once");
+Check(wallDependencyMap.RendererMap.Textures.Layers.Values.Contains("pics/wall-only-floor.png"), "Wall-only passage surfaces were not compiled");
+var missingWallPassage = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(webRoot, "objects/walls/wall-eagle.json")))!.AsObject();
+missingWallPassage.Remove("passageId");
+using var missingWallPassageHttp = new HttpClient(new FileHandler(webRoot, path => path == "objects/walls/wall-eagle.json" ? missingWallPassage.ToJsonString() : null)) { BaseAddress = http.BaseAddress };
+await RejectLoad<JsonException>(missingWallPassageHttp, "Wall without passageId was accepted");
 var unusedJson = ModifiedMap(json => json["objects"]!["999"] = "../objects/does-not-exist.json");
 var unusedHandler = new FileHandler(webRoot, path => path == "maps/level1.json" ? unusedJson : null);
 using var unusedHttp = new HttpClient(unusedHandler) { BaseAddress = http.BaseAddress };

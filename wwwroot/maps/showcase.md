@@ -15,5 +15,5 @@ to the minimap; coordinates remain the original JSON world coordinates.
 | Bottom-right: sprites and groups | Barrels and lights are walkable; pillars are solid. This applies to individual sprites and groups. The barrel-and-light group has repeated barrel IDs and position offsets. Its nearby pillar is placed on its own solid square. All sprites and groups are ray-transparent. |
 | Bottom-left: pink fallback | Compare a wall with no texture fields, a wall missing its west texture, and a wall whose image does not exist. Pink sprite billboards demonstrate absent and unavailable images. Two floor patches demonstrate missing surface fields and unavailable floor/ceiling files. These failures intentionally leave the map playable. |
 
-Collision is per square, not per sprite silhouette. Lane walls define `floorTexture` and `ceilingTexture` to match the surrounding
+Collision is per square, not per sprite silhouette. Lane walls reference `passageId: 11` to match the surrounding
 color-stone floor and wood ceiling, including inside the walk-through wall.

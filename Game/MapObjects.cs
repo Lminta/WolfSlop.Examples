@@ -26,8 +26,7 @@ public sealed record PassageDefinition : MapObjectDefinition
 public sealed record WallDefinition : MapObjectDefinition
 {
     public WallTextures? Textures { get; init; }
-    public string? FloorTexture { get; init; }
-    public string? CeilingTexture { get; init; }
+    public required int PassageId { get; init; }
 }
 
 public sealed record WallTextures
@@ -94,6 +93,7 @@ public static class MapObjectLoader
             foreach (var definition in definitions) objects.Add(definition.Id, definition);
             pending = definitions.SelectMany(definition => definition switch
             {
+                WallDefinition wall => new[] { wall.PassageId },
                 SpriteDefinition sprite => new[] { sprite.PassageId },
                 SpriteGroupDefinition group => new[] { group.PassageId }.Concat(
                     (group.Sprites ?? throw new InvalidDataException($"Sprite group {group.Id} has no sprite list."))

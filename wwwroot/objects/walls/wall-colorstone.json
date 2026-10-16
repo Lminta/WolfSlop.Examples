@@ -3,6 +3,7 @@
   "id": 8,
   "raycastTransparent": false,
   "collides": true,
+  "passageId": 0,
   "textures": {
     "north": "pics/colorstone.png",
     "east": "pics/colorstone.png",
