@@ -42,6 +42,35 @@ export function dependencies(d) {
     return d.type === "passage" ? [] : d.type === "spriteGroup" ? [d.passageId, ...d.sprites.map(s => s.spriteId)] : [d.passageId];
 }
 
+export function objectUsage(document, id) {
+    const cells = document.map.worldMap.flat().filter(value => value === id).length;
+    const passages = Object.values(document.objects).filter(d => d.id !== id && d.type !== "passage" && d.passageId === id).length;
+    const members = Object.values(document.objects).filter(d => d.type === "spriteGroup")
+        .flatMap(d => d.sprites ?? []).filter(member => member.spriteId === id).length;
+    return { cells, passages, members, total: cells + passages + members };
+}
+
+export function removeObject(document, id, replacementId) {
+    if (!document.objects[id]) throw Error("Select an existing object to delete.");
+    if (Object.keys(document.objects).length <= 1) throw Error("Keep at least one object in the library.");
+    const usage = objectUsage(document, id), replacement = document.objects[replacementId];
+    if (usage.total && (!replacement || replacementId === id)) throw Error("Choose a replacement for the object's references.");
+    if (usage.passages && replacement.type !== "passage") throw Error("Passage references need a replacement passage.");
+    if (usage.members && replacement.type !== "sprite") throw Error("Group members need a replacement sprite.");
+    if (usage.total) {
+        for (const column of document.map.worldMap)
+            for (let y = 0; y < column.length; y++) if (column[y] === id) column[y] = replacementId;
+        for (const d of Object.values(document.objects)) {
+            if (d.type !== "passage" && d.passageId === id) d.passageId = replacementId;
+            if (d.type === "spriteGroup")
+                for (const member of d.sprites ?? []) if (member.spriteId === id) member.spriteId = replacementId;
+        }
+    }
+    delete document.objects[id];
+    delete document.map.objects?.[id];
+    document.deletedObjectIds = [...new Set([...(document.deletedObjectIds ?? []), id])];
+}
+
 export function usedObjects(document) {
     checkGrid(document.map);
     const result = {}, pending = [...new Set(document.map.worldMap.flat())];

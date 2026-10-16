@@ -35,6 +35,11 @@ dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj -- --EngineRoot="C:\pa
 - Edit the selected object's JSON and press **Apply definition**. The texture picker
   updates a floor, ceiling, wall face, or sprite texture before applying. Use **Add object**
   for a new passage, wall, sprite or group. Group members and offsets are edited in JSON.
+- **Map settings** and **Object settings** have separate, independently scrolling panels.
+  **Delete object** removes the selected definition from this map's library. When it is
+  referenced, choose a replacement for its cells, passage references, or group members.
+  Undo restores the definition and references. Shared library files remain unchanged.
+  Deleted library IDs persist in optional `editor` metadata, which the engine ignores.
 - Walls, sprites and groups use `passageId`. Floor and ceiling paths belong to passages.
   Keep explicit sprite texture layers unique when using different images.
 - Resizing preserves interior cells and reconstructs the outer boundary. Expanding turns

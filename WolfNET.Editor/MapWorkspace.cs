@@ -6,7 +6,7 @@ using WolfNET.Game;
 
 namespace WolfNET.Editor;
 
-public sealed record EditorDocument(string Name, MapDefinition Map, Dictionary<int, MapObjectDefinition> Objects);
+public sealed record EditorDocument(string Name, MapDefinition Map, Dictionary<int, MapObjectDefinition> Objects, int[]? DeletedObjectIds = null);
 public sealed record SaveRequest(EditorDocument Document, bool Overwrite = false);
 
 public sealed partial class MapWorkspace
@@ -69,7 +69,8 @@ public sealed partial class MapWorkspace
 
     public EditorDocument Load(string name)
     {
-        var map = Read<MapDefinition>(AssetPath($"maps/{Name(name)}.json"));
+        var mapPath = AssetPath($"maps/{Name(name)}.json");
+        var map = Read<MapDefinition>(mapPath);
         if (map.WorldMap is null || map.WorldMap.Any(column => column is null) || map.Objects is null)
             throw new InvalidDataException("Map grid and object index are required.");
         var objects = new Dictionary<int, MapObjectDefinition>();
@@ -84,7 +85,10 @@ public sealed partial class MapWorkspace
             objects.Add(id, definition);
             foreach (var dependency in Dependencies(definition)) pending.Enqueue(dependency);
         }
-        var document = new EditorDocument(name, map, objects);
+        using var json = JsonDocument.Parse(File.ReadAllText(mapPath));
+        var deleted = json.RootElement.TryGetProperty("editor", out var metadata) &&
+            metadata.TryGetProperty("deletedObjectIds", out var ids) ? ids.Deserialize<int[]>() : null;
+        var document = new EditorDocument(name, map, objects, deleted);
         Validate(document);
         return document;
     }
@@ -139,7 +143,10 @@ public sealed partial class MapWorkspace
             files.Add(path, json);
         }
         var map = document.Map with { Objects = index };
-        files.Add($"maps/{Name(document.Name)}.json", JsonSerializer.Serialize(map, Json));
+        var mapJson = JsonSerializer.SerializeToNode(map, Json)!.AsObject();
+        if (document.DeletedObjectIds is { Length: > 0 })
+            mapJson["editor"] = JsonSerializer.SerializeToNode(new { deletedObjectIds = document.DeletedObjectIds }, Json);
+        files.Add($"maps/{Name(document.Name)}.json", mapJson.ToJsonString(Json));
         return (map, files);
     }
 

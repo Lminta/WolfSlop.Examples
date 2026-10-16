@@ -114,8 +114,35 @@ try {
         const result = await send("Page.captureScreenshot", { format: "png" });
         fs.writeFileSync(process.argv[4], Buffer.from(result.data, "base64"));
     }
+    assert.equal(await evaluate("document.getElementById('map-name').closest('section').id"), "map-settings");
+    assert.equal(await evaluate("document.getElementById('object-json').closest('section').id"), "object-settings");
+    await evaluate("document.querySelector('.palette-item[data-id=\"11\"]').click()");
+    await click("delete-object");
+    assert.equal(await evaluate("document.getElementById('delete-replacement').hidden"), false, "Referenced passage needs a replacement");
+    await evaluate("document.getElementById('delete-replacement').value='0'");
+    await click("confirm-delete");
+    assert.equal(await evaluate("!!document.querySelector('.palette-item[data-id=\"11\"]')"), false);
+    await click("validate");
+    await waitFor("document.getElementById('validation').classList.contains('success')");
+    await click("undo");
+    assert.equal(await evaluate("!!document.querySelector('.palette-item[data-id=\"11\"]')"), true);
+    await evaluate("document.querySelector('.palette-item[data-id=\"26\"]').click()");
+    await click("delete-object");
+    assert.equal(await evaluate("document.getElementById('delete-replacement').hidden"), true, "Unused object needs no replacement");
+    await click("confirm-delete");
+    assert.equal(await evaluate("!!document.querySelector('.palette-item[data-id=\"26\"]')"), false);
+    await click("undo");
+    assert.equal(await evaluate("!!document.querySelector('.palette-item[data-id=\"26\"]')"), true);
+    await click("redo");
+    assert.equal(await evaluate("!!document.querySelector('.palette-item[data-id=\"26\"]')"), false);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    await send("Page.reload");
+    await waitFor("document.getElementById('document-title')?.textContent==='showcase' && !document.getElementById('draft-banner').hidden");
+    await click("restore-draft");
+    assert.equal(await evaluate("!!document.querySelector('.palette-item[data-id=\"26\"]')"), false, "Draft restore resurrected deleted library object");
+    await click("dismiss-draft");
     assert.equal(errors.length, 0, JSON.stringify(errors));
-    console.log("PASS: browser startup, texture canvas and picker, engine validation, brush/fill, undo/redo, eyedropper, spawn, object creation/editing, resize, overlays, and draft restoration.");
+    console.log("PASS: editor browser controls, separate settings panels, referenced/unused object deletion, undo/redo, and draft restoration.");
 } finally {
     await send("Page.close").catch(() => {});
     socket.close();

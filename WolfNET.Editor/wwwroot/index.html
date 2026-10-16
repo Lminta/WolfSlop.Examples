@@ -40,8 +40,9 @@
       <div id="viewport" class="viewport"><div class="canvas-wrap"><canvas id="map-canvas" tabindex="0" aria-label="Map grid. Use the palette and drawing tools to edit cells."></canvas></div></div>
       <div class="workspace-footer"><span id="cursor-status">Choose an object, then paint the grid.</span><span>Right-click to pick · Ctrl+Z undo · Ctrl+S save</span></div>
     </section>
-    <aside class="inspector panel">
-      <div class="panel-heading">MAP SETTINGS</div>
+    <aside class="inspector" aria-label="Settings panels">
+      <section id="map-settings" class="settings-panel panel" aria-labelledby="map-settings-heading">
+      <div id="map-settings-heading" class="panel-heading">MAP SETTINGS</div>
       <label for="map-name">Map name</label><input id="map-name" maxlength="64" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]*" spellcheck="false">
       <div class="field-row"><label>Width<input id="map-width" type="number" min="3" max="64"></label><label>Height<input id="map-height" type="number" min="3" max="64"></label><button id="resize">Resize</button></div>
       <p class="hint">Up to 64 × 64. Outer cells must block movement and rays.</p>
@@ -52,18 +53,33 @@
       <div class="field-row"><label>Move speed<input id="move-speed" type="number" min="0" step="0.5"></label><label>Turn speed<input id="rot-speed" type="number" min="0" step="0.5"></label></div>
       <div class="section-heading">VIEW</div>
       <div class="view-options"><label><input id="show-grid" type="checkbox" checked> Grid</label><label><input id="show-ids" type="checkbox"> Object IDs</label><label><input id="show-collision" type="checkbox"> Collision</label><label><input id="show-rays" type="checkbox"> Ray blockers</label></div>
-      <div class="section-heading">SELECTED OBJECT <span id="selected-id" class="accent"></span></div>
+      <button id="validate" class="wide">✓ Validate with engine</button>
+      <div id="validation" class="validation" role="status">Ready to edit.</div>
+      </section>
+      <section id="object-settings" class="settings-panel panel" aria-labelledby="object-settings-heading">
+      <div id="object-settings-heading" class="panel-heading">OBJECT SETTINGS <span id="selected-id" class="accent"></span></div>
       <div id="object-summary" class="object-summary"></div>
       <details id="texture-picker"><summary>Choose a texture</summary><label class="sr-only" for="texture-target">Texture surface</label><select id="texture-target"></select><div id="texture-options" class="texture-options"></div></details>
       <p class="hint">Edit the definition below. Walls, sprites and groups reference a <code>passageId</code>. Changes apply to every matching cell in this map.</p>
       <label class="sr-only" for="object-json">Selected object JSON</label><textarea id="object-json" spellcheck="false" rows="13"></textarea>
       <button id="apply-object" class="wide">Apply definition</button>
+      <button id="delete-object" class="wide danger">Delete object…</button>
       <p class="hint">Saved maps get their own object files. Other maps keep their definitions.</p>
-      <button id="validate" class="wide">✓ Validate with engine</button>
-      <div id="validation" class="validation" role="status">Ready to edit.</div>
+      </section>
     </aside>
   </main>
   <div id="toast" role="status" hidden></div>
+  <dialog id="delete-dialog" aria-labelledby="delete-heading">
+    <form method="dialog">
+      <div id="delete-heading" class="panel-heading">DELETE OBJECT</div>
+      <p id="delete-summary"></p>
+      <label id="replacement-label" for="delete-replacement">Replace references with</label>
+      <select id="delete-replacement"></select>
+      <p class="hint">Deletes from this map's library. Shared files and other maps stay intact. Undo is available.</p>
+      <button id="confirm-delete" type="button" class="wide danger">Delete object</button>
+      <button class="wide">Cancel</button>
+    </form>
+  </dialog>
   <dialog id="export-dialog"><form method="dialog"><div class="panel-heading">EXPORT MAP</div><p>Use a ZIP bundle to include edited object definitions.</p><button id="export-zip" type="button" class="primary wide">Download map + objects (.zip)</button><button id="export-json" type="button" class="wide">Download map JSON</button><p class="hint">Extract the ZIP into the engine’s <code>wwwroot</code>. Existing engine textures are reused. A standalone JSON keeps its object paths and does not include definitions.</p><button class="wide">Close</button></form></dialog>
   <script type="module" src="editor.js"></script>
 </body>

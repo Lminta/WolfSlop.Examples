@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { checkGrid, checkDefinition, flood, resizeGrid, line, usedObjects } from "../WolfNET.Editor/wwwroot/editor-model.js";
+import { checkGrid, checkDefinition, flood, resizeGrid, line, usedObjects, objectUsage, removeObject } from "../WolfNET.Editor/wwwroot/editor-model.js";
 
 const passage = { type: "passage", id: 0, collides: false, raycastTransparent: true };
 const wall = { type: "wall", id: 1, passageId: 0, collides: true, raycastTransparent: false };
@@ -42,4 +42,28 @@ assert.throws(() => checkDefinition({ ...wall, floorTexture: "pics/wood.png" }, 
 assert.throws(() => checkDefinition({ ...wall, passageId: 2 }, objects));
 assert.throws(() => checkDefinition({ ...sprite, textureLayer: 256 }, objects));
 assert.throws(() => checkDefinition({ ...group, sprites: [{ spriteId: 1, offset: { x: 0, y: 0 } }] }, objects));
-console.log("PASS: editor grid orientation, resize, boundary reconstruction, fill, continuous strokes, object dependencies, and schema checks.");
+const deletion = { map: { ...structuredClone(map), objects: { 0: "passage.json", 1: "wall.json", 2: "sprite.json", 3: "group.json" } }, objects: structuredClone(objects) };
+deletion.objects[4] = { ...passage, id: 4 };
+deletion.objects[5] = { ...sprite, id: 5 };
+const beforeDelete = structuredClone(deletion);
+assert.ok(objectUsage(deletion, 0).passages > 0);
+assert.throws(() => removeObject(deletion, 0, 1));
+assert.deepEqual(deletion, beforeDelete, "Rejected deletion must not mutate the document");
+removeObject(deletion, 0, 4);
+assert.equal(deletion.objects[1].passageId, 4);
+assert.equal(deletion.objects[2].passageId, 4);
+assert.equal(deletion.objects[3].passageId, 4);
+assert.equal(deletion.objects[0], undefined);
+assert.equal(deletion.map.objects[0], undefined);
+removeObject(deletion, 2, 5);
+assert.equal(deletion.objects[3].sprites[0].spriteId, 5);
+assert.equal(deletion.map.worldMap[1][1], 5);
+assert.deepEqual(deletion.objects[3].sprites[0].offset, { x: -.25, y: .5 });
+assert.deepEqual(deletion.deletedObjectIds, [0, 2]);
+removeObject(deletion, 3, 4);
+assert.equal(deletion.map.worldMap[2][2], 4);
+deletion.objects[9] = { ...passage, id: 9 };
+removeObject(deletion, 9);
+assert.equal(deletion.objects[9], undefined);
+assert.deepEqual(Object.keys(usedObjects(deletion)), ["1", "4", "5"]);
+console.log("PASS: editor grid, fill, strokes, dependencies, schema, and object deletion with cell/passage/group replacements.");

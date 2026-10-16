@@ -1,4 +1,4 @@
-import { copy, checkDefinition, checkGrid, dependencies, usedObjects, flood, resizeGrid, line } from "./editor-model.js";
+import { copy, checkDefinition, checkGrid, dependencies, usedObjects, flood, resizeGrid, line, objectUsage, removeObject } from "./editor-model.js";
 
 const $ = id => document.getElementById(id);
 const canvas = $("map-canvas"), ctx = canvas.getContext("2d");
@@ -348,8 +348,9 @@ function defaults() {
     if (floor == null || wall == null) throw Error("The library needs a walkable passage and a solid ray-blocking wall.");
     return { floor, wall };
 }
-function mergedObjects(objects) {
-    return { ...Object.fromEntries(library.objects.map(entry => [entry.definition.id, copy(entry.definition)])), ...objects };
+function mergedObjects(objects, deletedIds = []) {
+    const deleted = new Set(deletedIds);
+    return { ...Object.fromEntries(library.objects.filter(entry => !deleted.has(entry.definition.id)).map(entry => [entry.definition.id, copy(entry.definition)])), ...objects };
 }
 function updateRegistry() {
     for (const d of Object.values(doc.objects))
@@ -359,7 +360,8 @@ function install(document, unsaved = false) {
     checkGrid(document.map);
     const next = copy(document);
     next.map.objects ??= {};
-    next.objects = mergedObjects(next.objects);
+    next.deletedObjectIds ??= next.map.editor?.deletedObjectIds ?? [];
+    next.objects = mergedObjects(next.objects, next.deletedObjectIds);
     usedObjects(next);
     doc = next;
     updateRegistry();
@@ -432,7 +434,7 @@ async function importFile(file) {
             objects[id] = d;
             pending.push(...dependencies(d));
         }
-        next = { name: file.name.replace(/\.json$/i, "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64) || "imported-map", map: value, objects };
+        next = { name: file.name.replace(/\.json$/i, "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64) || "imported-map", map: value, objects, deletedObjectIds: value.editor?.deletedObjectIds ?? [] };
     }
     install(next, true); queueDraft(); toast("Map imported. Validate before saving.");
 }
@@ -501,7 +503,7 @@ $("apply-object").onclick = act(() => {
     select(brush, true);
 });
 $("add-object").onclick = act(() => {
-    const type = $("new-type").value, id = Math.max(...Object.keys(doc.objects).map(Number)) + 1;
+    const type = $("new-type").value, id = Math.max(...Object.keys(doc.objects).map(Number), ...(doc.deletedObjectIds ?? [])) + 1;
     const { floor } = defaults();
     const d = { type, id, raycastTransparent: type !== "wall", collides: type === "wall" };
     if (type === "passage") Object.assign(d, { floorTexture: "pics/mossy.png", ceilingTexture: "pics/wood.png" });
@@ -516,6 +518,30 @@ $("add-object").onclick = act(() => {
     if (type === "spriteGroup") d.sprites = [];
     change(() => { doc.objects[id] = d; doc.map.objects[id] = `../objects/editor/${doc.name}/${id}.json`; });
     select(id, true); toast(`Created ${type} #${id}. Edit its definition, then paint it onto the map.`);
+});
+$("delete-object").onclick = act(() => {
+    assertReady();
+    if (Object.keys(doc.objects).length <= 1) throw Error("Keep at least one object in the library.");
+    const usage = objectUsage(doc, brush);
+    const candidates = Object.values(doc.objects).filter(d => d.id !== brush &&
+        (!usage.passages || d.type === "passage") && (!usage.members || d.type === "sprite"));
+    if (usage.total && !candidates.length) throw Error("Add a replacement object of the same type before deleting this one.");
+    $("delete-dialog").dataset.objectId = brush;
+    $("delete-summary").textContent = `Delete #${brush} ${title(brush)}? Used in ${usage.cells} cells, ${usage.passages} passage references, and ${usage.members} group members.`;
+    $("replacement-label").hidden = $("delete-replacement").hidden = !usage.total;
+    $("delete-replacement").replaceChildren(...candidates.map(d => {
+        const option = document.createElement("option"); option.value = d.id; option.textContent = `#${d.id} · ${title(d.id)} (${d.type})`; return option;
+    }));
+    $("delete-dialog").showModal();
+});
+$("confirm-delete").onclick = act(() => {
+    assertReady();
+    const id = Number($("delete-dialog").dataset.objectId);
+    const replacement = $("delete-replacement").hidden ? undefined : Number($("delete-replacement").value);
+    change(() => removeObject(doc, id, replacement));
+    select(replacement ?? Number(Object.keys(doc.objects)[0]), true);
+    $("delete-dialog").close();
+    toast(`Deleted object #${id}. Undo restores it and its references.`);
 });
 $("validate").onclick = act(validate);
 $("save").onclick = act(save);
@@ -539,7 +565,8 @@ $("export-zip").onclick = act(async () => {
 $("export-json").onclick = act(async () => {
     assertReady(); await validate();
     if ((dirty || objectState() !== savedObjectState) && !confirm("This JSON includes object paths, but no definitions. Save first or export a ZIP to include edited definitions. Download only the map anyway?")) return;
-    download(new Blob([JSON.stringify(doc.map, null, 2)], { type: "application/json" }), `${doc.name}.json`); $("export-dialog").close();
+    const map = { ...doc.map, editor: { deletedObjectIds: doc.deletedObjectIds ?? [] } };
+    download(new Blob([JSON.stringify(map, null, 2)], { type: "application/json" }), `${doc.name}.json`); $("export-dialog").close();
 });
 $("restore-draft").onclick = act(() => {
     if (!allowDiscard()) return;
@@ -555,7 +582,7 @@ window.addEventListener("beforeunload", event => {
 window.addEventListener("keydown", act(async event => {
     const text = /INPUT|TEXTAREA|SELECT/.test(event.target.tagName);
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); await save(); return; }
-    if (text || $("export-dialog").open) return;
+    if (text || document.querySelector("dialog[open]")) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); history(!event.shiftKey); return; }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") { event.preventDefault(); history(false); return; }
     if (event.ctrlKey || event.metaKey || event.altKey) return;

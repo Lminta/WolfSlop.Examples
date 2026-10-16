@@ -36,6 +36,7 @@ try {
     const post = (route, body) => fetch(base + route, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const document = await get("/api/maps/showcase");
     document.name = "api-roundtrip";
+    document.deletedObjectIds = [26];
     document.objects[11].floorTexture = "pics/mossy.png";
     assert.equal((await post("/api/validate", document)).status, 200);
     const exported = await post("/api/export", document);
@@ -46,6 +47,7 @@ try {
     assert.equal((await saved.json()).path, "maps/api-roundtrip.json");
     const reopened = await get("/api/maps/api-roundtrip");
     assert.equal(reopened.objects[11].floorTexture, "pics/mossy.png");
+    assert.deepEqual(reopened.deletedObjectIds, [26], "Deleted library objects must stay deleted after reopening");
     assert.deepEqual(reopened.map.worldMap, document.map.worldMap);
     assert.ok((await get("/api/maps")).includes("api-roundtrip"));
     assert.equal(await fs.readFile(path.join(assets, "objects/passages/passage-showcase-color-stone.json"), "utf8"), originalPassage);
