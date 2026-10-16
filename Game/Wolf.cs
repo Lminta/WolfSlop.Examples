@@ -15,6 +15,7 @@ public sealed class Wolf : IDisposable
     private readonly Window _window;
     private readonly InputEventSystem _inputEvents;
     private readonly BlazorJSRuntime _js;
+    private readonly HttpClient _http;
     
     private ObjectCollection _objectCollection;
     private PlayerObject _player;
@@ -35,36 +36,45 @@ public sealed class Wolf : IDisposable
         RendererSettings settings,
         WebGpuRenderer renderer,
         InputEventSystem inputEvents,
+        HttpClient http,
         BlazorJSRuntime js)
     {
         RendererSettings = settings;
         _renderer = renderer;
         _inputEvents = inputEvents;
         _js = js;
+        _http = http;
 
         _window = js.Get<Window>("window");
     }
 
-    public void Start(HTMLCanvasElement canvas)
+    public async Task StartAsync(HTMLCanvasElement canvas, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_running)
             return;
-        _running = true;
+
+        // Do not attach input or schedule frames until the first map revision is loaded.
+        var map = await ConstantMap.LoadAsync(this, _http, "maps/level1.json", cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        ObjectDisposedException.ThrowIf(_disposed, this);
         
         _objectCollection = new ObjectCollection();
         MouseTracker = new MouseTracker(canvas, _js);
         KeyTracker = new KeyTracker(_inputEvents, _js);
         KeyTracker.EscapePressed += MouseTracker.Release;
-        Map = new ConstantMap(this);
+        Map = map;
 
         _player = new PlayerObject(this)
         {
             Transform = new Transform
             {
-                Position = new Vector2(22, 11.5f),
-                Rotation = new Vector2(-1, 0),
+                Position = map.PlayerStartPosition,
+                Rotation = map.PlayerStartDirection,
             }
         };
+        _player.Camera.Plane = new Vector2(map.PlayerStartDirection.Y, -map.PlayerStartDirection.X) *
+                               _player.Camera.Plane.Length();
         
         _objectCollection.Add(_player);
         

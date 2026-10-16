@@ -29,6 +29,7 @@
 @code {
     private ElementReference _canvas;
     private HTMLCanvasElement? _canvasElement;
+    private readonly CancellationTokenSource _lifetime = new();
 
     private string? _error;
 
@@ -59,7 +60,10 @@
             
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
             
-            Wolf.Start(_canvasElement);
+            await Wolf.StartAsync(_canvasElement, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -74,6 +78,7 @@
 
     public void Dispose()
     {
+        _lifetime.Cancel();
         Wolf.Stop();
         _canvasElement?.Dispose();
         Console.WriteLine("[APP] Disposing");

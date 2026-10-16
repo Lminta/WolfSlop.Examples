@@ -16,7 +16,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddBlazorJSRuntime();
 
 // Register HttpClient for dependency injection
-builder.Services.AddScoped(
+builder.Services.AddSingleton(
     _ => new HttpClient
     {
         BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
