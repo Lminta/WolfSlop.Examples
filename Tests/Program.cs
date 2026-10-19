@@ -69,10 +69,14 @@ Check(fileHandler.Requests.All(path => !path.Contains("showcase") && !path.EndsW
 Check(fileHandler.Requests.Count == map.Objects.Count + 1, "An object was loaded more than once");
 Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("showcase-missing")), "Unrelated map textures leaked");
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
-Check(showcase.RendererMap.Width == 25 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
+Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
 Check(showcase.RendererMap.Sprites.Count == 27, "Showcase sprite demonstrations missing");
-RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * 25 + x];
+RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
+Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
+Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
+Check(!ShowcaseCell(26, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
+    showcase.RendererMap.Textures.Layers[ShowcaseCell(26,18).CeilingTextureLayer] == "textures/mesh.png", "Mesh showroom ceiling missing");
 Check(showcase.Objects.Values.Where(value => value is SpriteDefinition or SpriteGroupDefinition).All(value => value.RaycastTransparent), "Showcase contains ray-blocking sprites");
 Check(!showcase.Objects.ContainsKey(113) && !showcase.Objects.ContainsKey(122), "Removed sprite examples still loaded");
 foreach (var x in new[] { 15, 17, 19, 21 })
@@ -113,8 +117,8 @@ foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
     var next = (X: cell.X + dx, Y: cell.Y + dy);
     if (showcase.NavigationMap.IsWalkable(next.X, next.Y) && reachable.Add(next)) frontier.Enqueue(next);
 }
-for (int x = 0; x < 25; x++)
-for (int y = 0; y < 25; y++)
+for (int x = 0; x < showcase.RendererMap.Width; x++)
+for (int y = 0; y < showcase.RendererMap.Height; y++)
     Check(!showcase.NavigationMap.IsWalkable(x, y) || reachable.Contains((x, y)), $"Unreachable showcase cell at {x},{y}");
 
 PassageDefinition Passage(int id, bool transparent = true, bool collides = false) => new()
@@ -131,6 +135,21 @@ MapDefinition SmallMap(int center = 0) => new()
     PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = -1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2, CollisionRadius = 0.2f }
 };
 GameMap Compile(MapDefinition? definition = null, Dictionary<int, MapObjectDefinition>? objects = null) => new(definition ?? SmallMap(), objects ?? definitions, 64, 64);
+var openPassages = new Dictionary<int, MapObjectDefinition>(definitions)
+{
+    [0] = Passage(0) with { CeilingMode = "sky", CeilingTexture = "textures/unused-roof.png" }
+};
+Reject(() => Compile(objects: openPassages), "Open ceiling accepted without map sky");
+var skyMap = SmallMap() with { Sky = new() { Texture = "textures/skyboxes/skybox.jpg", RotationDegrees = 45 } };
+var skyLevel = Compile(skyMap, openPassages);
+Check(skyLevel.RendererMap.Sky == skyMap.Sky && skyLevel.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.SkyCeiling),
+    "Map sky and open-ceiling flags were not compiled");
+Check(!skyLevel.RendererMap.Textures.Layers.Values.Contains("textures/unused-roof.png"), "Open ceiling loaded an unused ceiling texture");
+var skyInherited = Compile(skyMap, new(openPassages) { [1] = wall with { PassageId = 0 } });
+Check(skyInherited.RendererMap.Cells[0].Flags.HasFlag(RenderCellFlags.SkyCeiling), "Walls did not inherit passage ceiling mode");
+Reject(() => Compile(skyMap with { Sky = skyMap.Sky! with { RotationDegrees = float.NaN } }), "Nonfinite sky rotation accepted");
+Reject(() => Compile(skyMap with { Sky = skyMap.Sky! with { Texture = "" } }), "Empty sky texture accepted");
+Reject(() => Compile(objects: new(definitions) { [0] = Passage(0) with { CeilingMode = "invalid" } }), "Unknown ceiling mode accepted");
 foreach (bool transparent in new[] { false, true })
 foreach (bool collides in new[] { false, true })
 foreach (int type in new[] { 0, 1, 2, 3 })
@@ -442,10 +461,14 @@ Directory.CreateDirectory(Path.Combine(editorRoot, "maps"));
 try
 {
     var store = new WolfNET.Editor.MapWorkspace(editorRoot);
+    Directory.CreateDirectory(Path.Combine(editorRoot, "textures", "skyboxes"));
+    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "skyboxes", "skybox.jpg"), [1, 2, 3]);
+    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "mesh.png"), [4, 5, 6]);
     await store.SaveAsync(editorDocument, false, CancellationToken.None);
     var persisted = store.Load("editor-roundtrip");
     Check(persisted.Map.WorldMap.SelectMany(column => column).SequenceEqual(editorDocument.Map.WorldMap.SelectMany(column => column)), "Editor save changed grid orientation");
     Check(persisted.Map.PlayerStart == editorDocument.Map.PlayerStart, "Editor save changed spawn settings");
+    Check(persisted.Map.Sky == editorDocument.Map.Sky, "Editor save changed sky settings");
     Check(persisted.Objects.Count == editorDocument.Objects.Count, "Editor lost object dependencies");
     Check(persisted.Map.Objects.Values.All(path => path.StartsWith("../objects/editor/editor-roundtrip/")), "Editor did not isolate object snapshots");
     using var savedHttp = new HttpClient(new FileHandler(editorRoot)) { BaseAddress = http.BaseAddress };
@@ -465,6 +488,8 @@ try
     Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "textures/colorstone.png", "Editor edited shared engine objects");
     using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
     Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
+    Check(zip.GetEntry("textures/skyboxes/skybox.jpg")?.Length == 3 && zip.GetEntry("textures/mesh.png")?.Length == 3,
+        "Editor export omitted the nested sky JPG or alpha ceiling texture");
     Check(zip.Entries.Count(entry => entry.FullName.EndsWith(".json")) == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
     foreach (var path in persisted.Map.Objects.Values)
         Check(zip.GetEntry(path[3..]) != null, "Editor export index points outside bundle");

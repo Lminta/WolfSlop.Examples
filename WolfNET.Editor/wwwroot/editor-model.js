@@ -9,6 +9,8 @@ export function checkDefinition(definition, objects) {
         throw Error("collides and raycastTransparent must both be true or false.");
     if (d.type !== "passage" && (!Number.isInteger(d.passageId) || objects[d.passageId]?.type !== "passage"))
         throw Error("passageId must reference a passage in the object library.");
+    if (d.type === "passage" && d.ceilingMode !== undefined && !["texture", "sky"].includes(d.ceilingMode))
+        throw Error("ceilingMode must be texture or sky.");
     if (d.type === "wall" && ("floorTexture" in d || "ceilingTexture" in d))
         throw Error("Wall surfaces use passageId. Put floorTexture and ceilingTexture on the passage.");
     if (d.type === "sprite" && (!Number.isInteger(d.textureLayer) || d.textureLayer < 0 || d.textureLayer > 255))
@@ -32,6 +34,9 @@ export function checkDefinition(definition, objects) {
 }
 
 export function checkGrid(map) {
+    if (map?.sky !== undefined && map.sky !== null &&
+        (typeof map.sky.texture !== "string" || !map.sky.texture.trim() || !Number.isFinite(map.sky.rotationDegrees ?? 0)))
+        throw Error("Sky needs a panorama texture and a finite rotationDegrees.");
     const grid = map?.worldMap;
     if (!Array.isArray(grid) || grid.length < 3 || grid.length > 64 || !Array.isArray(grid[0]) || grid[0].length < 3 || grid[0].length > 64 ||
         grid.some(column => !Array.isArray(column) || column.length !== grid[0].length || column.some(id => !Number.isInteger(id) || id < 0)))

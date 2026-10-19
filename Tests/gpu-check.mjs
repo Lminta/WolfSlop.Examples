@@ -27,6 +27,14 @@ export async function checkGpu(sources) {
     const materials = buffer(32, GPUBufferUsage.STORAGE);
     const hits = buffer(128 * 16, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     const sprites = buffer(128, GPUBufferUsage.STORAGE);
+    const skyInfo = buffer(16, GPUBufferUsage.UNIFORM);
+    const skyTexture = device.createTexture({size:[4,2],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST});
+    const skyPixels = new Uint8Array(4*2*4);
+    for(let i=0;i<8;i++)skyPixels.set([40,80,120,255],i*4);
+    device.queue.writeTexture({texture:skyTexture},skyPixels,{bytesPerRow:16},[4,2]);
+    const skyEntries = [{binding:9,resource:skyTexture.createView()},
+        {binding:10,resource:device.createSampler({addressModeU:"repeat",addressModeV:"clamp-to-edge"})},
+        {binding:11,resource:{buffer:skyInfo}}];
     const textures = device.createTexture({size: [4, 4, 8], format: "rgba8unorm", usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST});
     const colors = [[255,0,0,255], [0,255,0,255], [0,0,255,255], [255,255,0,255],
         [255,255,255,255], [0,255,255,255], [255,0,255,255], [255,0,0,255]];
@@ -44,7 +52,7 @@ export async function checkGpu(sources) {
     const repeatSampler = device.createSampler({addressModeU:"repeat",addressModeV:"repeat"});
     const computeGroup = bind(computePipeline, [entry(0,camera),entry(1,cells),entry(2,hits),entry(3,info)]);
     const wallGroup = bind(walls, [entry(0,hits),entry(1,camera),textureEntry,entry(3,cells),entry(4,info),entry(6,materials),
-        {binding:7,resource:clampSampler},{binding:8,resource:repeatSampler}]);
+        {binding:7,resource:clampSampler},{binding:8,resource:repeatSampler},...skyEntries]);
     let activeWallGroup = wallGroup;
     const spriteGroup = bind(spritePipeline, [entry(0,hits),entry(1,camera),textureEntry,entry(3,sprites),{binding:4,resource:clampSampler}]);
     const minimapGroup = bind(minimap, [entry(0,hits),entry(1,camera),entry(3,cells),entry(4,info),entry(5,sprites)]);
@@ -186,6 +194,40 @@ export async function checkGpu(sources) {
     result = await draw(0,-1,1,true);
     assert(equal(result.pixel(44,36),[130,145,158,255]), "Minimap wall did not follow horizontal reflection");
     assert(equal(result.pixel(44,44),[227,173,97,255]), "Minimap sprite did not follow horizontal reflection");
+    // Open ceilings and premultiplied alpha blend against the distant sky.
+    resetMap();
+    device.queue.writeBuffer(skyInfo,0,new Float32Array([0,1,0,0]));
+    for(let y=1;y<4;y++)for(let x=1;x<4;x++)map[(y*5+x)*4+3]=4;
+    result=await draw();
+    assert(equal(result.pixel(64,8),[40,80,120,255]),"Open ceiling did not show sky");
+    assert(equal(result.pixel(64,64),colors[1]),"Sky drew over an opaque wall");
+    for(let y=1;y<4;y++)for(let x=1;x<4;x++){map[(y*5+x)*4+3]=0;map[(y*5+x)*4+2]=6;}
+    const ceilingPixels=new Uint8Array(4*4*4);
+    for(let i=0;i<16;i++)ceilingPixels.set([128,0,0,128],i*4);
+    device.queue.writeTexture({texture:textures,origin:[0,0,6]},ceilingPixels,{bytesPerRow:16},[4,4]);
+    result=await draw();
+    assert(equal(result.pixel(64,8),[148,40,60,255]),"Partial ceiling alpha was not composited as premultiplied alpha");
+    ceilingPixels.fill(0);
+    device.queue.writeTexture({texture:textures,origin:[0,0,6]},ceilingPixels,{bytesPerRow:16},[4,4]);
+    result=await draw();
+    assert(equal(result.pixel(64,8),[40,80,120,255]),"Transparent ceiling did not reveal the sky");
+    for(let i=0;i<16;i++)ceilingPixels.set(colors[6],i*4);
+    device.queue.writeTexture({texture:textures,origin:[0,0,6]},ceilingPixels,{bytesPerRow:16},[4,4]);
+    result=await draw();
+    assert(equal(result.pixel(64,8),colors[6]),"Opaque ceiling did not conceal the sky");
+    for(let y=1;y<4;y++)for(let x=1;x<4;x++)map[(y*5+x)*4+3]=4;
+    for(let y=0;y<2;y++)for(let x=0;x<4;x++)skyPixels.set(colors[x],(y*4+x)*4);
+    device.queue.writeTexture({texture:skyTexture},skyPixels,{bytesPerRow:16},[4,2]);
+    const skyView=await draw();
+    result=await draw(-1,0,0,false,2.75,2.5);
+    assert(equal(result.pixel(64,8),skyView.pixel(64,8)),"Walking moved the distant sky");
+    result=await draw(1,0);
+    assert(!equal(result.pixel(64,8),skyView.pixel(64,8)),"Turning did not rotate the sky view");
+    device.queue.writeBuffer(skyInfo,0,new Float32Array([.5,1,0,0]));
+    result=await draw();
+    assert(!equal(result.pixel(64,8),skyView.pixel(64,8)),"Map sky rotation was ignored");
+    device.queue.writeBuffer(skyInfo,0,new Float32Array([0,0,0,0]));
+    resetMap();
     // A one-texel camera movement flips a distant, unfiltered checkerboard. Mips
     // must converge to its average instead, on walls and sloped floor/ceiling rays.
     const mipTexture = device.createTexture({size:[256,256,8],mipLevelCount:9,format:"rgba8unorm",
@@ -203,7 +245,7 @@ export async function checkGpu(sources) {
     const filteredRepeat=device.createSampler({magFilter:"linear",minFilter:"linear",mipmapFilter:"linear",maxAnisotropy:8,
         addressModeU:"repeat",addressModeV:"repeat"});
     const filteredGroup=(view,clamp,repeat)=>bind(walls,[entry(0,hits),entry(1,camera),{binding:2,resource:view},
-        entry(3,cells),entry(4,info),entry(6,materials),{binding:7,resource:clamp},{binding:8,resource:repeat}]);
+        entry(3,cells),entry(4,info),entry(6,materials),{binding:7,resource:clamp},{binding:8,resource:repeat},...skyEntries]);
     resetMap(); setMaterial([0,1,2,3]);
     activeWallGroup=filteredGroup(mipTexture.createView({mipLevelCount:1}),clampSampler,repeatSampler);
     const noisyA=await draw(-1,0,0,false,3.5,2.5), noisyB=await draw(-1,0,0,false,3.5,2.5+1/256);

@@ -57,14 +57,17 @@ public sealed partial class MapWorkspace
     public string[] Maps() => Directory.GetFiles(Path.Combine(Root, "maps"), "*.json")
         .Select(Path.GetFileNameWithoutExtension).OfType<string>().Order().ToArray();
 
+    private static bool IsTexture(string path) => Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp";
+
     public object Library()
     {
         var objects = new List<object>();
         foreach (var kind in new[] { "passages", "walls", "sprites", "sprite-groups" })
         foreach (var file in Directory.GetFiles(Path.Combine(Root, "objects", kind), "*.json").Order())
             objects.Add(new { path = "../" + Path.GetRelativePath(Root, file).Replace('\\', '/'), definition = Read<MapObjectDefinition>(file) });
-        var textures = Directory.GetFiles(Path.Combine(Root, "textures"), "*.png")
-            .Select(file => "textures/" + Path.GetFileName(file)).Order().ToArray();
+        var textures = Directory.GetFiles(Path.Combine(Root, "textures"), "*", SearchOption.AllDirectories)
+            .Where(file => IsTexture(file))
+            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/')).Order().ToArray();
         return new { objects, textures };
     }
 
@@ -163,9 +166,11 @@ public sealed partial class MapWorkspace
                 writer.Write(json);
             }
             var textures = new MapCompiler(Used(document), 64, 64).Compile(document.Map, 1).Renderer.Textures;
-            foreach (var texture in textures.Layers.Values.OfType<string>().Select(path => path.Replace('\\', '/')).Distinct())
+            foreach (var texture in textures.Layers.Values.OfType<string>()
+                .Concat(document.Map.Sky == null ? [] : new[] { document.Map.Sky.Texture })
+                .Select(path => path.Replace('\\', '/')).Distinct())
             {
-                if (!texture.StartsWith("textures/", StringComparison.Ordinal) || !texture.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!texture.StartsWith("textures/", StringComparison.Ordinal) || !IsTexture(texture)) continue;
                 var file = AssetPath(texture);
                 if (!File.Exists(file)) continue;
                 using var source = File.OpenRead(file);

@@ -105,7 +105,10 @@ public sealed class MapCompiler
             if (passage != null)
             {
                 floor = Resolve(passage.FloorTexture);
-                ceiling = Resolve(passage.CeilingTexture);
+                if (passage.CeilingMode is not ("texture" or "sky"))
+                    throw new InvalidDataException($"Passage {passage.Id} ceilingMode must be texture or sky.");
+                if (passage.CeilingMode == "sky") flags |= RenderCellFlags.SkyCeiling;
+                else ceiling = Resolve(passage.CeilingTexture);
             }
             _objects.Add(id, new CompiledObject(new RenderCell(material, floor, ceiling, flags), !definition.Collides, sprites));
         }
@@ -115,6 +118,8 @@ public sealed class MapCompiler
 
     public (RenderMap Renderer, bool[][] Walkable) Compile(MapDefinition definition, ulong revision)
     {
+        if (definition.Sky is { } sky && (string.IsNullOrWhiteSpace(sky.Texture) || !float.IsFinite(sky.RotationDegrees)))
+            throw new InvalidDataException("Sky needs a texture path and a finite rotationDegrees.");
         var map = definition.WorldMap;
         if (map == null || map.Length == 0 || map[0] == null || map[0].Length == 0)
             throw new InvalidDataException("Map must contain a nonempty grid.");
@@ -171,7 +176,9 @@ public sealed class MapCompiler
         var layers = _textures.Layers.Where(pair => usedLayers.Contains(pair.Key)).ToDictionary();
         if (_sceneTextures == null || !_sceneTextures.Layers.OrderBy(pair => pair.Key).SequenceEqual(layers.OrderBy(pair => pair.Key)))
             _sceneTextures = new TextureCatalog(layers);
+        if (definition.Sky == null && cells.Any(cell => cell.Flags.HasFlag(RenderCellFlags.SkyCeiling)))
+            throw new InvalidDataException("A sky ceiling requires a sky configuration on the map.");
         return (new RenderMap(width, height, Array.AsReadOnly(cells), Array.AsReadOnly(_materials),
-            sprites.AsReadOnly(), _sceneTextures, revision), walkable);
+            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky }, walkable);
     }
 }

@@ -179,6 +179,9 @@ function refresh(resetInspector = false) {
     $("move-speed").value = p.moveSpeed;
     $("rot-speed").value = p.rotSpeed;
     $("collision-radius").value = p.collisionRadius ?? 0.15;
+    $("sky-texture").value = map.sky?.texture ?? "";
+    $("sky-rotation").value = map.sky?.rotationDegrees ?? 0;
+    $("sky-rotation").disabled = !map.sky;
     const facing = `${p.directionX},${p.directionY}`;
     $("spawn-facing").value = ["-1,0", "0,-1", "1,0", "0,1"].includes(facing) ? facing : "custom";
     $("undo").disabled = !undo.length;
@@ -452,6 +455,7 @@ $("new").onclick = act(() => {
     const { floor, wall } = defaults(), before = copy(doc);
     doc.name = name;
     doc.map.worldMap = resizeGrid([], 24, 24, floor, wall);
+    delete doc.map.sky;
     doc.map.playerStart = { x: 2.5, y: 2.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3, collisionRadius: 0.15 };
     commit(before); fit(); toast("New 24 × 24 map created. Resize it in Map settings.");
 });
@@ -483,6 +487,18 @@ for (const [id, property] of [["spawn-x", "x"], ["spawn-y", "y"], ["move-speed",
         if (property === "collisionRadius" && (value <= 0 || value >= 0.5)) { refresh(); throw Error("Collision radius must be greater than zero and less than 0.5."); }
         change(() => doc.map.playerStart[property] = value);
     });
+$("sky-texture").onchange = act(() => {
+    const texture = $("sky-texture").value.trim();
+    change(() => {
+        if (texture) doc.map.sky = { texture, rotationDegrees: doc.map.sky?.rotationDegrees ?? 0 };
+        else delete doc.map.sky;
+    });
+});
+$("sky-rotation").onchange = act(() => {
+    const rotation = Number($("sky-rotation").value);
+    if (!Number.isFinite(rotation) || $("sky-rotation").value === "") throw Error("Enter a finite sky rotation.");
+    if (doc.map.sky) change(() => doc.map.sky.rotationDegrees = rotation);
+});
 $("spawn-facing").onchange = act(() => {
     const [x, y] = $("spawn-facing").value.split(",").map(Number);
     change(() => { doc.map.playerStart.directionX = x; doc.map.playerStart.directionY = y; });
@@ -594,6 +610,9 @@ function chooseTexture(path, field = $("texture-target").value) {
     definitionDirty = true;
 }
 function renderTextures() {
+    $("sky-textures").replaceChildren(...library.textures.filter(path => path.includes("/skyboxes/")).map(path => {
+        const option = document.createElement("option"); option.value = path; return option;
+    }));
     $("texture-options").replaceChildren();
     for (const path of library.textures) {
         const button = document.createElement("button"), thumb = document.createElement("img");

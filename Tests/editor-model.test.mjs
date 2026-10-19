@@ -41,6 +41,11 @@ assert.deepEqual(reverse[0], [4, 2]);
 assert.deepEqual(reverse.at(-1), [0, 0]);
 const map = { worldMap: grid, playerStart: { x: 1.5, y: 1.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3 } };
 assert.equal(checkGrid(map), map);
+assert.equal(checkGrid({ ...map, sky: { texture: "textures/skyboxes/skybox.jpg", rotationDegrees: 90 } }).sky.rotationDegrees, 90);
+assert.throws(() => checkGrid({ ...map, sky: { texture: "", rotationDegrees: 0 } }));
+assert.throws(() => checkGrid({ ...map, sky: { texture: "sky.jpg", rotationDegrees: Infinity } }));
+assert.equal(checkDefinition({ ...passage, ceilingMode: "sky" }, objects).ceilingMode, "sky");
+assert.throws(() => checkDefinition({ ...passage, ceilingMode: "unknown" }, objects));
 assert.equal(checkGrid({ ...map, playerStart: { ...map.playerStart, collisionRadius: 0.15 } }).playerStart.collisionRadius, 0.15);
 for (const collisionRadius of [0, -1, 0.5, NaN, Infinity])
     assert.throws(() => checkGrid({ ...map, playerStart: { ...map.playerStart, collisionRadius } }));

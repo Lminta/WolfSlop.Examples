@@ -21,6 +21,7 @@ public sealed record PassageDefinition : MapObjectDefinition
 {
     public string? FloorTexture { get; init; }
     public string? CeilingTexture { get; init; }
+    public string CeilingMode { get; init; } = "texture";
 }
 
 public sealed record WallDefinition : MapObjectDefinition

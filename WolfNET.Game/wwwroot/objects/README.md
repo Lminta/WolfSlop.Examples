@@ -52,6 +52,13 @@ Barrels use Z = -0.2 to compensate for transparent padding and remain grounded; 
 Texture paths are relative to the application base, e.g. `textures/wood.png`.
 Images may use different resolutions. The renderer resamples them into a shared array,
 preserving source resolution up to 2048px per side and a 128 MiB scene texture budget.
+Maps can define `"sky": { "texture": "textures/skyboxes/skybox.jpg", "rotationDegrees": 0 }`.
+Passages default to `"ceilingMode": "texture"`; `"ceilingMode": "sky"` opens the ceiling.
+A ceiling texture's alpha reveals the map's sky, supporting mesh and translucent
+roofs. Missing ceiling textures remain opaque pink. Walls, sprites and groups
+inherit ceiling behavior through `passageId`. Sky panoramas load separately from
+square tile textures and retain their aspect ratio, with mipmaps and horizontal wrapping.
+
 All texture layers have a complete mip chain, with trilinear and 4× anisotropic
 filtering to reduce distant texture shimmer and moiré. The memory budget includes
 mipmaps. Wall and floor gradients are calculated before texture-coordinate wrapping;

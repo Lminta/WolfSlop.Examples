@@ -41,6 +41,10 @@ public sealed class WebGpuRenderer : IDisposable
     private GPUTextureView? _wallTextureView;
     private GPUSampler? _textureSampler;
     private GPUSampler? _surfaceSampler;
+    private GPUTexture? _skyTexture;
+    private GPUTextureView? _skyTextureView;
+    private GPUSampler? _skySampler;
+    private GPUBuffer? _skyBuffer;
 
     // Reusable CPU buffers.
     private readonly float[] _cameraData = new float[8];
@@ -334,6 +338,7 @@ public sealed class WebGpuRenderer : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_initialized) throw new InvalidOperationException("Initialize the GPU before preparing a scene.");
         ReleaseScene();
+        await LoadSkyAsync(map.Sky, cancellationToken, reportProgress);
         await LoadTexturesAsync(map.Textures, cancellationToken, reportProgress);
 
         if (reportProgress != null) await reportProgress("Preparing scene…");
@@ -369,7 +374,10 @@ public sealed class WebGpuRenderer : IDisposable
                 BufferEntry(4, _mapInfoBuffer!),
                 BufferEntry(6, _materialsBuffer),
                 new GPUBindGroupEntry { Binding = 7, Resource = _textureSampler! },
-                new GPUBindGroupEntry { Binding = 8, Resource = _surfaceSampler! }
+                new GPUBindGroupEntry { Binding = 8, Resource = _surfaceSampler! },
+                new GPUBindGroupEntry { Binding = 9, Resource = _skyTextureView! },
+                new GPUBindGroupEntry { Binding = 10, Resource = _skySampler! },
+                BufferEntry(11, _skyBuffer!)
             ]
         });
         _preparedTextures = map.Textures;
@@ -398,8 +406,86 @@ public sealed class WebGpuRenderer : IDisposable
         _wallTextures?.Destroy();
         _wallTextures?.Dispose();
         _wallTextures = null;
+        _skyTextureView?.Dispose();
+        _skyTextureView = null;
+        _skySampler?.Dispose();
+        _skySampler = null;
+        _skyTexture?.Destroy();
+        _skyTexture?.Dispose();
+        _skyTexture = null;
+        DestroyBuffer(_skyBuffer);
+        _skyBuffer = null;
         _uploadedMap = null;
         _sortedSprites.Clear();
+    }
+
+    private async Task LoadSkyAsync(SkyDefinition? sky, CancellationToken cancellationToken,
+        Func<string, Task>? reportProgress)
+    {
+        using var queue = _device!.Queue;
+        _skyBuffer = _device.CreateBuffer(new GPUBufferDescriptor
+        {
+            Label = "WolfNET Sky Settings", Size = 16,
+            Usage = GPUBufferUsage.Uniform | GPUBufferUsage.CopyDst
+        });
+        using (var settings = new Float32Array(new[] { (sky?.RotationDegrees ?? 0) / 360f, sky == null ? 0f : 1f, 0f, 0f }))
+            queue.WriteBuffer(_skyBuffer, 0, settings);
+        _skySampler = _device.CreateSampler(new GPUSamplerDescriptor
+        {
+            AddressModeU = "repeat", AddressModeV = "clamp-to-edge",
+            MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear"
+        });
+
+        if (sky == null)
+        {
+            _skyTexture = _device.CreateTexture(new GPUTextureDescriptor
+            {
+                Size = [1, 1, 1], Format = "rgba8unorm",
+                Usage = GPUTextureUsage.TextureBinding | GPUTextureUsage.CopyDst
+            });
+            using var black = new Uint8Array(new byte[] { 0, 0, 0, 255 });
+            queue.WriteTexture(new GPUTexelCopyTextureInfo { Texture = _skyTexture }, black,
+                new GPUTexelCopyBufferLayout { BytesPerRow = 4, RowsPerImage = 1 },
+                new GPUExtent3DDict { Width = 1, Height = 1, DepthOrArrayLayers = 1 });
+        }
+        else
+        {
+            if (reportProgress != null) await reportProgress("Loading sky panorama…");
+            using var image = new HTMLImageElement { Src = sky.Texture };
+            await image.Decode();
+            cancellationToken.ThrowIfCancellationRequested();
+            // Preserve the panorama's aspect ratio; it does not belong in the square tile array.
+            var scale = Math.Min(1.0, 4096.0 / Math.Max(image.NaturalWidth, image.NaturalHeight));
+            var width = Math.Max(1, (int)(image.NaturalWidth * scale));
+            var height = Math.Max(1, (int)(image.NaturalHeight * scale));
+            var levels = (int)Math.Floor(Math.Log2(Math.Max(width, height))) + 1;
+            _skyTexture = _device.CreateTexture(new GPUTextureDescriptor
+            {
+                Label = "WolfNET Sky Panorama", Size = [width, height, 1], MipLevelCount = levels,
+                Format = "rgba8unorm", Usage = GPUTextureUsage.TextureBinding | GPUTextureUsage.CopyDst | GPUTextureUsage.RenderAttachment
+            });
+            using var window = _js.Get<Window>("window");
+            for (int mip = 0; mip < levels; mip++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (reportProgress != null) await reportProgress($"Preparing sky ({mip + 1}/{levels})…");
+                var mipWidth = Math.Max(1, width >> mip);
+                var mipHeight = Math.Max(1, height >> mip);
+                using var bitmap = await window.CreateImageBitmap(image, new ImageBitmapOptions
+                {
+                    ResizeWidth = mipWidth, ResizeHeight = mipHeight, ResizeQuality = "high", PremultiplyAlpha = "premultiply"
+                });
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    queue.CopyExternalImageToTexture(new GPUCopyExternalImageSourceInfo { Source = bitmap },
+                        new GPUCopyExternalImageDestInfo { Texture = _skyTexture, MipLevel = (uint)mip, PremultipliedAlpha = true },
+                        new GPUExtent3DDict { Width = (uint)mipWidth, Height = (uint)mipHeight, DepthOrArrayLayers = 1 });
+                }
+                finally { bitmap.Close(); }
+            }
+        }
+        _skyTextureView = _skyTexture.CreateView();
     }
 
     private async Task LoadTexturesAsync(TextureCatalog catalog, CancellationToken cancellationToken,

@@ -7,7 +7,8 @@ public enum RenderCellFlags : uint
 {
     None = 0,
     StopsRay = 1,
-    Wall = 2
+    Wall = 2,
+    SkyCeiling = 4
 }
 
 // All GPU records contain four 32-bit values, matching the WGSL structures.
@@ -38,4 +39,7 @@ public sealed record RenderMap(
     IReadOnlyList<WallMaterial> Materials,
     IReadOnlyList<Sprite> Sprites,
     TextureCatalog Textures,
-    ulong Revision);
+    ulong Revision)
+{
+    public SkyDefinition? Sky { get; init; }
+}

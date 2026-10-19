@@ -7,6 +7,13 @@ public sealed record MapDefinition
     // Each number identifies a definition from the object registry, including ID zero.
     public required int[][] WorldMap { get; init; }
     public required PlayerStartDefinition PlayerStart { get; init; }
+    public SkyDefinition? Sky { get; init; }
+}
+
+public sealed record SkyDefinition
+{
+    public required string Texture { get; init; }
+    public float RotationDegrees { get; init; }
 }
 
 public sealed record PlayerStartDefinition

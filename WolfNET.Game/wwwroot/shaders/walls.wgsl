@@ -63,6 +63,10 @@ var wallTextures: texture_2d_array<f32>;
 @group(0) @binding(6) var<storage, read> materials: array<WallMaterial>;
 @group(0) @binding(7) var wallSampler: sampler;
 @group(0) @binding(8) var surfaceSampler: sampler;
+@group(0) @binding(9) var skyTexture: texture_2d<f32>;
+@group(0) @binding(10) var skySampler: sampler;
+// x: panorama rotation in turns; y: sky enabled.
+@group(0) @binding(11) var<uniform> skySettings: vec4f;
 
 // A final overlay pass on the game canvas, using the compute pass's DDA results.
 @fragment
@@ -154,20 +158,39 @@ fn vertexMain(
     return output;
 }
 
-fn sampleTexture(layer: u32, uv: vec2f, gradientX: vec2f, gradientY: vec2f, repeat: bool) -> vec3f {
+fn sampleTexture(layer: u32, uv: vec2f, gradientX: vec2f, gradientY: vec2f, repeat: bool) -> vec4f {
     if (layer == 0xffffffffu || layer >= textureNumLayers(wallTextures)) {
-        return vec3f(1.0, 0.0, 1.0);
+        return vec4f(1.0, 0.0, 1.0, 1.0);
     }
     if (repeat) {
-        return textureSampleGrad(wallTextures, surfaceSampler, uv, i32(layer), gradientX, gradientY).rgb;
+        return textureSampleGrad(wallTextures, surfaceSampler, uv, i32(layer), gradientX, gradientY);
     }
-    return textureSampleGrad(wallTextures, wallSampler, uv, i32(layer), gradientX, gradientY).rgb;
+    return textureSampleGrad(wallTextures, wallSampler, uv, i32(layer), gradientX, gradientY);
+}
+
+fn skyColor(position: vec2f) -> vec3f {
+    if (skySettings.y == 0.0) { return vec3f(0.0); }
+    let pi = 3.141592653589793;
+    let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+    let ray = camera.direction + camera.plane * (2.0 * position.x / camera.screenSize.x - 1.0);
+    let vertical = (camera.screenSize.y * 0.5 - position.y) / focalLength;
+    let horizontalLength = length(ray);
+    let uv = vec2f(atan2(ray.y, ray.x) / (2.0 * pi) + 0.5 + skySettings.x,
+                   atan2(horizontalLength, vertical) / pi);
+    // Differentiate before horizontal wrapping to keep the panorama seam crisp.
+    let rayStep = camera.plane * (2.0 / camera.screenSize.x);
+    let lengthSquared = dot(ray, ray);
+    let totalSquared = lengthSquared + vertical * vertical;
+    let gradientX = vec2f((ray.x * rayStep.y - ray.y * rayStep.x) / (lengthSquared * 2.0 * pi),
+        vertical * dot(ray, rayStep) / (horizontalLength * totalSquared * pi));
+    let gradientY = vec2f(0.0, horizontalLength / (totalSquared * focalLength * pi));
+    return textureSampleGrad(skyTexture, skySampler, uv, gradientX, gradientY).rgb;
 }
 
 fn floorCeilingColor(position: vec2f) -> vec4f {
     let horizonOffset = position.y - camera.screenSize.y * 0.5;
     if (abs(horizonOffset) < 0.0001) {
-        return vec4f(0.0, 0.0, 0.0, 1.0);
+        return vec4f(skyColor(position), 1.0);
     }
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let distance = focalLength * 0.5 / abs(horizonOffset);
@@ -177,15 +200,24 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     // Surface textures belong to the projected cell, not the camera's current tile.
     if (any(worldPosition < vec2f(0.0)) ||
         worldPosition.x >= f32(mapInfo.width) || worldPosition.y >= f32(mapInfo.height)) {
+        if (horizonOffset < 0.0 && skySettings.y != 0.0) { return vec4f(skyColor(position), 1.0); }
         return vec4f(1.0, 0.0, 1.0, 1.0);
     }
     let tile = vec2u(worldPosition);
     let cell = worldMap[tile.y * mapInfo.width + tile.x];
+    if (horizonOffset < 0.0 && (cell.flags & 4u) != 0u) {
+        return vec4f(skyColor(position), 1.0);
+    }
     let layer = select(cell.ceilingLayer, cell.floorLayer, horizonOffset > 0.0);
     // Gradients of the continuous world coordinates, before fract() wraps at tile seams.
     let gradientX = camera.plane * (2.0 * distance / camera.screenSize.x);
     let gradientY = -rayDir * (distance / horizonOffset);
-    return vec4f(sampleTexture(layer, fract(worldPosition), gradientX, gradientY, true), 1.0);
+    let surface = sampleTexture(layer, fract(worldPosition), gradientX, gradientY, true);
+    if (horizonOffset < 0.0 && surface.a < 1.0) {
+        // Tile textures are uploaded with premultiplied alpha.
+        return vec4f(surface.rgb + skyColor(position) * (1.0 - surface.a), 1.0);
+    }
+    return vec4f(surface.rgb, 1.0);
 }
 @fragment
 fn fragmentMain(
@@ -252,7 +284,7 @@ fn fragmentMain(
     }
     let gradientX = vec2f(wallUStep, (y - screenHeight * 0.5) * distanceStep / focalLength);
     let gradientY = vec2f(0.0, 1.0 / lineHeight);
-    var color = sampleTexture(layer, vec2f(hit.wallU, wallV), gradientX, gradientY, false);
+    var color = sampleTexture(layer, vec2f(hit.wallU, wallV), gradientX, gradientY, false).rgb;
     if (hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {
         color *= 0.5;
     }
