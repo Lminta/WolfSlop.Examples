@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "passageId": 0,
   "sprites": [
     {

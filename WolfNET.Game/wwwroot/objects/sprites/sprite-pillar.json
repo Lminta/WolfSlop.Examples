@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "texture": "textures/pillar.png",
   "textureLayer": 9,
   "passageId": 0

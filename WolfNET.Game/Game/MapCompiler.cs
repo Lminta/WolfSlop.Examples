@@ -6,7 +6,7 @@ namespace WolfNET.Game;
 public sealed class MapCompiler
 {
     private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer);
-    private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, SpriteTemplate[] Sprites);
+    private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
     private readonly WallMaterial[] _materials;
@@ -110,13 +110,13 @@ public sealed class MapCompiler
                 if (passage.CeilingMode == "sky") flags |= RenderCellFlags.SkyCeiling;
                 else ceiling = Resolve(passage.CeilingTexture);
             }
-            _objects.Add(id, new CompiledObject(new RenderCell(material, floor, ceiling, flags), !definition.Collides, definition.Jumpable, sprites));
+            _objects.Add(id, new CompiledObject(new RenderCell(material, floor, ceiling, flags), !definition.Collides, definition.Jumpable, definition.Crouchable, sprites));
         }
         _materials = materials.ToArray();
         _textures = new TextureCatalog(layers);
     }
 
-    public (RenderMap Renderer, bool[][] Walkable, bool[][] Jumpable) Compile(MapDefinition definition, ulong revision)
+    public (RenderMap Renderer, bool[][] Walkable, bool[][] Jumpable, bool[][] Crouchable) Compile(MapDefinition definition, ulong revision)
     {
         if (definition.Sky is { } sky && (string.IsNullOrWhiteSpace(sky.Texture) || !float.IsFinite(sky.RotationDegrees)))
             throw new InvalidDataException("Sky needs a texture path and a finite rotationDegrees.");
@@ -129,6 +129,7 @@ public sealed class MapCompiler
         var cells = new RenderCell[checked(width * height)];
         var walkable = new bool[width][];
         var jumpable = new bool[width][];
+        var crouchable = new bool[width][];
         var sprites = new List<Sprite>();
         for (int x = 0; x < width; x++)
         {
@@ -136,17 +137,19 @@ public sealed class MapCompiler
                 throw new InvalidDataException("Map must be rectangular (worldMap[x][y]).");
             walkable[x] = new bool[height];
             jumpable[x] = new bool[height];
+            crouchable[x] = new bool[height];
             for (int y = 0; y < height; y++)
             {
                 if (!_objects.TryGetValue(map[x][y], out var obj))
                     throw new InvalidDataException($"Unknown object ID {map[x][y]} at ({x}, {y}).");
                 if ((x == 0 || y == 0 || x == width - 1 || y == height - 1) &&
-                    (obj.Walkable || obj.Jumpable || !obj.Cell.Flags.HasFlag(RenderCellFlags.StopsRay)))
-                    throw new InvalidDataException("Map boundaries must block movement, jumping, and rays.");
+                    (obj.Walkable || obj.Jumpable || obj.Crouchable || !obj.Cell.Flags.HasFlag(RenderCellFlags.StopsRay)))
+                    throw new InvalidDataException("Map boundaries must block movement, jumping, crouching, and rays.");
                 int index = y * width + x;
                 cells[index] = obj.Cell;
                 walkable[x][y] = obj.Walkable;
                 jumpable[x][y] = obj.Jumpable;
+                crouchable[x][y] = obj.Crouchable;
                 foreach (var sprite in obj.Sprites)
                 {
                     var position = new Vector2(x + 0.5f + sprite.Offset.X, y + 0.5f + sprite.Offset.Y);
@@ -163,6 +166,10 @@ public sealed class MapCompiler
             start.X < 0 || start.Y < 0 || start.X >= width || start.Y >= height || !walkable[(int)start.X][(int)start.Y])
             throw new InvalidDataException("Player start must be in a walkable map cell.");
         var direction = new Vector2(start.DirectionX, start.DirectionY);
+        if (!float.IsFinite(start.CrouchDrop) || start.CrouchDrop <= 0 || start.CrouchDrop >= 0.5f ||
+            !float.IsFinite(start.CrouchSpeedMultiplier) || start.CrouchSpeedMultiplier <= 0 ||
+            !float.IsFinite(start.MoveSpeed * start.CrouchSpeedMultiplier))
+            throw new InvalidDataException("crouchDrop must be greater than 0 and less than 0.5; crouchSpeedMultiplier must be positive and produce a finite speed.");
         if (!float.IsFinite(start.JumpRise) || start.JumpRise < 0 || start.JumpRise >= 0.5f ||
             !float.IsFinite(start.JumpLength) || start.JumpLength < 0 || start.JumpLength > 64 ||
             !float.IsFinite(start.JumpSpeedMultiplier) || start.JumpSpeedMultiplier <= 0 ||
@@ -193,6 +200,6 @@ public sealed class MapCompiler
         if (definition.Sky == null && cells.Any(cell => cell.Flags.HasFlag(RenderCellFlags.SkyCeiling)))
             throw new InvalidDataException("A sky ceiling requires a sky configuration on the map.");
         return (new RenderMap(width, height, Array.AsReadOnly(cells), Array.AsReadOnly(_materials),
-            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky }, walkable, jumpable);
+            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky }, walkable, jumpable, crouchable);
     }
 }

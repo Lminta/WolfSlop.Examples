@@ -218,6 +218,12 @@ export async function checkGpu(sources) {
         "Jump elevation did not reveal more ceiling above the wall");
     assert(equal(jumpedWall.pixel(64,100),colors[1])&&equal(neutral.pixel(64,100),colors[4]),
         "Jump elevation did not move the wall base and floor consistently");
+    const crouchedSprite=blueBounds(await draw(-1,0,1,false,2.5,2.5,128,128,0,-.25));
+    assert(crouchedSprite&&Math.abs(neutralSprite.centerY-crouchedSprite.centerY-.25*128/(2*.66))<=1,
+        "Crouching did not move sprites with the lowered camera");
+    const crouchedWall=await draw(-1,0,0,false,2.5,2.5,128,128,0,-.25);
+    assert(equal(crouchedWall.pixel(64,24),colors[1])&&equal(neutral.pixel(64,24),colors[5]),"Crouching misaligned walls and ceiling");
+    assert(equal(crouchedWall.pixel(64,90),colors[4])&&equal(neutral.pixel(64,90),colors[1]),"Crouching misaligned walls and floor");
     // Open ceilings and premultiplied alpha blend against the distant sky.
     resetMap();
     device.queue.writeBuffer(skyInfo,0,new Float32Array([0,1,0,0]));

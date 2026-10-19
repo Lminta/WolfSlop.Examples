@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": true,
   "jumpable": true,
+  "crouchable": false,
   "passageId": 12,
   "sprites": [
     { "spriteId": 112, "offset": { "x": -0.375, "y": -0.2, "z": -0.375 }, "scale": { "x": 0.25, "y": 0.25 } },

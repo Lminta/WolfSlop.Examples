@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "textures": {
     "north": "textures/bluestone.png",
     "east": "textures/bluestone.png",

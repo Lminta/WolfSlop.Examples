@@ -26,7 +26,7 @@ public sealed class GameMap : IMap
         _definition = definition with { WorldMap = Copy(definition.WorldMap) };
         var compiled = _compiler.Compile(_definition, 1);
         RendererMap = compiled.Renderer;
-        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable);
+        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
     }
 
     public static async Task<GameMap> LoadAsync(HttpClient http, string path, int maxWidth, int maxHeight,
@@ -52,7 +52,7 @@ public sealed class GameMap : IMap
         // Compile everything before publishing anything. Failed edits preserve both maps.
         var compiled = _compiler.Compile(next, checked(Revision + 1));
         _definition = next;
-        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable);
+        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
         RendererMap = compiled.Renderer;
     }
 

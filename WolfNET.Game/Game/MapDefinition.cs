@@ -30,4 +30,6 @@ public sealed record PlayerStartDefinition
     // Horizontal travel in map units; zero disables jumping.
     public float JumpLength { get; init; } = 2f;
     public float JumpSpeedMultiplier { get; init; } = 1.25f;
+    public float CrouchDrop { get; init; } = 0.25f;
+    public float CrouchSpeedMultiplier { get; init; } = 0.5f;
 }

@@ -8,6 +8,7 @@ public class PlayerObject : ObjectBase
     public CameraComponent Camera { get; }
     public PlayerController Controller { get; }
     public bool InAir => Controller.InAir;
+    public bool Crouching => Controller.Crouching;
     public PlayerObject(Wolf game) : base(game)
     {
         Camera = new CameraComponent(this);

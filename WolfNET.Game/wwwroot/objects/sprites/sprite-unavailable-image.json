@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "texture": "textures/showcase-missing-sprite.png",
   "textureLayer": 11,
   "passageId": 13

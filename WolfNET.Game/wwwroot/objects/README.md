@@ -56,7 +56,10 @@ All object definitions accept `jumpable` (default `false`). Solid jumpable cells
 permit player movement while `InAir` is true, independently of ray transparency.
 Sprite groups use the group's flag, rather than their members' flags. Passage
 references supply surfaces; each wall/sprite/group retains its own jumpable flag.
-Keep boundary objects non-jumpable.
+All object types also accept `crouchable` (default `false`). With `collides: true`,
+this allows passage only while crouched on the ground. Groups retain their own
+stance flags independently of their sprite templates. Map boundaries must remain
+non-jumpable and non-crouchable.
 
 Maps can define `"sky": { "texture": "textures/skyboxes/skybox.jpg", "rotationDegrees": 0 }`.
 Passages default to `"ceilingMode": "texture"`; `"ceilingMode": "sky"` opens the ceiling.

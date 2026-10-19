@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "texture": "textures/greenlight.png",
   "textureLayer": 10,
   "passageId": 0

@@ -4,6 +4,7 @@
   "raycastTransparent": false,
   "collides": true,
   "jumpable": false,
+  "crouchable": false,
   "passageId": 0,
   "textures": {
     "north": "textures/showcase-missing-wall.png",

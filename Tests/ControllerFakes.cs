@@ -13,7 +13,7 @@ namespace WolfNET.Game.InputEvents
 {
     public struct KeyState
     {
-        public bool Forward, Backward, Left, Right, StrafeLeft, StrafeRight, Jump;
+        public bool Forward, Backward, Left, Right, StrafeLeft, StrafeRight, Jump, Crouch;
     }
 
     public sealed class KeyTracker

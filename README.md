@@ -80,6 +80,15 @@ Any solid object overlapping the landing point stays solid for that jump, even i
 jumpable. The path stops at its near edge; the player never enters it and snaps back.
 Game code can read `Wolf.Player?.InAir` or `PlayerObject.InAir` to check jump status.
 
+Hold **Alt** (left or right) to crouch. The camera lowers smoothly; map settings
+`crouchDrop` (default 0.25, greater than zero and less than 0.5) and
+`crouchSpeedMultiplier` (default 0.5, positive) control camera drop and walking speed.
+Solid objects marked `crouchable: true` permit crouched movement beneath them;
+ordinary walls remain solid. Releasing Alt beneath an obstacle keeps the player
+crouched until the full collision circle clears it. Jumping is disabled while
+crouched, and Alt cannot bypass obstacles in flight. Read `Wolf.Player?.Crouching`
+or `PlayerObject.Crouching` for the current stance.
+
 The player collides as a circle and slides along solid cells and rounded corners.
 Each map sets `playerStart.collisionRadius` (default 0.15 map squares; greater than
 zero and less than 0.5). The editor exposes it under map settings. Movement uses
@@ -98,7 +107,9 @@ Player movement is configured in each map's `playerStart` object alongside the s
   "collisionRadius": 0.15,
   "jumpRise": 0.4,
   "jumpLength": 2,
-  "jumpSpeedMultiplier": 1.25
+  "jumpSpeedMultiplier": 1.25,
+  "crouchDrop": 0.25,
+  "crouchSpeedMultiplier": 0.5
 }
 ```
 

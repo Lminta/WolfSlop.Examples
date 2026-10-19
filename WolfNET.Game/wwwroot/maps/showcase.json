@@ -35,7 +35,8 @@
     "208": "../objects/sprite-groups/group-showcase-lane-barrel-scaled.json",
     "209": "../objects/sprite-groups/group-showcase-gallery-greenlight-scaled.json",
     "210": "../objects/sprite-groups/group-stacked-barrels.json",
-    "211": "../objects/sprite-groups/group-showcase-jumpable-columns.json"
+    "211": "../objects/sprite-groups/group-showcase-jumpable-columns.json",
+    "212": "../objects/sprite-groups/group-showcase-crouchable-columns.json"
   },
   "worldMap": [
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
@@ -47,7 +48,7 @@
     [4, 10, 10, 14, 10, 20, 10, 14, 10, 10, 10, 10, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 10, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 10, 10, 14, 10, 14, 10, 14, 10, 10, 10, 10, 4, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
-    [4, 10, 10, 3, 14, 10, 14, 10, 14, 10, 10, 10, 4, 12, 12, 12, 12, 12, 12, 12, 211, 12, 12, 12, 4],
+    [4, 10, 10, 3, 14, 10, 14, 10, 14, 10, 10, 10, 4, 12, 12, 12, 212, 12, 12, 12, 211, 12, 12, 12, 4],
     [4, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4],
     [4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4],
@@ -83,7 +84,9 @@
     "collisionRadius": 0.15,
     "jumpRise": 0.4,
     "jumpLength": 2,
-    "jumpSpeedMultiplier": 1.25
+    "jumpSpeedMultiplier": 1.25,
+    "crouchDrop": 0.25,
+    "crouchSpeedMultiplier": 0.5
   },
   "sky": {
     "texture": "textures/skyboxes/skybox.jpg",

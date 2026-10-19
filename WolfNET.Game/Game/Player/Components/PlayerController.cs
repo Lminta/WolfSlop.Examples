@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using WolfNET.Game.Core;
 using WolfNET.Game.InputEvents;
 
@@ -24,6 +24,7 @@ public class PlayerController : ComponentBase
     private Vector2 _jumpDirection;
     private readonly HashSet<(int X, int Y)> _landingBlockers = [];
     public bool InAir { get; private set; }
+    public bool Crouching { get; private set; }
     public Vector2 JumpDestination { get; private set; }
     
     public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, INavigationMap map, CameraComponent camera, PlayerStartDefinition settings, ObjectBase parent) : base(parent)
@@ -50,13 +51,17 @@ public class PlayerController : ComponentBase
         var planeY = _camera.Plane.Y;
 
         var keys = _keyTracker.KeyState;
+        // Stay low under an obstacle after Alt is released; stand only when the
+        // complete collision circle has cleared it. Crouching never bypasses walls in flight.
+        Crouching = !InAir && (keys.Crouch || (Crouching && !CanOccupy(posX, posY, inAir: false, crouching: false)));
+        if (Crouching) moveSpeed *= _settings.CrouchSpeedMultiplier;
         var forward = (keys.Forward ? 1 : 0) - (keys.Backward ? 1 : 0);
         var strafe = (keys.StrafeRight ? 1 : 0) - (keys.StrafeLeft ? 1 : 0);
         var movement = new Vector2(dirX, dirY) * forward +
                        new Vector2(dirY, -dirX) * strafe;
 
         var jumpRequested = _keyTracker.ConsumeJump();
-        if (jumpRequested && !InAir && _settings.JumpLength > 0 && _settings.MoveSpeed > 0)
+        if (jumpRequested && !InAir && !Crouching && _settings.JumpLength > 0 && _settings.MoveSpeed > 0)
         {
             _jumpOrigin = ResolveContacts(new(posX, posY));
             _jumpDirection = Vector2.Normalize(movement.LengthSquared() > 0 ? movement : new(dirX, dirY));
@@ -101,6 +106,12 @@ public class PlayerController : ComponentBase
             }
             posX = position.X;
             posY = position.Y;
+        }
+        if (!InAir)
+        {
+            var target = Crouching ? -_settings.CrouchDrop : 0;
+            var change = deltaTime * _settings.CrouchDrop / 0.12f;
+            _camera.Elevation += Math.Clamp(target - _camera.Elevation, -change, change);
         }
         var mouseMovement = _mouseTracker.ConsumeMovement();
         var turn = -mouseMovement.X * MouseSensitivity;
@@ -192,7 +203,7 @@ public class PlayerController : ComponentBase
             for (int x = minX; x <= maxX; x++)
             for (int y = minY; y <= maxY; y++)
             {
-                if (_map.IsWalkable(x, y, InAir)) continue;
+                if (_map.IsWalkable(x, y, InAir, Crouching)) continue;
                 var nearest = Vector2.Clamp(position, new(x, y), new(x + 1, y + 1));
                 var separation = position - nearest;
                 var distanceSquared = separation.LengthSquared();
@@ -222,13 +233,13 @@ public class PlayerController : ComponentBase
         return position;
     }
 
-    private bool CanOccupy(float x, float y, bool? inAir = null)
+    private bool CanOccupy(float x, float y, bool? inAir = null, bool? crouching = null)
     {
         var airborne = inAir ?? InAir;
         for (int cellX = (int)MathF.Floor(x - CollisionRadius); cellX <= (int)MathF.Floor(x + CollisionRadius); cellX++)
         for (int cellY = (int)MathF.Floor(y - CollisionRadius); cellY <= (int)MathF.Floor(y + CollisionRadius); cellY++)
         {
-            if (_map.IsWalkable(cellX, cellY, airborne) && (!airborne || !_landingBlockers.Contains((cellX, cellY)))) continue;
+            if (_map.IsWalkable(cellX, cellY, airborne, crouching ?? Crouching) && (!airborne || !_landingBlockers.Contains((cellX, cellY)))) continue;
             // Circle versus square, including rounded clearance around corners.
             var dx = x - Math.Clamp(x, cellX, cellX + 1);
             var dy = y - Math.Clamp(y, cellY, cellY + 1);

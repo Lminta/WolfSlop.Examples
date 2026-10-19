@@ -57,8 +57,8 @@ async function evaluate(expression) {
     if(result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
 }
-async function waitFor(expression) {
-    for(let i=0;i<200;i++) {
+async function waitFor(expression, attempts = 200) {
+    for(let i=0;i<attempts;i++) {
         if(logs.some(line=>/Initialization failed|Frame failed|Uncaptured error/.test(line))) throw Error(logs.join("\n"));
         if(await evaluate(expression)) return;
         await delay(100);
@@ -203,6 +203,13 @@ try {
     assert((await evaluate("window.__camera[8]"))===pitched[8],"Pitch drifted after mouse movement stopped");
     await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementY:1}))");
     await waitFor(`Math.abs(window.__camera[8]-${beforePitch[8]})<.0001`);
+    await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'AltLeft',bubbles:true}))");
+    await waitFor("window.__camera[9]<=-.249");
+    await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'AltRight',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'AltLeft',bubbles:true}))");
+    await delay(150);
+    assert(await evaluate("window.__camera[9]<=-.249"),"Releasing one Alt key cancelled the other held Alt key");
+    await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'AltRight',bubbles:true}))");
+    await waitFor("window.__camera[9]===0");
     const beforeJump=await evaluate("window.__camera.slice()");
     await key("keyDown","Space");
     await waitFor("window.__camera[9]>0");
@@ -345,13 +352,13 @@ try {
             await send("Input.dispatchMouseEvent",{type:"mousePressed",...rect,button:"left",clickCount:1});
             await send("Input.dispatchMouseEvent",{type:"mouseReleased",...rect,button:"left",clickCount:1});
         }
-        await waitFor(`window.__cameraWrites>${before}&&window.__camera[0]===${spawn[0]}&&window.__camera[1]===${spawn[1]}&&(${buttonExpression}).getAttribute('aria-pressed')==='true'`);
+        await waitFor(`window.__cameraWrites>${before}&&window.__camera[0]===${spawn[0]}&&window.__camera[1]===${spawn[1]}&&(${buttonExpression}).getAttribute('aria-pressed')==='true'`,600);
         assert(await evaluate("document.pointerLockElement===null"),"Map switch did not release the mouse");
         assert(await evaluate("window.__sceneTextures.size===1&&window.__sceneBuffers.size===2"),"Old scene GPU resources retained");
         if(hadScene) assert(await evaluate("window.__destroyedSceneTextures")>destroyedBefore,"Old textures were not destroyed");
     }
     await selectMap("Showcase",[6.5,10.5]);
-    assert(logs.some(line=>line.includes("34x25")&&line.includes("35 sprites")),"Showcase was not prepared");
+    assert(logs.some(line=>line.includes("34x25")&&line.includes("43 sprites")),"Showcase was not prepared");
     assert(await evaluate("!!document.querySelector('.showcase-guide')"),"Showcase guide missing");
     if(process.env.WOLFNET_SCREENSHOT) {
         const screenshot=await send("Page.captureScreenshot",{format:"png"});

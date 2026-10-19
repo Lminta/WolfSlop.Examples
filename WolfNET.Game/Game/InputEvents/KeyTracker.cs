@@ -1,4 +1,4 @@
-﻿using WolfNET.Game.EventSystem.Interfaces;
+using WolfNET.Game.EventSystem.Interfaces;
 
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
@@ -14,6 +14,7 @@ public struct KeyState
     public bool StrafeLeft;
     public bool StrafeRight;
     public bool Jump;
+    public bool Crouch;
 }
 
 public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEventListener<InputEventSystem, KeyUpEvent>, IDisposable
@@ -27,6 +28,8 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     
     private KeyState _keyState;
     private bool _jumpRequested;
+    private bool _altLeft;
+    private bool _altRight;
     
     public KeyState KeyState => _isActive() ? _keyState : default;
     
@@ -76,6 +79,7 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     {
         _keyState = default;
         _jumpRequested = false;
+        _altLeft = _altRight = false;
     }
 
     public bool ConsumeJump()
@@ -88,13 +92,21 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     private void OnBlur(Event e) => Reset();
 
     private static bool IsMovementKey(string code) => code is
-        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "Space";
+        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "Space" or "AltLeft" or "AltRight";
     
     public Task OnEvent(KeyDownEvent gameEvent)
     {
         if (!_isActive()) return Task.CompletedTask;
         switch (gameEvent.Event.Code)
         {
+            case "AltLeft":
+                _altLeft = true;
+                _keyState.Crouch = true;
+                break;
+            case "AltRight":
+                _altRight = true;
+                _keyState.Crouch = true;
+                break;
             case "Space":
                 _keyState.Jump = true;
                 if (!gameEvent.Event.Repeat) _jumpRequested = true;
@@ -123,6 +135,14 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     {
         switch (gameEvent.Event.Code)
         {
+            case "AltLeft":
+                _altLeft = false;
+                _keyState.Crouch = _altRight;
+                break;
+            case "AltRight":
+                _altRight = false;
+                _keyState.Crouch = _altLeft;
+                break;
             case "Space":
                 _keyState.Jump = false;
                 break;

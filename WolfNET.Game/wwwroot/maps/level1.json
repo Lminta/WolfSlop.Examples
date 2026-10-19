@@ -55,6 +55,8 @@
     "collisionRadius": 0.15,
     "jumpRise": 0.4,
     "jumpLength": 2,
-    "jumpSpeedMultiplier": 1.25
+    "jumpSpeedMultiplier": 1.25,
+    "crouchDrop": 0.25,
+    "crouchSpeedMultiplier": 0.5
   }
 }

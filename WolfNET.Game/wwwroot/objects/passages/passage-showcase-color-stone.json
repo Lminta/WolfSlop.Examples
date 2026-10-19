@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "floorTexture": "textures/colorstone.png",
   "ceilingTexture": "textures/wood.png"
 }

@@ -71,7 +71,7 @@ Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.C
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 35, "Showcase sprite demonstrations missing");
+Check(showcase.RendererMap.Sprites.Count == 43, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
@@ -155,6 +155,7 @@ Reject(() => Compile(objects: new(definitions) { [0] = Passage(0) with { Ceiling
 foreach (bool transparent in new[] { false, true })
 foreach (bool collides in new[] { false, true })
 foreach (bool jumpable in new[] { false, true })
+foreach (bool crouchable in new[] { false, true })
 foreach (int type in new[] { 0, 1, 2, 3 })
 {
     const int testId = 10;
@@ -165,10 +166,12 @@ foreach (int type in new[] { 0, 1, 2, 3 })
         2 => spriteDef with { Id = testId, RaycastTransparent = transparent, Collides = collides },
         _ => groupDef with { Id = testId, RaycastTransparent = transparent, Collides = collides }
     };
-    var objects = new Dictionary<int, MapObjectDefinition>(definitions) { [testId] = value with { Jumpable = jumpable } };
+    var objects = new Dictionary<int, MapObjectDefinition>(definitions) { [testId] = value with { Jumpable = jumpable, Crouchable = crouchable } };
     var compiled = Compile(SmallMap(testId), objects);
     Check(compiled.NavigationMap.IsWalkable(2, 2) == !collides, "Collision flag ignored");
     Check(compiled.NavigationMap.IsWalkable(2, 2, inAir: true) == (!collides || jumpable), "Jumpable flag ignored or inherited incorrectly");
+    Check(compiled.NavigationMap.IsWalkable(2, 2, crouching: true) == (!collides || crouchable), "Crouchable flag ignored or inherited incorrectly");
+    Check(compiled.NavigationMap.IsWalkable(2, 2, inAir: true, crouching: true) == (!collides || jumpable), "Airborne crouching bypassed a non-jumpable obstacle");
     Check(compiled.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) == !transparent, "Ray transparency flag ignored");
 }
 var group = Compile(SmallMap(3));
@@ -582,6 +585,46 @@ foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, 
     Check(!controller.InAir && Vector2.Distance(player.Transform.Position,destination)<.0001f,"Showcase column jump did not land beyond both rows");
 }
 var editorDocument = editorSource.Load("showcase") with { Name = "editor-roundtrip" };
+foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, -Vector2.UnitY })
+{
+    var center = new Vector2(9.5f,16.5f);
+    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = center-direction, Rotation = direction } };
+    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Forward = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(direction.Y,-direction.X)*.66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
+    controller.Update(200);
+    Check(Vector2.Distance(player.Transform.Position,center)>.64f && !controller.Crouching,"Standing player entered ceiling columns");
+    keys.KeyState = new() { Forward = true, Crouch = true }; controller.Update(200);
+    Check(controller.Crouching && MathF.Abs(camera.Elevation+.25f)<.0001f && Vector2.Distance(player.Transform.Position,center)<.2f,
+        "Crouching did not lower the camera or pass beneath the obstacle at half speed");
+    var inside=player.Transform.Position;
+    keys.KeyState=new(); controller.Update(200);
+    Check(controller.Crouching && player.Transform.Position==inside && camera.Elevation==-.25f,"Releasing Alt under an obstacle stood up or pushed the player out");
+    keys.KeyState=new() {Forward=true}; controller.Update(400);
+    keys.KeyState=new(); controller.Update(120);
+    Check(!controller.Crouching && MathF.Abs(camera.Elevation)<.0001f && Vector2.Dot(player.Transform.Position-center,direction)>.8f,
+        "Player could not leave the overhead obstacle and stand up");
+}
+{
+    var crouchObjects=new Dictionary<int,MapObjectDefinition>(definitions) { [10]=Passage(10,collides:true) with {Crouchable=true} };
+    var level=Compile(JumpMap(),crouchObjects);
+    var jump=JumpPlayer(level);
+    jump.Keys.KeyState=new() {Crouch=true,Jump=true}; jump.Controller.Update(120);
+    Check(jump.Controller.Crouching&&!jump.Controller.InAir&&jump.Camera.Elevation==-.25f,"Player jumped while crouched");
+    jump.Keys.KeyState=new(); jump.Controller.Update(120);
+    jump.Keys.KeyState=new() {Jump=true}; jump.Controller.Update(0);
+    Check(jump.Controller.JumpDestination.X<3.81f,"Jumping bypassed a crouch-only obstacle");
+    jump.Keys.KeyState=new() {Crouch=true}; jump.Controller.Update(100);
+    Check(jump.Controller.InAir&&!jump.Controller.Crouching&&jump.Camera.Elevation>0,"Alt in flight enabled crouching");
+    Check(level.NavigationMap.IsWalkable(4,3,crouching:true),"Crouch navigation flag missing");
+    level.SetCell(4,3,1);
+    Check(!level.NavigationMap.IsWalkable(4,3,crouching:true)&&!level.NavigationMap.IsWalkable(-1,3,crouching:true),"Crouching ignored revised walls or map bounds");
+}
+Reject(()=>Compile(objects:new(definitions){[1]=wall with {Crouchable=true}}),"Crouchable map boundary accepted");
+foreach(float invalid in new[]{0f,-1f,.5f,float.NaN,float.PositiveInfinity})
+    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{CrouchDrop=invalid}}),"Invalid crouch drop accepted");
+foreach(float invalid in new[]{0f,-1f,float.NaN,float.PositiveInfinity})
+    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{CrouchSpeedMultiplier=invalid}}),"Invalid crouch speed accepted");
 Check(editorSource.Maps().Contains("showcase"), "Editor map catalog missing showcase");
 Reject(() => editorSource.Load("../showcase"), "Editor accepted a path outside maps");
 Reject(() => editorSource.Validate(editorDocument with { Name = "CON" }), "Editor accepted a reserved filename");

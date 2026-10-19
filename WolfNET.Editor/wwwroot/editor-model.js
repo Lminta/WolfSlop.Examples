@@ -9,6 +9,8 @@ export function checkDefinition(definition, objects) {
         throw Error("collides and raycastTransparent must both be true or false.");
     if (d.jumpable !== undefined && typeof d.jumpable !== "boolean")
         throw Error("jumpable must be true or false.");
+    if (d.crouchable !== undefined && typeof d.crouchable !== "boolean")
+        throw Error("crouchable must be true or false.");
     if (d.type !== "passage" && (!Number.isInteger(d.passageId) || objects[d.passageId]?.type !== "passage"))
         throw Error("passageId must reference a passage in the object library.");
     if (d.type === "passage" && d.ceilingMode !== undefined && !["texture", "sky"].includes(d.ceilingMode))
@@ -53,6 +55,9 @@ export function checkGrid(map) {
         (p.jumpLength !== undefined && (!Number.isFinite(p.jumpLength) || p.jumpLength < 0 || p.jumpLength > 64)) ||
         (p.jumpSpeedMultiplier !== undefined && (!Number.isFinite(p.jumpSpeedMultiplier) || p.jumpSpeedMultiplier <= 0)))
         throw Error("jumpRise must be in [0, 0.5), jumpLength in [0, 64], and jumpSpeedMultiplier positive.");
+    if ((p.crouchDrop !== undefined && (!Number.isFinite(p.crouchDrop) || p.crouchDrop <= 0 || p.crouchDrop >= 0.5)) ||
+        (p.crouchSpeedMultiplier !== undefined && (!Number.isFinite(p.crouchSpeedMultiplier) || p.crouchSpeedMultiplier <= 0)))
+        throw Error("crouchDrop must be greater than zero and less than 0.5; crouchSpeedMultiplier must be positive.");
     return map;
 }
 

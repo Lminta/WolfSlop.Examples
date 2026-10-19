@@ -4,6 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,
+  "crouchable": false,
   "texture": "textures/barrel.png",
   "textureLayer": 8,
   "passageId": 11
