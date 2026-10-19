@@ -26,7 +26,7 @@ export async function checkGpu(sources) {
     const cells = buffer(25 * 16, GPUBufferUsage.STORAGE);
     const materials = buffer(32, GPUBufferUsage.STORAGE);
     const hits = buffer(128 * 16, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
-    const sprites = buffer(64, GPUBufferUsage.STORAGE);
+    const sprites = buffer(128, GPUBufferUsage.STORAGE);
     const textures = device.createTexture({size: [4, 4, 8], format: "rgba8unorm", usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST});
     const colors = [[255,0,0,255], [0,255,0,255], [0,0,255,255], [255,255,0,255],
         [255,255,255,255], [0,255,255,255], [255,0,255,255], [255,0,0,255]];
@@ -55,8 +55,9 @@ export async function checkGpu(sources) {
     }
     const floatBits = value => new Uint32Array(new Float32Array([value]).buffer)[0];
     function setSprites(values) {
-        const data = new Uint32Array(16);
-        values.forEach(([x,y,layer,owner], i) => data.set([floatBits(x),floatBits(y),layer,owner], i * 4));
+        const data = new Uint32Array(32);
+        values.forEach(([x,y,layer,owner,sx=1,sy=1,z=0], i) => data.set(
+            [floatBits(x),floatBits(y),layer,owner,floatBits(sx),floatBits(sy),floatBits(z),0], i * 8));
         device.queue.writeBuffer(sprites, 0, data);
     }
     async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128) {
@@ -146,6 +147,25 @@ export async function checkGpu(sources) {
         assert(Math.abs(spriteWidth-wallWidth)<=1 && Math.abs(spriteHeight-wallHeight)<=1, "Sprite and wall projection scales differ");
     }
     resetMap();
+    function blueBounds(frame) {
+        const points = [];
+        for (let y=0;y<128;y++) for (let x=0;x<128;x++) if (equal(frame.pixel(x,y),colors[2])) points.push([x,y]);
+        if (!points.length) return null;
+        const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]);
+        return {width:Math.max(...xs)-Math.min(...xs)+1,height:Math.max(...ys)-Math.min(...ys)+1,
+            centerY:(Math.max(...ys)+Math.min(...ys)+1)/2};
+    }
+    setSprites([[1,2.5,2,11,.5,.25,.25]]);
+    const raised = blueBounds(await draw(-1,0,1));
+    const unitSize = 128/(2*.66*1.5);
+    assert(raised && Math.abs(raised.width-unitSize*.5)<=1 && Math.abs(raised.height-unitSize*.25)<=1,
+        "Per-member scale did not independently change billboard width and height");
+    assert(Math.abs(raised.centerY-(64-unitSize*.25))<=1, "Positive offset.z did not move the billboard up");
+    setSprites([[1,2.5,2,11,.5,.25,-.25]]);
+    const lowered = blueBounds(await draw(-1,0,1));
+    assert(lowered && Math.abs(lowered.centerY-(64+unitSize*.25))<=1, "Negative offset.z did not move the billboard down");
+    setSprites([[1,2.5,2,11,0,0,0]]);
+    assert(blueBounds(await draw(-1,0,1))===null, "Zero-scale billboard still rendered");
     setSprites([[3.5,2.5,1,14]]);
     assert(!equal((await draw(-1,0,1)).pixel(64,64),colors[1]), "Sprite behind camera remained visible");
     result = await draw(-1,0,0,true);

@@ -68,6 +68,9 @@ try {
     document.name = "api-roundtrip";
     document.deletedObjectIds = [26];
     document.objects[11].floorTexture = texturePath;
+    const groupMember = document.objects[121].sprites[0];
+    groupMember.scale = { x: .75, y: 1.5 };
+    groupMember.offset.z = .25;
     assert.equal((await post("/api/validate", document)).status, 200);
     const exported = await post("/api/export", document);
     assert.equal(exported.headers.get("content-type"), "application/zip");
@@ -79,6 +82,8 @@ try {
     assert.equal((await saved.json()).path, "maps/api-roundtrip.json");
     const reopened = await get("/api/maps/api-roundtrip");
     assert.equal(reopened.objects[11].floorTexture, texturePath);
+    assert.deepEqual(reopened.objects[121].sprites[0].scale, { x: .75, y: 1.5 });
+    assert.equal(reopened.objects[121].sprites[0].offset.z, .25);
     assert.deepEqual(reopened.deletedObjectIds, [26], "Deleted library objects must stay deleted after reopening");
     assert.deepEqual(reopened.map.worldMap, document.map.worldMap);
     assert.ok((await get("/api/maps")).includes("api-roundtrip"));

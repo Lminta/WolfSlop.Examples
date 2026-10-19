@@ -153,6 +153,26 @@ Check(group.NavigationMap.IsWalkable(2, 2), "Child flags overrode group flags");
 Check(group.RendererMap.Sprites.Count == 2, "Repeated sprite ID collapsed");
 Check(group.RendererMap.Sprites[0].Position == new Vector2(2.25f, 2.5f) && group.RendererMap.Sprites[1].Position == new Vector2(3.25f, 2.6f), "Group offsets incorrect");
 Check(group.RendererMap.Sprites.All(sprite => sprite.OwnerCell == 13), "Cross-cell correction changed owner");
+Check(group.RendererMap.Sprites.All(sprite => sprite.Scale == Vector2.One && sprite.Elevation == 0), "Legacy member transforms changed");
+var transformedGroup = Compile(SmallMap(3), new(definitions)
+{
+    [3] = groupDef with { Sprites = [
+        groupDef.Sprites[0] with { Scale = new() { X = 0.5f, Y = 1.25f }, Offset = groupDef.Sprites[0].Offset with { Z = 0.375f } },
+        groupDef.Sprites[1] with { Scale = new() { X = 2, Y = 0.25f }, Offset = groupDef.Sprites[1].Offset with { Z = -0.125f } }
+    ] }
+});
+Check(transformedGroup.RendererMap.Sprites[0].Scale == new Vector2(0.5f, 1.25f) && transformedGroup.RendererMap.Sprites[0].Elevation == 0.375f, "First member transform was not compiled");
+Check(transformedGroup.RendererMap.Sprites[1].Scale == new Vector2(2, 0.25f) && transformedGroup.RendererMap.Sprites[1].Elevation == -0.125f, "Second member transform was not compiled independently");
+Check(transformedGroup.RendererMap.Sprites.Select(sprite => sprite.Position).SequenceEqual(group.RendererMap.Sprites.Select(sprite => sprite.Position)), "Scale/elevation changed member XY positions");
+Check(transformedGroup.RendererMap.Sprites.All(sprite => sprite.OwnerCell == 13) && transformedGroup.NavigationMap.IsWalkable(2, 2), "Member transforms changed ownership or navigation");
+foreach (var invalidScale in new[] { -1f, float.NaN, float.PositiveInfinity })
+{
+    Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Scale = new() { X = invalidScale } }] } }), "Invalid member scale accepted");
+}
+foreach (var invalidZ in new[] { float.NaN, float.PositiveInfinity })
+    Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Offset = groupDef.Sprites[0].Offset with { Z = invalidZ } }] } }), "Invalid member elevation accepted");
+var hiddenMember = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Scale = new() { X = 0, Y = 0 } }] } });
+Check(hiddenMember.RendererMap.Sprites.Single().Scale == Vector2.Zero, "Zero scale should allow a hidden billboard");
 Check(group.RendererMap.Textures.Layers[8] == "textures/barrel.png", "Explicit sprite layer not reserved");
 var groupPassage = Compile(SmallMap(3), new(definitions)
 {

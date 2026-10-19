@@ -41,6 +41,9 @@ struct Sprite {
     position: vec2f,
     textureLayer: u32,
     ownerCell: u32,
+    scale: vec2f,
+    elevation: f32,
+    padding: f32,
 };
 
 @group(0) @binding(0)

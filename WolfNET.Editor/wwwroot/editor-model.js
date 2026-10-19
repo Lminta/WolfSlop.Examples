@@ -15,10 +15,15 @@ export function checkDefinition(definition, objects) {
         throw Error("A sprite textureLayer must be an integer from 0 to 255.");
     if (d.type === "spriteGroup") {
         if (!Array.isArray(d.sprites)) throw Error("A sprite group needs a sprites array.");
-        for (const member of d.sprites)
+        for (const member of d.sprites) {
             if (!member || objects[member.spriteId]?.type !== "sprite" ||
-                !Number.isFinite(member.offset?.x) || !Number.isFinite(member.offset?.y))
-                throw Error("Each group member needs a valid spriteId and a finite { x, y } offset.");
+                !Number.isFinite(member.offset?.x) || !Number.isFinite(member.offset?.y) ||
+                (member.offset.z !== undefined && !Number.isFinite(member.offset.z)))
+                throw Error("Each group member needs a valid spriteId and finite offset coordinates (x, y, optional z).");
+            if (member.scale !== undefined && (!member.scale || typeof member.scale !== "object" || Array.isArray(member.scale) || ["x", "y"].some(axis =>
+                member.scale[axis] !== undefined && (!Number.isFinite(member.scale[axis]) || member.scale[axis] < 0))))
+                throw Error("Member scale must contain finite, nonnegative x/y multipliers.");
+        }
     }
     const paths = d.type === "passage" ? [d.floorTexture, d.ceilingTexture] :
         d.type === "wall" ? Object.values(d.textures ?? {}) : d.type === "sprite" ? [d.texture] : [];

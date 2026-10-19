@@ -231,16 +231,18 @@ function draw() {
             ctx.strokeStyle = "#e494f1"; ctx.lineWidth = 2; ctx.strokeRect(px + 2, py + 2, s - 4, s - 4); ctx.lineWidth = 1;
         }
     }
-    function sprite(d, x, y) {
+    function sprite(d, x, y, scale = {}) {
         const img = image(d?.texture), size = s * .72;
-        if (img) ctx.drawImage(img, x * s - size / 2, y * s - size / 2, size, size);
+        const width = size * (scale.x ?? 1), height = size * (scale.y ?? 1);
+        if (width === 0 || height === 0) return;
+        if (img) ctx.drawImage(img, x * s - width / 2, y * s - height / 2, width, height);
         else { ctx.fillStyle = "#efb760"; ctx.beginPath(); ctx.arc(x * s, y * s, s * .15, 0, Math.PI * 2); ctx.fill(); }
     }
     for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) {
         const d = doc.objects[grid[x][y]];
         if (d?.type === "sprite") sprite(d, x + .5, y + .5);
         if (d?.type === "spriteGroup") for (const member of d.sprites ?? [])
-            sprite(doc.objects[member.spriteId], x + .5 + member.offset.x, y + .5 + member.offset.y);
+            sprite(doc.objects[member.spriteId], x + .5 + member.offset.x, y + .5 + member.offset.y, member.scale);
     }
     if ($("show-grid").checked) {
         ctx.strokeStyle = "#10182375"; ctx.lineWidth = 1; ctx.beginPath();

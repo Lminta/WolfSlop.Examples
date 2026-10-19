@@ -33,10 +33,21 @@ Types:
 - `sprite`: `texture`, zero-based GPU `textureLayer`, and `passageId` for the floor
   and ceiling. A sprite is placed at the center of its tile.
 - `spriteGroup`: `passageId` and a `sprites` list containing
-  `{ "spriteId": 100, "offset": { "x": -0.25, "y": 0 } }` entries. IDs may repeat.
-  Offsets add to the group tile's center and can cross into adjacent tiles, but
-  final positions must remain inside the map. Children must be Sprite objects.
+  `{ "spriteId": 100, "offset": { "x": -0.25, "y": 0, "z": 0.2 }, "scale": { "x": 0.75, "y": 1.5 } }`
+  entries. IDs may repeat. Each member's scale multiplies its billboard width (x)
+  and height (y), about its center; omitted components default to 1. Multipliers
+  must be finite and nonnegative; zero hides that dimension. Scale does not move
+  the member's X/Y position or change collision.
+  Offset X/Y add to the group tile's center and can cross into adjacent tiles, but
+  final X/Y positions must remain inside the map. Offset Z defaults to zero and
+  shifts the sprite vertically in map units: positive moves up, negative moves down.
+  At zero Z, a unit-height sprite spans floor to ceiling. To keep a shorter sprite
+  grounded, use `offset.z = (scale.y - 1) / 2`. Children must be Sprite objects.
   The group's flags control its original square, regardless of child flags or offsets.
+
+The supplied maps use scaled group presets for barrels (`0.75` on both axes) and
+lights (`0.5` on both axes), including single-member groups for direct placements.
+Barrels use Z = -0.2 to compensate for transparent padding and remain grounded; lights use Z = 0.25 to hang from the ceiling.
 
 Texture paths are relative to the application base, e.g. `textures/wood.png`.
 Images may use different resolutions. The renderer resamples them into a shared array,

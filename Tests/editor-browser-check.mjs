@@ -136,6 +136,15 @@ try {
     })()`);
     assert.deepEqual(pngInfo, { width: 64, height: 64, alpha: 0 }, "Texture import must resize and preserve transparency");
     await click("apply-object"); await click("undo");
+    await evaluate(`document.querySelector('.palette-item[data-id="121"]').click();
+        const field=document.getElementById('object-json'), group=JSON.parse(field.value);
+        group.sprites[0].scale={x:.5,y:1.5};group.sprites[0].offset.z=.25;
+        field.value=JSON.stringify(group);field.dispatchEvent(new Event('input'));`);
+    await click("apply-object"); await click("validate");
+    await waitFor("document.getElementById('validation').classList.contains('success')");
+    assert.deepEqual(await evaluate("JSON.parse(document.getElementById('object-json').value).sprites[0].scale"), { x: .5, y: 1.5 });
+    assert.equal(await evaluate("JSON.parse(document.getElementById('object-json').value).sprites[0].offset.z"), .25);
+    await click("undo");
     assert.equal(await evaluate("document.getElementById('map-name').closest('section').id"), "map-settings");
     assert.equal(await evaluate("document.getElementById('object-json').closest('section').id"), "object-settings");
     await evaluate("document.querySelector('.palette-item[data-id=\"11\"]').click()");

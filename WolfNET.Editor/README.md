@@ -35,6 +35,10 @@ dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj -- --EngineRoot="C:\pa
 - Edit the selected object's JSON and press **Apply definition**. The texture picker
   updates a floor, ceiling, wall face, or sprite texture before applying. Use **Add object**
   for a new passage, wall, sprite or group. Group members and offsets are edited in JSON.
+  Each group member can set `scale: { "x": 0.75, "y": 1.5 }` for independent
+  width/height multipliers and `offset.z` for vertical movement (positive is up).
+  Defaults are unit scale and zero elevation. The top-down preview shows scale;
+  elevation affects the in-game shader without changing the member's map position.
 - In **Object settings → Choose a texture**, use **Import texture** to upload PNG, JPEG,
   WebP or BMP images (up to 10 MB). Images are resized to 64 × 64 using nearest-neighbor
   sampling and converted to PNG, preserving transparency. The imported texture is selected

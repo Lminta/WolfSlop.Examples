@@ -54,12 +54,20 @@ public sealed record SpriteGroupMember
 {
     public required int SpriteId { get; init; }
     public required MapOffset Offset { get; init; }
+    public SpriteScale Scale { get; init; } = new();
+}
+
+public sealed record SpriteScale
+{
+    public float X { get; init; } = 1;
+    public float Y { get; init; } = 1;
 }
 
 public sealed record MapOffset
 {
     public required float X { get; init; }
     public required float Y { get; init; }
+    public float Z { get; init; }
 }
 
 public static class MapObjectLoader

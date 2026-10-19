@@ -12,7 +12,7 @@ public sealed class WebGpuRenderer : IDisposable
     private const int RayHitSize = 16;
     private const int CameraBufferSize = 32;
     private const int MapInfoBufferSize = 16;
-    private const int SpriteSize = 16;
+    private const int SpriteSize = 32;
 
     private readonly RendererSettings _settings;
     private readonly BlazorJSRuntime _js;
@@ -523,15 +523,18 @@ public sealed class WebGpuRenderer : IDisposable
         if (sprites.Count == 0)
             return;
 
-        // Matches Sprite in sprites.wgsl: vec2f position, u32 layer, u32 owner cell.
-        var upload = new uint[checked(sprites.Count * 4)];
+        // Matches the 32-byte Sprite in both WGSL shaders, including the final padding word.
+        var upload = new uint[checked(sprites.Count * 8)];
         for (int i = 0; i < _sortedSprites.Count; i++)
         {
             var sprite = _sortedSprites[i].Sprite;
-            upload[i * 4] = BitConverter.SingleToUInt32Bits(sprite.Position.X);
-            upload[i * 4 + 1] = BitConverter.SingleToUInt32Bits(sprite.Position.Y);
-            upload[i * 4 + 2] = sprite.TextureLayer;
-            upload[i * 4 + 3] = sprite.OwnerCell;
+            upload[i * 8] = BitConverter.SingleToUInt32Bits(sprite.Position.X);
+            upload[i * 8 + 1] = BitConverter.SingleToUInt32Bits(sprite.Position.Y);
+            upload[i * 8 + 2] = sprite.TextureLayer;
+            upload[i * 8 + 3] = sprite.OwnerCell;
+            upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(sprite.Scale.X);
+            upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(sprite.Scale.Y);
+            upload[i * 8 + 6] = BitConverter.SingleToUInt32Bits(sprite.Elevation);
         }
 
         using var data = new Uint32Array(upload);

@@ -16,6 +16,9 @@ struct Sprite {
     position: vec2f,
     textureLayer: u32,
     ownerCell: u32,
+    scale: vec2f,
+    elevation: f32,
+    padding: f32,
 };
 
 struct VertexOutput {
@@ -65,14 +68,14 @@ fn vertexMain(
         return output;
     }
 
-    // Square billboards, centered vertically, with the same scale as unit walls.
+    // Per-member billboard scale; positive elevation moves the center upward in world units.
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let size = focalLength / depth;
     let center = vec2f(
         camera.screenSize.x * 0.5 * (1.0 + cameraX / depth),
-        camera.screenSize.y * 0.5
+        camera.screenSize.y * 0.5 - sprite.elevation * size
     );
-    let pixel = center + (output.uv - vec2f(0.5)) * size;
+    let pixel = center + (output.uv - vec2f(0.5)) * size * sprite.scale;
     let ndc = pixel / camera.screenSize * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0);
     output.position = vec4f(ndc, 0.0, 1.0);
     return output;

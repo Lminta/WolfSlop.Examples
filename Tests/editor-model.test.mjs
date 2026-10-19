@@ -6,6 +6,12 @@ const wall = { type: "wall", id: 1, passageId: 0, collides: true, raycastTranspa
 const sprite = { type: "sprite", id: 2, passageId: 0, textureLayer: 8, collides: false, raycastTransparent: true };
 const group = { type: "spriteGroup", id: 3, passageId: 0, sprites: [{ spriteId: 2, offset: { x: -.25, y: .5 } }], collides: false, raycastTransparent: true };
 const objects = { 0: passage, 1: wall, 2: sprite, 3: group };
+const scaledGroup = { ...group, sprites: [{ spriteId: 2, offset: { x: 0, y: 0, z: -.25 }, scale: { x: .5, y: 2 } }] };
+assert.equal(checkDefinition(scaledGroup, objects), scaledGroup);
+assert.throws(() => checkDefinition({ ...scaledGroup, sprites: [{ ...scaledGroup.sprites[0], scale: { x: -1, y: 1 } }] }, objects));
+assert.throws(() => checkDefinition({ ...scaledGroup, sprites: [{ ...scaledGroup.sprites[0], scale: null }] }, objects));
+assert.throws(() => checkDefinition({ ...scaledGroup, sprites: [{ ...scaledGroup.sprites[0], scale: 2 }] }, objects));
+assert.throws(() => checkDefinition({ ...scaledGroup, sprites: [{ ...scaledGroup.sprites[0], offset: { x: 0, y: 0, z: Infinity } }] }, objects));
 const grid = resizeGrid([], 5, 5, 0, 1);
 assert.equal(grid[0][0], 1);
 assert.equal(grid[2][2], 0);
