@@ -75,7 +75,7 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     private void OnBlur(Event e) => Reset();
 
     private static bool IsMovementKey(string code) => code is
-        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "KeyQ" or "KeyE";
+        "KeyW" or "KeyS" or "KeyA" or "KeyD";
     
     public Task OnEvent(KeyDownEvent gameEvent)
     {
@@ -91,18 +91,10 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
                 break;
 
             case "KeyA":
-                _keyState.Left = true;
-                break;
-
-            case "KeyD":
-                _keyState.Right = true;
-                break;
-
-            case "KeyQ":
                 _keyState.StrafeLeft = true;
                 break;
 
-            case "KeyE":
+            case "KeyD":
                 _keyState.StrafeRight = true;
                 break;
         }
@@ -123,18 +115,10 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
                 break;
 
             case "KeyA":
-                _keyState.Left = false;
-                break;
-
-            case "KeyD":
-                _keyState.Right = false;
-                break;
-
-            case "KeyQ":
                 _keyState.StrafeLeft = false;
                 break;
 
-            case "KeyE":
+            case "KeyD":
                 _keyState.StrafeRight = false;
                 break;
         }

@@ -39,6 +39,9 @@ See [the editor guide](WolfNET.Editor/README.md) for shortcuts, imports, and dep
 
 ## Player movement
 
+Click the game to capture the mouse. **W/S** move forward/back, **A/D** strafe,
+and the **mouse** turns. **Esc** releases the mouse and clears held movement keys.
+
 Player movement is configured in each map's `playerStart` object alongside the spawn position and direction:
 
 ```json
@@ -52,7 +55,7 @@ Player movement is configured in each map's `playerStart` object alongside the s
 }
 ```
 
-`moveSpeed` is measured in map squares per second. `rotSpeed` is the maximum rotation in radians per second for mouse and keyboard combined. Mouse movement uses 0.0025 radians per pixel, capped at `rotSpeed` times the frame duration; excess movement is discarded. Both speeds are required, must be finite and nonnegative, and can be zero to disable that motion. Reload the map after editing its settings.
+`moveSpeed` is measured in map squares per second. `rotSpeed` is the maximum mouse rotation in radians per second. Mouse movement uses 0.0025 radians per pixel, capped at `rotSpeed` times the frame duration; excess movement is discarded. Both speeds are required, must be finite and nonnegative, and can be zero to disable that motion. Reload the map after editing its settings.
 
 ## Run on the local network
 

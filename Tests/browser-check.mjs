@@ -152,7 +152,7 @@ try {
     async function assertKeyboardInactive(label) {
         const before=await evaluate("window.__camera");
         const cancelled=await evaluate(`(()=>{
-            const events=['KeyW','KeyQ','KeyD'].map(code=>new KeyboardEvent('keydown',{code,bubbles:true,cancelable:true}));
+            const events=['KeyW','KeyA','KeyD'].map(code=>new KeyboardEvent('keydown',{code,bubbles:true,cancelable:true}));
             events.forEach(event=>window.dispatchEvent(event));
             return events.some(event=>event.defaultPrevented);
         })()`);
@@ -160,7 +160,7 @@ try {
         await delay(150);
         const after=await evaluate("window.__camera");
         assert(after.slice(0,6).every((value,i)=>value===before[i]),label);
-        const cancelledUp=await evaluate(`['KeyW','KeyQ','KeyD'].map(code=>{
+        const cancelledUp=await evaluate(`['KeyW','KeyA','KeyD'].map(code=>{
             const event=new KeyboardEvent('keyup',{code,bubbles:true,cancelable:true});
             window.dispatchEvent(event);return event.defaultPrevented;
         }).some(Boolean)`);
@@ -168,11 +168,15 @@ try {
     }
     await assertKeyboardInactive("Keyboard moved the player before capture");
     await captureMouse();
-    await key("keyDown","KeyQ"); await delay(100); await key("keyUp","KeyQ"); await delay(50);
+    await key("keyDown","KeyA"); await delay(100); await key("keyUp","KeyA"); await delay(50);
     const left=await evaluate("window.__camera");
     assert(left[1]<start[1]&&left[0]===start[0]&&left[2]===start[2],"Navigation-map strafing failed");
     await delay(100);
     assert((await evaluate("window.__camera"))[1]===left[1],"Movement continued after key release");
+    await key("keyDown","KeyD"); await delay(100); await key("keyUp","KeyD"); await delay(50);
+    const right=await evaluate("window.__camera");
+    assert(right[1]>left[1]&&right[0]===left[0],"D did not strafe right");
+    assert(right.slice(2,6).every((value,i)=>value===left[i+2]),"A/D strafing changed the viewing direction");
     await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
     await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:960,y:540,button:"left",clickCount:1});
     await waitFor("document.pointerLockElement===document.querySelector('canvas')"); await delay(100);
@@ -199,13 +203,13 @@ try {
         await delay(75);
         const stopped=await evaluate("window.__camera");
         // Simulate held-key repeats after the browser has swallowed a keyup.
-        await evaluate(`['KeyW','KeyQ','KeyD'].forEach(code=>window.dispatchEvent(new KeyboardEvent('keydown',{code,repeat:true,bubbles:true})))`);
+        await evaluate(`['KeyW','KeyA','KeyD'].forEach(code=>window.dispatchEvent(new KeyboardEvent('keydown',{code,repeat:true,bubbles:true})))`);
         await delay(150);
         const after=await evaluate("window.__camera");
         assert(after.slice(0,6).every((value,i)=>value===stopped[i]),label);
-        for(const code of ['KeyW','KeyQ','KeyD']) await key('keyUp',code);
+        for(const code of ['KeyW','KeyA','KeyD']) await key('keyUp',code);
     }
-    for(const code of ['KeyW','KeyQ','KeyD']) await key('keyDown',code);
+    for(const code of ['KeyW','KeyA','KeyD']) await key('keyDown',code);
     await delay(75);
     await evaluate("document.exitPointerLock()");
     await waitFor("document.pointerLockElement===null");
@@ -213,7 +217,7 @@ try {
     await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
     await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:960,y:540,button:"left",clickCount:1});
     await waitFor("document.pointerLockElement===document.querySelector('canvas')");
-    for(const code of ['KeyW','KeyQ']) await key('keyDown',code);
+    for(const code of ['KeyW','KeyA']) await key('keyDown',code);
     await delay(75);
     const beforeEscape=await evaluate(`(()=>{
         const direction=window.__camera.slice(2,6);

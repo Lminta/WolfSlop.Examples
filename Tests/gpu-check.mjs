@@ -170,7 +170,7 @@ export async function checkGpu(sources) {
     assert(!equal((await draw(-1,0,1)).pixel(64,64),colors[1]), "Sprite behind camera remained visible");
     result = await draw(-1,0,0,true);
     assert(equal(result.pixel(36,36),[69,191,255,255]), "GPU minimap player marker missing");
-    // Facing north, Q moves toward +world X: the minimap marker must move left.
+    // Facing north, A moves toward +world X: the minimap marker must move left.
     result = await draw(0,-1,0,true,3.25,2.5);
     assert(equal(result.pixel(31,36),[69,191,255,255]), "North-facing left strafe moved minimap marker right");
     assert(!equal(result.pixel(42,36),[69,191,255,255]), "Minimap player marker remained mirrored");
