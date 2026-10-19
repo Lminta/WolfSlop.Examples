@@ -328,12 +328,15 @@ public sealed class WebGpuRenderer : IDisposable
         }
     }
 
-    public async Task PrepareSceneAsync(RenderMap map, CancellationToken cancellationToken = default)
+    public async Task PrepareSceneAsync(RenderMap map, CancellationToken cancellationToken = default,
+        Func<string, Task>? reportProgress = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_initialized) throw new InvalidOperationException("Initialize the GPU before preparing a scene.");
         ReleaseScene();
-        await LoadTexturesAsync(map.Textures, cancellationToken);
+        await LoadTexturesAsync(map.Textures, cancellationToken, reportProgress);
+
+        if (reportProgress != null) await reportProgress("Preparing scene…");
 
         _materialsBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
         {
@@ -399,7 +402,8 @@ public sealed class WebGpuRenderer : IDisposable
         _sortedSprites.Clear();
     }
 
-    private async Task LoadTexturesAsync(TextureCatalog catalog, CancellationToken cancellationToken)
+    private async Task LoadTexturesAsync(TextureCatalog catalog, CancellationToken cancellationToken,
+        Func<string, Task>? reportProgress)
     {
         if (catalog.LayerCount > TextureCatalog.MaxLayers)
             throw new InvalidDataException("TextureLayer must fit the GPU's 256 texture array layers.");
@@ -407,10 +411,14 @@ public sealed class WebGpuRenderer : IDisposable
         try
         {
             uint size = TextureCatalog.TextureSize;
+            var imageCount = catalog.Layers.Count(entry => entry.Value != null);
+            var imageIndex = 0;
             foreach (var (layer, path) in catalog.Layers)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (path == null) continue;
+                imageIndex++;
+                if (reportProgress != null) await reportProgress($"Loading textures ({imageIndex}/{imageCount})…");
                 var image = new HTMLImageElement { Src = path };
                 try { await image.Decode(); }
                 catch (Exception)
@@ -454,6 +462,7 @@ public sealed class WebGpuRenderer : IDisposable
             using var pixels = new Uint8Array(pink);
             for (uint layer = 0; layer < catalog.LayerCount; layer++)
             {
+                if (reportProgress != null) await reportProgress($"Preparing textures ({layer + 1}/{catalog.LayerCount})…");
                 for (uint mip = 0; mip < mipLevels; mip++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();

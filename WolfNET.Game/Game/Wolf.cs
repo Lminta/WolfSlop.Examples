@@ -55,7 +55,8 @@ public sealed class Wolf : IDisposable
     public Task StartAsync(HTMLCanvasElement canvas, CancellationToken cancellationToken = default) =>
         _running ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/level1.json", cancellationToken);
 
-    public async Task SwitchMapAsync(HTMLCanvasElement canvas, string mapPath, CancellationToken cancellationToken = default)
+    public async Task SwitchMapAsync(HTMLCanvasElement canvas, string mapPath, CancellationToken cancellationToken = default,
+        Func<string, Task>? reportProgress = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         await _mapSwitchLock.WaitAsync(cancellationToken);
@@ -64,12 +65,14 @@ public sealed class Wolf : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             Stop();
             // Input and old frames stay stopped until the selected scene is ready.
+            if (reportProgress != null) await reportProgress("Loading map and objects…");
             var map = await GameMap.LoadAsync(_http, mapPath,
                 RendererSettings.MaxMapWidth, RendererSettings.MaxMapHeight, cancellationToken);
-            await _renderer.PrepareSceneAsync(map.RendererMap, cancellationToken);
+            await _renderer.PrepareSceneAsync(map.RendererMap, cancellationToken, reportProgress);
             cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
 
+            if (reportProgress != null) await reportProgress("Entering scene…");
             _objectCollection = new ObjectCollection();
             MouseTracker = new MouseTracker(canvas, _js);
             KeyTracker = new KeyTracker(_inputEvents, _js, () => MouseTracker.IsLocked);

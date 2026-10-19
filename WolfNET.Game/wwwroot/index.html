@@ -15,7 +15,15 @@
 </head>
 
 <body>
-<div id="app"></div>
+<div id="app">
+    <div class="loading-overlay" role="status" aria-live="polite">
+        <div class="loading-card">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <h1>Starting WolfNET</h1>
+            <p>Downloading game…</p>
+        </div>
+    </div>
+</div>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

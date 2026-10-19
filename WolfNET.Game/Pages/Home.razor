@@ -21,6 +21,17 @@
         tabindex="0">
 </canvas>
 
+@if (_loading)
+{
+    <div class="loading-overlay" role="status" aria-live="polite" aria-atomic="true">
+        <div class="loading-card">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <h1>Loading scene</h1>
+            <p>@_loadingMessage</p>
+        </div>
+    </div>
+}
+
 <aside class="map-switcher" aria-label="Map selection">
     <nav aria-label="Maps">
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
@@ -28,7 +39,7 @@
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
-    <p role="status">@(_loading ? "Loading map..." : _observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
+    <p role="status">@(_loading ? _loadingMessage : _observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
     @if (_selectedMap == ShowcaseMap)
     {
         <ul class="showcase-guide">
@@ -57,11 +68,21 @@
     private const string ShowcaseMap = "maps/showcase.json";
     private string? _selectedMap;
     private bool _loading = true;
+    private string _loadingMessage = "Loading shaders…";
     private bool _disposed;
     private bool _errorPresent => _error != null;
 
     private string? _error;
     private MouseTracker? _observedMouse;
+
+    private async Task ShowLoadingProgressAsync(string message)
+    {
+        _lifetime.Token.ThrowIfCancellationRequested();
+        _loadingMessage = message;
+        await InvokeAsync(StateHasChanged);
+        // Allow the browser to paint the message before the next loading step.
+        await Task.Delay(1, _lifetime.Token);
+    }
 
     private void ObserveMouse()
     {
@@ -100,6 +121,7 @@
 
             _canvasElement = new HTMLCanvasElement(_canvas);
 
+            await ShowLoadingProgressAsync("Starting graphics…");
             await Renderer.InitializeAsync(_canvasElement, computeShader, wallsShader, spritesShader);
 
             var initialMap = OriginalMap;
@@ -109,7 +131,7 @@
                     throw new InvalidDataException("Invalid map name in URL.");
                 initialMap = $"maps/{RequestedMap}.json";
             }
-            await Wolf.SwitchMapAsync(_canvasElement, initialMap, _lifetime.Token);
+            await Wolf.SwitchMapAsync(_canvasElement, initialMap, _lifetime.Token, ShowLoadingProgressAsync);
             ObserveMouse();
             _selectedMap = initialMap;
         }
@@ -139,7 +161,7 @@
         _error = null;
         try
         {
-            await Wolf.SwitchMapAsync(_canvasElement, mapPath, _lifetime.Token);
+            await Wolf.SwitchMapAsync(_canvasElement, mapPath, _lifetime.Token, ShowLoadingProgressAsync);
             ObserveMouse();
             _selectedMap = mapPath;
         }

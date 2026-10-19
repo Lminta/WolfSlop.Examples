@@ -83,6 +83,48 @@ canvas {
 .showcase-guide { margin: 10px 0 0; padding-left: 18px; }
 .showcase-guide li + li { margin-top: 5px; }
 
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #0b1119ed;
+    color: #e0e8ee;
+    font: 15px/1.5 system-ui, sans-serif;
+    text-align: center;
+}
+
+.loading-card h1 {
+    margin: 24px 0 8px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.loading-card p {
+    margin: 0;
+    color: #adbeca;
+}
+
+.loading-spinner {
+    width: 56px;
+    height: 56px;
+    margin: auto;
+    border: 4px solid #2a3e50;
+    border-top-color: #45bfff;
+    border-radius: 50%;
+    animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner { animation: none; }
+}
+
 .game-error {
     position: fixed;
     top: 10px;
