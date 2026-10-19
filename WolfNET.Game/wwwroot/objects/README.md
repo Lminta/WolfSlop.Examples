@@ -97,3 +97,21 @@ node Tests/browser-check.mjs 9243 http://127.0.0.1:5194 --missing-textures
 
 These checks use Node's built-in WebSocket support (Node 22 or later) and no
 additional packages. The second run simulates failed loads for every texture.
+
+### Directional sprite atlases
+
+A sprite can add `rotationDegrees` and `atlas` alongside its existing `texture` and
+`textureLayer`. `atlas.frames` is a list of pixel rectangles (`x`, `y`, `width`,
+`height`) in the source image; `atlas.directions` defaults to 1. Directional views
+occupy the first N frames, ordered clockwise starting with the front view. Zero
+rotation faces east (+X); 90 faces south (+Y), and -90 faces north. The view is
+selected from the sprite-to-player angle, so looking around in place does not
+change it. Extra frames are reserved for future animation; there is no playback yet.
+
+Every atlas frame reserves one consecutive texture layer starting at `textureLayer`;
+these slots must fit within 0–255 and cannot overlap different textures or frames.
+Frames are cropped before mip generation to prevent neighboring views from bleeding.
+Frame width/height preserves aspect ratio, and group scale/elevation apply normally.
+Use consistent frame height and baseline for steady size and ground alignment.
+The editor accepts these fields in object JSON and previews the first frame.
+See `sprites/sprite-directional-car.json` for an eight-view example.

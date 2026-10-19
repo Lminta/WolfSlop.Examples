@@ -494,6 +494,7 @@ public sealed class WebGpuRenderer : IDisposable
         if (catalog.LayerCount > TextureCatalog.MaxLayers)
             throw new InvalidDataException("TextureLayer must fit the GPU's 256 texture array layers.");
         var images = new Dictionary<uint, HTMLImageElement>();
+        var decoded = new Dictionary<string, HTMLImageElement?>();
         try
         {
             uint size = TextureCatalog.TextureSize;
@@ -505,16 +506,24 @@ public sealed class WebGpuRenderer : IDisposable
                 if (path == null) continue;
                 imageIndex++;
                 if (reportProgress != null) await reportProgress($"Loading textures ({imageIndex}/{imageCount})…");
-                var image = new HTMLImageElement { Src = path };
-                try { await image.Decode(); }
-                catch (Exception)
+                if (!decoded.TryGetValue(path, out var image))
                 {
-                    image.Dispose();
-                    cancellationToken.ThrowIfCancellationRequested();
-                    continue;
+                    image = new HTMLImageElement { Src = path };
+                    try { await image.Decode(); }
+                    catch (Exception)
+                    {
+                        image.Dispose();
+                        image = null;
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    decoded[path] = image;
                 }
+                if (image == null) continue;
+                if (catalog.Frames.TryGetValue(layer, out var frame) &&
+                    ((long)frame.X + frame.Width > image.NaturalWidth || (long)frame.Y + frame.Height > image.NaturalHeight))
+                    throw new InvalidDataException($"Atlas frame {layer} extends outside '{path}'.");
                 images.Add(layer, image);
-                size = Math.Max(size, (uint)Math.Max(image.NaturalWidth, image.NaturalHeight));
+                size = Math.Max(size, (uint)(frame == null ? Math.Max(image.NaturalWidth, image.NaturalHeight) : Math.Max(frame.Width, frame.Height)));
             }
             cancellationToken.ThrowIfCancellationRequested();
             // Include the complete mip pyramid in the 128 MiB scene texture budget.
@@ -563,7 +572,9 @@ public sealed class WebGpuRenderer : IDisposable
                         continue;
                     }
                     // High-quality area resampling creates the minification levels once per scene.
-                    using var bitmap = await window.CreateImageBitmap(image, new ImageBitmapOptions
+                    var crop = catalog.Frames.GetValueOrDefault(layer);
+                    using var bitmap = await window.CreateImageBitmap(image,
+                        crop?.X ?? 0, crop?.Y ?? 0, crop?.Width ?? image.NaturalWidth, crop?.Height ?? image.NaturalHeight, new ImageBitmapOptions
                     {
                         ResizeWidth = (int)mipSize,
                         ResizeHeight = (int)mipSize,
@@ -589,7 +600,7 @@ public sealed class WebGpuRenderer : IDisposable
         }
         finally
         {
-            foreach (var image in images.Values) image.Dispose();
+            foreach (var image in decoded.Values) image?.Dispose();
         }
     }
     private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition)
@@ -661,10 +672,11 @@ public sealed class WebGpuRenderer : IDisposable
             var sprite = _sortedSprites[i].Sprite;
             upload[i * 8] = BitConverter.SingleToUInt32Bits(sprite.Position.X);
             upload[i * 8 + 1] = BitConverter.SingleToUInt32Bits(sprite.Position.Y);
-            upload[i * 8 + 2] = sprite.TextureLayer;
+            upload[i * 8 + 2] = sprite.ViewLayer(cameraPosition);
             upload[i * 8 + 3] = sprite.OwnerCell;
-            upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(sprite.Scale.X);
-            upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(sprite.Scale.Y);
+            var scale = sprite.ViewScale(cameraPosition);
+            upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(scale.X);
+            upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(scale.Y);
             upload[i * 8 + 6] = BitConverter.SingleToUInt32Bits(sprite.Elevation);
         }
 

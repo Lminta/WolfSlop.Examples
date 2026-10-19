@@ -24,10 +24,12 @@ public sealed class TextureCatalog
     public const uint MaxLayers = 256;
     public IReadOnlyDictionary<uint, string?> Layers { get; }
     public uint LayerCount { get; }
+    public IReadOnlyDictionary<uint, AtlasFrame> Frames { get; }
 
-    internal TextureCatalog(Dictionary<uint, string?> layers)
+    internal TextureCatalog(Dictionary<uint, string?> layers, Dictionary<uint, AtlasFrame>? frames = null)
     {
         Layers = new System.Collections.ObjectModel.ReadOnlyDictionary<uint, string?>(layers);
+        Frames = new System.Collections.ObjectModel.ReadOnlyDictionary<uint, AtlasFrame>(frames ?? []);
         LayerCount = layers.Count == 0 ? 1 : checked(layers.Keys.Max() + 1);
     }
 }

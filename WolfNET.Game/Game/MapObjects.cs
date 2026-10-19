@@ -40,9 +40,25 @@ public sealed record WallTextures
     public string? West { get; init; }
 }
 
+public sealed record AtlasFrame
+{
+    public required int X { get; init; }
+    public required int Y { get; init; }
+    public required int Width { get; init; }
+    public required int Height { get; init; }
+}
+
+public sealed record SpriteAtlas
+{
+    public required AtlasFrame[] Frames { get; init; }
+    public int Directions { get; init; } = 1;
+}
+
 public sealed record SpriteDefinition : MapObjectDefinition
 {
     public string? Texture { get; init; }
+    public SpriteAtlas? Atlas { get; init; }
+    public float RotationDegrees { get; init; }
     public required uint TextureLayer { get; init; }
     public required int PassageId { get; init; }
 }

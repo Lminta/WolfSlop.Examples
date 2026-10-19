@@ -242,9 +242,11 @@ function draw() {
     }
     function sprite(d, x, y, scale = {}) {
         const img = image(d?.texture), size = s * .72;
-        const width = size * (scale.x ?? 1), height = size * (scale.y ?? 1);
+        const frame = d?.atlas?.frames?.[0];
+        const width = size * (scale.x ?? 1) * (frame ? frame.width / frame.height : 1), height = size * (scale.y ?? 1);
         if (width === 0 || height === 0) return;
-        if (img) ctx.drawImage(img, x * s - width / 2, y * s - height / 2, width, height);
+        if (img && frame) ctx.drawImage(img, frame.x, frame.y, frame.width, frame.height, x * s - width / 2, y * s - height / 2, width, height);
+        else if (img) ctx.drawImage(img, x * s - width / 2, y * s - height / 2, width, height);
         else { ctx.fillStyle = "#efb760"; ctx.beginPath(); ctx.arc(x * s, y * s, s * .15, 0, Math.PI * 2); ctx.fill(); }
     }
     for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) {
@@ -531,7 +533,7 @@ $("add-object").onclick = act(() => {
     else d.passageId = floor;
     if (type === "wall") d.textures = { north: "textures/wolf/wood.png", east: "textures/wolf/wood.png", south: "textures/wolf/wood.png", west: "textures/wolf/wood.png" };
     if (type === "sprite") {
-        const used = new Set(Object.values(doc.objects).filter(o => o.type === "sprite").map(o => o.textureLayer));
+        const used = new Set(Object.values(doc.objects).filter(o => o.type === "sprite").flatMap(o => Array.from({length: o.atlas?.frames?.length ?? 1}, (_, i) => o.textureLayer + i)));
         let layer = 0; while (used.has(layer)) layer++;
         if (layer > 255) throw Error("All 256 sprite texture layers are already in use.");
         Object.assign(d, { texture: "textures/wolf/barrel.png", textureLayer: layer });

@@ -4,6 +4,12 @@ import { checkGrid, checkDefinition, flood, resizeGrid, line, usedObjects, objec
 const passage = { type: "passage", id: 0, collides: false, raycastTransparent: true };
 const wall = { type: "wall", id: 1, passageId: 0, collides: true, raycastTransparent: false };
 const sprite = { type: "sprite", id: 2, passageId: 0, textureLayer: 8, collides: false, raycastTransparent: true };
+const atlasSprite = { ...sprite, atlas: { directions: 2, frames: [{x:0,y:0,width:16,height:8}, {x:16,y:0,width:16,height:8}] }, rotationDegrees: 90 };
+assert.equal(checkDefinition(atlasSprite, {0:passage}), atlasSprite);
+for (const atlas of [{frames:[]}, {...atlasSprite.atlas,directions:3}, {frames:[{x:-1,y:0,width:1,height:1}]}, {frames:[{x:0,y:0,width:0,height:1}]}])
+    assert.throws(() => checkDefinition({...atlasSprite,atlas}, {0:passage}));
+assert.throws(() => checkDefinition({...atlasSprite,textureLayer:255}, {0:passage}));
+assert.throws(() => checkDefinition({...atlasSprite,rotationDegrees:Infinity}, {0:passage}));
 const group = { type: "spriteGroup", id: 3, passageId: 0, sprites: [{ spriteId: 2, offset: { x: -.25, y: .5 } }], collides: false, raycastTransparent: true };
 const objects = { 0: passage, 1: wall, 2: sprite, 3: group };
 const scaledGroup = { ...group, sprites: [{ spriteId: 2, offset: { x: 0, y: 0, z: -.25 }, scale: { x: .5, y: 2 } }] };

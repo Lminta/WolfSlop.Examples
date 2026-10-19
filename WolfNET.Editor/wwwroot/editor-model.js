@@ -19,6 +19,19 @@ export function checkDefinition(definition, objects) {
         throw Error("Wall surfaces use passageId. Put floorTexture and ceilingTexture on the passage.");
     if (d.type === "sprite" && (!Number.isInteger(d.textureLayer) || d.textureLayer < 0 || d.textureLayer > 255))
         throw Error("A sprite textureLayer must be an integer from 0 to 255.");
+    if (d.type === "sprite") {
+        if (d.rotationDegrees !== undefined && !Number.isFinite(d.rotationDegrees))
+            throw Error("rotationDegrees must be finite.");
+        if (d.atlas !== undefined && d.atlas !== null) {
+            const a = d.atlas;
+            if (!Array.isArray(a.frames) || !a.frames.length || a.frames.length > 256 ||
+                !Number.isInteger(a.directions ?? 1) || (a.directions ?? 1) < 1 || (a.directions ?? 1) > a.frames.length ||
+                d.textureLayer + a.frames.length > 256 || a.frames.some(f => !f ||
+                    ![f.x, f.y, f.width, f.height].every(Number.isInteger) || f.x < 0 || f.y < 0 || f.width <= 0 || f.height <= 0 ||
+                    f.x + f.width > 2147483647 || f.y + f.height > 2147483647))
+                throw Error("Atlas needs valid pixel rectangles, a directions count within its frames, and enough texture layers.");
+        }
+    }
     if (d.type === "spriteGroup") {
         if (!Array.isArray(d.sprites)) throw Error("A sprite group needs a sprites array.");
         for (const member of d.sprites) {

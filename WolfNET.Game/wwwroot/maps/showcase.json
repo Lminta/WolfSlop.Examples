@@ -36,7 +36,9 @@
     "209": "../objects/sprite-groups/group-showcase-gallery-greenlight-scaled.json",
     "210": "../objects/sprite-groups/group-stacked-barrels.json",
     "211": "../objects/sprite-groups/group-showcase-jumpable-columns.json",
-    "212": "../objects/sprite-groups/group-showcase-crouchable-columns.json"
+    "212": "../objects/sprite-groups/group-showcase-crouchable-columns.json",
+    "119": "../objects/sprites/sprite-directional-car.json",
+    "213": "../objects/sprite-groups/group-showcase-directional-car.json"
   },
   "worldMap": [
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
@@ -69,7 +71,7 @@
     [4, 4, 12, 4, 4, 4, 4, 4, 4, 4, 4, 12, 4, 4, 18, 18, 18, 18, 18, 18, 18, 18, 18, 4, 4],
     [4, 4, 12, 4, 4, 4, 4, 4, 4, 4, 4, 12, 4, 4, 18, 18, 18, 18, 18, 18, 18, 18, 18, 4, 4],
     [4, 4, 12, 4, 4, 4, 4, 4, 4, 4, 4, 12, 4, 4, 17, 17, 17, 17, 17, 17, 17, 17, 17, 4, 4],
-    [4, 4, 12, 12, 211, 12, 12, 12, 212, 12, 12, 12, 4, 4, 17, 17, 17, 17, 17, 17, 17, 17, 17, 4, 4],
+    [4, 4, 12, 12, 211, 12, 12, 12, 212, 12, 12, 12, 4, 4, 17, 17, 17, 17, 213, 17, 17, 17, 17, 4, 4],
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 17, 17, 17, 17, 17, 17, 17, 17, 17, 4, 4],
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 17, 17, 17, 17, 17, 17, 17, 17, 17, 4, 4],
     [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]

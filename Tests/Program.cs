@@ -71,7 +71,7 @@ Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.C
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 75, "Showcase sprite demonstrations missing");
+Check(showcase.RendererMap.Sprites.Count == 76, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
@@ -120,6 +120,24 @@ foreach (var (x, y, jump) in new[] { (26, 8, true), (26, 4, false), (30, 4, true
     Check(!showcase.NavigationMap.IsWalkable(x-1,y) && !showcase.NavigationMap.IsWalkable(x+1,y), "Corridor obstacle can be bypassed sideways");
 }
 Check(showcase.NavigationMap.IsWalkable(24,11), "Obstacle corridor entrance is blocked");
+var car = showcase.RendererMap.Sprites.Single(sprite => sprite.Atlas != null);
+Check(car.Position == new Vector2(30.5f,18.5f) && !showcase.NavigationMap.IsWalkable(30,18), "Directional car placement/collision incorrect");
+Check(car.Scale == Vector2.One && Math.Abs(car.Elevation + .08f) < .00001f && ShowcaseCell(30,18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Car scale/elevation or open-sky passage incorrect");
+Check(car.Atlas!.Frames.Length == 8 && car.Atlas.Directions == 8 && car.RotationDegrees == -90, "Car atlas/facing lost");
+for (int direction = 0; direction < 8; direction++)
+{
+    float angle = (direction * 45 - 90) * MathF.PI / 180;
+    var observer = car.Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * 2;
+    Check(car.ViewFrame(observer) == direction, "Directional car selected the wrong view");
+    Check(car.ViewLayer(observer) == 32 + direction, "Directional view did not use its reserved layer");
+    var frame = car.Atlas.Frames[direction];
+    Check(showcase.RendererMap.Textures.Frames[(uint)(32+direction)] == frame &&
+        showcase.RendererMap.Textures.Layers[(uint)(32+direction)] == "textures/race/car.png", "Atlas frame was pruned from scene textures");
+    Check(Math.Abs(car.ViewScale(observer).X - 1f * frame.Width / frame.Height) < .00001f, "Atlas aspect ratio lost");
+}
+Check(car.ViewFrame(car.Position) == 0, "Coincident observer produced an invalid view");
+Check((car with { RotationDegrees = 270 }).ViewFrame(car.Position + new Vector2(0,-1)) == 0, "Direction angle wrapping failed");
+Check((car with { Atlas = null }).ViewLayer(car.Position + Vector2.One) == car.TextureLayer, "Ordinary sprite selection changed");
 var reachable = new HashSet<(int X, int Y)> { (6, 10) };
 var frontier = new Queue<(int X, int Y)>(); frontier.Enqueue((6, 10));
 while (frontier.TryDequeue(out var cell))
@@ -152,6 +170,20 @@ var openPassages = new Dictionary<int, MapObjectDefinition>(definitions)
     [0] = Passage(0) with { CeilingMode = "sky", CeilingTexture = "textures/unused-roof.png" }
 };
 Reject(() => Compile(objects: openPassages), "Open ceiling accepted without map sky");
+var atlasDefinition = spriteDef with { TextureLayer = 32, Atlas = car.Atlas, RotationDegrees = -90 };
+var atlasObjects = new Dictionary<int, MapObjectDefinition>(definitions) { [2] = atlasDefinition };
+var atlasGroup = Compile(SmallMap() with { WorldMap = [[1,1,1,1,1],[1,0,0,0,1],[1,0,3,0,1],[1,0,0,0,1],[1,1,1,1,1]] }, atlasObjects);
+Check(atlasGroup.RendererMap.Sprites.All(sprite => sprite.Atlas == car.Atlas && sprite.RotationDegrees == -90), "Group member lost atlas/facing");
+Check(Compile(objects: atlasObjects).RendererMap.Textures.Frames.Count == 0, "Unused atlas layers loaded");
+foreach (var invalidAtlas in new SpriteAtlas[] {
+    new() { Frames = [] }, new() { Frames = car.Atlas.Frames, Directions = 9 },
+    new() { Frames = [new() { X=-1,Y=0,Width=1,Height=1 }] },
+    new() { Frames = [new() { X=0,Y=0,Width=0,Height=1 }] } })
+    Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { Atlas = invalidAtlas } }), "Invalid atlas accepted");
+Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { TextureLayer = 250 } }), "Atlas texture overflow accepted");
+Reject(() => Compile(objects: new(atlasObjects) { [4] = spriteDef with { Id = 4, TextureLayer = 33 } }), "Overlapping atlas slot accepted");
+Reject(() => Compile(objects: new(atlasObjects) { [4] = atlasDefinition with { Id = 4, Atlas = car.Atlas with { Frames = car.Atlas.Frames.Reverse().ToArray() } } }), "Conflicting atlas rectangles accepted");
+Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { RotationDegrees = float.NaN } }), "Invalid sprite facing accepted");
 var skyMap = SmallMap() with { Sky = new() { Texture = "textures/skyboxes/skybox.jpg", RotationDegrees = 45 } };
 var skyLevel = Compile(skyMap, openPassages);
 Check(skyLevel.RendererMap.Sky == skyMap.Sky && skyLevel.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.SkyCeiling),

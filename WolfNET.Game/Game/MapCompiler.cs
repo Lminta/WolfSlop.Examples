@@ -5,7 +5,7 @@ namespace WolfNET.Game;
 
 public sealed class MapCompiler
 {
-    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer);
+    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees);
     private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
@@ -21,18 +21,35 @@ public sealed class MapCompiler
         _maxHeight = maxHeight;
         var layers = new Dictionary<uint, string?>();
         var paths = new Dictionary<string, uint>(StringComparer.Ordinal);
+        var frames = new Dictionary<uint, AtlasFrame>();
         static string? Path(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().Replace('\\', '/');
 
         // Explicit sprite slots are reserved before assigning surface textures.
         foreach (var sprite in objects.Values.OfType<SpriteDefinition>().OrderBy(sprite => sprite.Id))
         {
-            if (sprite.TextureLayer >= TextureCatalog.MaxLayers)
-                throw new InvalidDataException($"Sprite {sprite.Id} texture layer must be between 0 and {TextureCatalog.MaxLayers - 1}.");
+            var atlas = sprite.Atlas;
+            if (!float.IsFinite(sprite.RotationDegrees))
+                throw new InvalidDataException($"Sprite {sprite.Id} has an invalid rotationDegrees.");
+            if (atlas != null && (atlas.Frames == null || atlas.Frames.Length == 0 || atlas.Frames.Length > 256 ||
+                atlas.Directions < 1 || atlas.Directions > atlas.Frames.Length ||
+                atlas.Frames.Any(frame => frame == null || frame.X < 0 || frame.Y < 0 || frame.Width <= 0 || frame.Height <= 0 ||
+                    (long)frame.X + frame.Width > int.MaxValue || (long)frame.Y + frame.Height > int.MaxValue)))
+                throw new InvalidDataException($"Sprite {sprite.Id} has invalid atlas frames/directions.");
+            var count = atlas?.Frames.Length ?? 1;
+            if ((ulong)sprite.TextureLayer + (uint)count > TextureCatalog.MaxLayers)
+                throw new InvalidDataException($"Sprite {sprite.Id} texture layers must fit within {TextureCatalog.MaxLayers} slots.");
             var path = Path(sprite.Texture);
-            if (layers.TryGetValue(sprite.TextureLayer, out var previous) && previous != path)
-                throw new InvalidDataException($"Conflicting textures in layer {sprite.TextureLayer}.");
-            layers[sprite.TextureLayer] = path;
-            if (path != null)
+            for (uint i = 0; i < count; i++)
+            {
+                var layer = sprite.TextureLayer + i;
+                var frame = atlas?.Frames[i];
+                if (layers.TryGetValue(layer, out var previous) &&
+                    (previous != path || frames.GetValueOrDefault(layer) != frame))
+                    throw new InvalidDataException($"Conflicting textures/atlas frames in layer {layer}.");
+                layers[layer] = path;
+                if (frame != null) frames[layer] = frame;
+            }
+            if (path != null && atlas == null)
                 paths[path] = paths.TryGetValue(path, out var oldLayer) ? Math.Min(oldLayer, sprite.TextureLayer) : sprite.TextureLayer;
         }
 
@@ -81,7 +98,7 @@ public sealed class MapCompiler
                     break;
                 case SpriteDefinition sprite:
                     passage = Passage(id, sprite.PassageId);
-                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer)];
+                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees)];
                     break;
                 case SpriteGroupDefinition group:
                     passage = Passage(id, group.PassageId);
@@ -96,7 +113,7 @@ public sealed class MapCompiler
                         if (!objects.TryGetValue(member.SpriteId, out var child) || child is not SpriteDefinition sprite)
                             throw new InvalidDataException($"Sprite group {id} references unknown/non-sprite ID {member.SpriteId}.");
                         return new SpriteTemplate(new Vector3(member.Offset.X, member.Offset.Y, member.Offset.Z),
-                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer);
+                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees);
                     }).ToArray();
                     break;
                 default:
@@ -113,7 +130,7 @@ public sealed class MapCompiler
             _objects.Add(id, new CompiledObject(new RenderCell(material, floor, ceiling, flags), !definition.Collides, definition.Jumpable, definition.Crouchable, sprites));
         }
         _materials = materials.ToArray();
-        _textures = new TextureCatalog(layers);
+        _textures = new TextureCatalog(layers, frames);
     }
 
     public (RenderMap Renderer, bool[][] Walkable, bool[][] Jumpable, bool[][] Crouchable) Compile(MapDefinition definition, ulong revision)
@@ -157,7 +174,7 @@ public sealed class MapCompiler
                         position.X < 0 || position.Y < 0 || position.X >= width || position.Y >= height)
                         throw new InvalidDataException($"Sprite from ({x}, {y}) is outside the map.");
                     sprites.Add(new Sprite(position, sprite.Layer, (uint)index + 1)
-                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z });
+                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, RotationDegrees = sprite.RotationDegrees });
                 }
             }
         }
@@ -193,10 +210,10 @@ public sealed class MapCompiler
             .Concat(cell.Flags.HasFlag(RenderCellFlags.Wall)
                 ? new[] { _materials[cell.MaterialIndex].North, _materials[cell.MaterialIndex].East,
                     _materials[cell.MaterialIndex].South, _materials[cell.MaterialIndex].West } : []))
-            .Concat(sprites.Select(sprite => sprite.TextureLayer)).ToHashSet();
+            .Concat(sprites.SelectMany(sprite => Enumerable.Range(0, sprite.Atlas?.Frames.Length ?? 1).Select(i => sprite.TextureLayer + (uint)i))).ToHashSet();
         var layers = _textures.Layers.Where(pair => usedLayers.Contains(pair.Key)).ToDictionary();
         if (_sceneTextures == null || !_sceneTextures.Layers.OrderBy(pair => pair.Key).SequenceEqual(layers.OrderBy(pair => pair.Key)))
-            _sceneTextures = new TextureCatalog(layers);
+            _sceneTextures = new TextureCatalog(layers, _textures.Frames.Where(pair => usedLayers.Contains(pair.Key)).ToDictionary());
         if (definition.Sky == null && cells.Any(cell => cell.Flags.HasFlag(RenderCellFlags.SkyCeiling)))
             throw new InvalidDataException("A sky ceiling requires a sky configuration on the map.");
         return (new RenderMap(width, height, Array.AsReadOnly(cells), Array.AsReadOnly(_materials),
