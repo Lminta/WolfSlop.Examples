@@ -51,6 +51,7 @@
     "directionX": -1,
     "directionY": 0,
     "moveSpeed": 5,
-    "rotSpeed": 3
+    "rotSpeed": 3,
+    "collisionRadius": 0.15
   }
 }

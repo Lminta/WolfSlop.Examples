@@ -41,6 +41,9 @@ assert.deepEqual(reverse[0], [4, 2]);
 assert.deepEqual(reverse.at(-1), [0, 0]);
 const map = { worldMap: grid, playerStart: { x: 1.5, y: 1.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3 } };
 assert.equal(checkGrid(map), map);
+assert.equal(checkGrid({ ...map, playerStart: { ...map.playerStart, collisionRadius: 0.15 } }).playerStart.collisionRadius, 0.15);
+for (const collisionRadius of [0, -1, 0.5, NaN, Infinity])
+    assert.throws(() => checkGrid({ ...map, playerStart: { ...map.playerStart, collisionRadius } }));
 assert.deepEqual(Object.keys(usedObjects({ map, objects })), ["0", "1", "2", "3"]);
 assert.throws(() => usedObjects({ map, objects: { 0: passage, 1: wall, 3: group } }));
 assert.throws(() => checkGrid({ ...map, worldMap: [[0], [0, 0]] }));

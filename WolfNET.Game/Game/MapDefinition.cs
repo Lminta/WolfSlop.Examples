@@ -18,4 +18,5 @@ public sealed record PlayerStartDefinition
     // Squares per second and maximum radians per second, respectively.
     public required float MoveSpeed { get; init; }
     public required float RotSpeed { get; init; }
+    public float CollisionRadius { get; init; } = 0.15f;
 }

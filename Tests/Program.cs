@@ -128,7 +128,7 @@ var definitions = new Dictionary<int, MapObjectDefinition> { [0] = Passage(0), [
 MapDefinition SmallMap(int center = 0) => new()
 {
     WorldMap = [[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, center, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]],
-    PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = -1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2 }
+    PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = -1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2, CollisionRadius = 0.2f }
 };
 GameMap Compile(MapDefinition? definition = null, Dictionary<int, MapObjectDefinition>? objects = null) => new(definition ?? SmallMap(), objects ?? definitions, 64, 64);
 foreach (bool transparent in new[] { false, true })
@@ -306,7 +306,7 @@ for (int keys = 0; keys < 16; keys++)
     var level = SmallMap() with { PlayerStart = SmallMap().PlayerStart with { MoveSpeed = configuredSpeed } };
     if (wallsPresent) level.WorldMap[3][2] = 1;
     var navigation = Compile(level).NavigationMap;
-    var start = wallsPresent ? new Vector2(2.99f, 2.5f) : new Vector2(2.5f, 2.5f);
+    var start = wallsPresent ? new Vector2(2.79f, 2.5f) : new Vector2(2.5f, 2.5f);
     var direction = new Vector2(MathF.Cos(heading * MathF.PI / 6), MathF.Sin(heading * MathF.PI / 6)) * 1.001f;
     var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = start, Rotation = direction } };
     var tracker = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new()
@@ -326,6 +326,79 @@ for (int keys = 0; keys < 16; keys++)
     }
     Check(navigation.IsWalkable((int)player.Transform.Position.X, (int)player.Transform.Position.Y), "Controller entered a blocked cell");
 }
+Vector2 MovePlayer(GameMap level, Vector2 position, Vector2 direction, float milliseconds, float speed = 5)
+{
+    var player = new WolfNET.Game.Core.ObjectBase
+    {
+        Transform = new Transform { Position = position, Rotation = Vector2.Normalize(direction) }
+    };
+    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Forward = true } };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new(), level.NavigationMap,
+        new(), level.PlayerStart with { MoveSpeed = speed }, player);
+    controller.Update(milliseconds);
+    return player.Transform.Position;
+}
+
+var collisionMap = SmallMap();
+collisionMap.WorldMap[3][2] = 1;
+var collisionLevel = Compile(collisionMap);
+Check(map.PlayerStart.CollisionRadius == 0.15f && showcase.PlayerStart.CollisionRadius == 0.15f,
+    "Supplied maps did not load the configured collision radius");
+Check(new PlayerStartDefinition { X = 1.5f, Y = 1.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 3 }.CollisionRadius == 0.15f,
+    "Legacy maps did not retain the default collision radius");
+foreach (float radius in new[] { 0.1f, 0.15f, 0.3f })
+{
+    var configuredLevel = Compile(collisionMap with { PlayerStart = collisionMap.PlayerStart with { CollisionRadius = radius } });
+    var result = MovePlayer(configuredLevel, new(2.5f, 2.5f), Vector2.UnitX, 1000);
+    Check(MathF.Abs(result.X - (3 - radius)) < 0.0001f, "Controller ignored the map's collision radius");
+}
+foreach (float invalid in new[] { 0f, -1f, 0.5f, float.NaN, float.PositiveInfinity })
+    Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { CollisionRadius = invalid } }),
+        "Invalid collision radius accepted");
+var overlapSlide = MovePlayer(collisionLevel, new(2.800001f, 2.2f), Vector2.UnitY, 100);
+Check(overlapSlide.X < 2.8f && overlapSlide.Y > 2.69f,
+    "A tiny initial wall overlap prevented sliding");
+var aroundCorner = MovePlayer(collisionLevel, new(2.88f, 1.84f), Vector2.UnitX, 100);
+Check(aroundCorner.X > 3 && aroundCorner.Y < 1.81f,
+    "Moving directly into a rounded corner pinned the player instead of sliding");
+var contact = MovePlayer(collisionLevel, new(2.5f, 2.5f), Vector2.UnitX, 1000);
+Check(MathF.Abs(contact.X - 2.8f) < 0.0001f && contact.Y == 2.5f,
+    "Circle failed to stop at its radius from a wall during fast movement");
+var retreat = MovePlayer(collisionLevel, contact, -Vector2.UnitX, 100);
+var leaveSideways = MovePlayer(collisionLevel, contact, Vector2.UnitY, 100);
+Check(retreat.X < 2.31f && leaveSideways.Y > 2.99f,
+    "Player could not retreat or strafe after a direct obstacle collision");
+var slide = MovePlayer(collisionLevel, new(2.8f, 2.2f), Vector2.One, 100);
+Check(MathF.Abs(slide.X - 2.8f) < 0.0001f && slide.Y > 2.5f,
+    "Circle did not slide along a wall");
+var corner = MovePlayer(collisionLevel, new(2.5f, 1.85f), Vector2.UnitX, 100);
+Check(corner.X > 2.8f && corner.X < 3 && Vector2.Distance(corner, new(3, 2)) >= 0.1999f,
+    "Circle corner clearance was incorrect or behaved like a square");
+collisionMap.WorldMap[2][3] = 1;
+var diagonalContact = MovePlayer(Compile(collisionMap), new(2.5f), Vector2.One, 1000);
+Check(diagonalContact.X <= 2.8001f && diagonalContact.Y <= 2.8001f,
+    "Player squeezed through a diagonal gap between solid cells");
+var corridorMap = SmallMap();
+for (int y = 1; y <= 3; y++) corridorMap.WorldMap[1][y] = corridorMap.WorldMap[3][y] = 1;
+corridorMap = corridorMap with { PlayerStart = corridorMap.PlayerStart with { X = 2.5f, Y = 1.5f } };
+var corridorEnd = MovePlayer(Compile(corridorMap), new(2.5f, 1.5f), Vector2.UnitY, 1000);
+Check(corridorEnd.X == 2.5f && MathF.Abs(corridorEnd.Y - 3.8f) < 0.0001f,
+    "Circle could not traverse a one-cell-wide corridor or crossed its boundary");
+var leftContact = MovePlayer(Compile(), new(1.5f, 2.5f), -Vector2.UnitX, 1000);
+Check(MathF.Abs(leftContact.X - 1.2f) < 0.0001f,
+    "Circle failed to keep clearance from the opposite map boundary");
+foreach (bool transparent in new[] { false, true })
+foreach (bool collides in new[] { false, true })
+{
+    var level = Compile(SmallMap(2), new(definitions)
+    {
+        [2] = spriteDef with { RaycastTransparent = transparent, Collides = collides }
+    });
+    var result = MovePlayer(level, new(1.5f, 2.5f), Vector2.UnitX, 1000, speed: 1);
+    Check(MathF.Abs(result.X - (collides ? 1.8f : 2.5f)) < 0.0001f,
+        "Circular collision did not respect sprite collision flags independently of ray transparency");
+}
+
 foreach (float configuredSpeed in new[] { 0f, 0.5f, 2f, 4f })
 foreach (float milliseconds in new[] { 16f, 33f, 100f })
 foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })

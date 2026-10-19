@@ -40,6 +40,8 @@ export function checkGrid(map) {
     if (!p || [p.x, p.y, p.directionX, p.directionY, p.moveSpeed, p.rotSpeed].some(value => !Number.isFinite(value)) ||
         p.moveSpeed < 0 || p.rotSpeed < 0 || Math.hypot(p.directionX, p.directionY) === 0)
         throw Error("playerStart needs finite coordinates, a nonzero direction, and nonnegative movement/turn speeds.");
+    if (p.collisionRadius !== undefined && (!Number.isFinite(p.collisionRadius) || p.collisionRadius <= 0 || p.collisionRadius >= 0.5))
+        throw Error("collisionRadius must be greater than zero and less than 0.5.");
     return map;
 }
 

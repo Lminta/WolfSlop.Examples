@@ -60,6 +60,11 @@ See [the editor guide](WolfNET.Editor/README.md) for shortcuts, imports, and dep
 Click the game to capture the mouse. **W/S** move forward/back, **A/D** strafe,
 and the **mouse** turns. **Esc** releases the mouse and clears held movement keys.
 
+The player collides as a circle and slides along solid cells and rounded corners.
+Each map sets `playerStart.collisionRadius` (default 0.15 map squares; greater than
+zero and less than 0.5). The editor exposes it under map settings. Movement uses
+short collision steps so fast motion cannot jump through walls.
+
 Player movement is configured in each map's `playerStart` object alongside the spawn position and direction:
 
 ```json
@@ -69,7 +74,8 @@ Player movement is configured in each map's `playerStart` object alongside the s
   "directionX": -1,
   "directionY": 0,
   "moveSpeed": 5,
-  "rotSpeed": 2
+  "rotSpeed": 2,
+  "collisionRadius": 0.15
 }
 ```
 

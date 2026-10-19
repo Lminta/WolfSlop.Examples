@@ -178,6 +178,7 @@ function refresh(resetInspector = false) {
     $("spawn-y").value = p.y;
     $("move-speed").value = p.moveSpeed;
     $("rot-speed").value = p.rotSpeed;
+    $("collision-radius").value = p.collisionRadius ?? 0.15;
     const facing = `${p.directionX},${p.directionY}`;
     $("spawn-facing").value = ["-1,0", "0,-1", "1,0", "0,1"].includes(facing) ? facing : "custom";
     $("undo").disabled = !undo.length;
@@ -451,7 +452,7 @@ $("new").onclick = act(() => {
     const { floor, wall } = defaults(), before = copy(doc);
     doc.name = name;
     doc.map.worldMap = resizeGrid([], 24, 24, floor, wall);
-    doc.map.playerStart = { x: 2.5, y: 2.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3 };
+    doc.map.playerStart = { x: 2.5, y: 2.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3, collisionRadius: 0.15 };
     commit(before); fit(); toast("New 24 × 24 map created. Resize it in Map settings.");
 });
 $("resize").onclick = act(() => {
@@ -475,10 +476,11 @@ $("map-name").onchange = act(() => {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(name)) { refresh(); throw Error("Use 1–64 letters, digits, underscores or hyphens."); }
     change(() => doc.name = name);
 });
-for (const [id, property] of [["spawn-x", "x"], ["spawn-y", "y"], ["move-speed", "moveSpeed"], ["rot-speed", "rotSpeed"]])
+for (const [id, property] of [["spawn-x", "x"], ["spawn-y", "y"], ["move-speed", "moveSpeed"], ["rot-speed", "rotSpeed"], ["collision-radius", "collisionRadius"]])
     $(id).onchange = act(() => {
         const value = Number($(id).value);
         if (!Number.isFinite(value) || value < 0 || $(id).value === "") { refresh(); throw Error("Enter a finite nonnegative value."); }
+        if (property === "collisionRadius" && (value <= 0 || value >= 0.5)) { refresh(); throw Error("Collision radius must be greater than zero and less than 0.5."); }
         change(() => doc.map.playerStart[property] = value);
     });
 $("spawn-facing").onchange = act(() => {

@@ -6,6 +6,9 @@ namespace WolfNET.Game.Player.Components;
 
 public class PlayerController : ComponentBase
 {
+    // World units: a cell is one unit wide.
+    private float CollisionRadius => _settings.CollisionRadius;
+    private const float ContactClearance = 0.00002f;
     private readonly KeyTracker _keyTracker;
     private readonly MouseTracker _mouseTracker;
     // Radians per pixel before applying the map's maximum turn rate.
@@ -47,10 +50,17 @@ public class PlayerController : ComponentBase
         if (movement.LengthSquared() > 0)
         {
             movement = Vector2.Normalize(movement) * moveSpeed;
-            if (_map.IsWalkable((int)MathF.Floor(posX + movement.X), (int)MathF.Floor(posY)))
-                posX += movement.X;
-            if (_map.IsWalkable((int)MathF.Floor(posX), (int)MathF.Floor(posY + movement.Y)))
-                posY += movement.Y;
+            // Short steps prevent crossing walls during fast movement or slow frames.
+            var steps = Math.Max(1, (int)MathF.Ceiling(movement.Length() / (CollisionRadius * 0.5f)));
+            var step = movement / steps;
+            var position = ResolveContacts(new Vector2(posX, posY));
+            for (int i = 0; i < steps; i++)
+            {
+                var candidate = ResolveContacts(position + step);
+                if (CanOccupy(candidate.X, candidate.Y)) position = candidate;
+            }
+            posX = position.X;
+            posY = position.Y;
         }
         var turn = -_mouseTracker.ConsumeHorizontalMovement() * MouseSensitivity;
         if (_keyTracker.KeyState.Right)
@@ -78,5 +88,63 @@ public class PlayerController : ComponentBase
             Position = new Vector2(posX, posY),
             Rotation = new Vector2(dirX, dirY)
         };
+    }
+
+    private Vector2 ResolveContacts(Vector2 position)
+    {
+        // Push along the contact normal, preserving tangential movement around corners.
+        // A small clearance prevents rounding errors from pinning the player to a wall.
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            var corrected = false;
+            var minX = (int)MathF.Floor(position.X - CollisionRadius);
+            var maxX = (int)MathF.Floor(position.X + CollisionRadius);
+            var minY = (int)MathF.Floor(position.Y - CollisionRadius);
+            var maxY = (int)MathF.Floor(position.Y + CollisionRadius);
+            for (int x = minX; x <= maxX; x++)
+            for (int y = minY; y <= maxY; y++)
+            {
+                if (_map.IsWalkable(x, y)) continue;
+                var nearest = Vector2.Clamp(position, new(x, y), new(x + 1, y + 1));
+                var separation = position - nearest;
+                var distanceSquared = separation.LengthSquared();
+                if (distanceSquared >= CollisionRadius * CollisionRadius) continue;
+                if (distanceSquared > 0)
+                {
+                    var distance = MathF.Sqrt(distanceSquared);
+                    position += separation / distance * (CollisionRadius + ContactClearance - distance);
+                }
+                else
+                {
+                    // Recover a spawn or edited scene whose circle starts inside a cell.
+                    var left = position.X - x;
+                    var right = x + 1 - position.X;
+                    var top = position.Y - y;
+                    var bottom = y + 1 - position.Y;
+                    var closest = MathF.Min(MathF.Min(left, right), MathF.Min(top, bottom));
+                    if (closest == left) position.X = x - CollisionRadius - ContactClearance;
+                    else if (closest == right) position.X = x + 1 + CollisionRadius + ContactClearance;
+                    else if (closest == top) position.Y = y - CollisionRadius - ContactClearance;
+                    else position.Y = y + 1 + CollisionRadius + ContactClearance;
+                }
+                corrected = true;
+            }
+            if (!corrected) break;
+        }
+        return position;
+    }
+
+    private bool CanOccupy(float x, float y)
+    {
+        for (int cellX = (int)MathF.Floor(x - CollisionRadius); cellX <= (int)MathF.Floor(x + CollisionRadius); cellX++)
+        for (int cellY = (int)MathF.Floor(y - CollisionRadius); cellY <= (int)MathF.Floor(y + CollisionRadius); cellY++)
+        {
+            if (_map.IsWalkable(cellX, cellY)) continue;
+            // Circle versus square, including rounded clearance around corners.
+            var dx = x - Math.Clamp(x, cellX, cellX + 1);
+            var dy = y - Math.Clamp(y, cellY, cellY + 1);
+            if (dx * dx + dy * dy < CollisionRadius * CollisionRadius) return false;
+        }
+        return true;
     }
 }
