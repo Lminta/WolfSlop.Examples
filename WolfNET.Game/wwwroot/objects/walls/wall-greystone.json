@@ -5,9 +5,9 @@
   "collides": true,
   "passageId": 0,
   "textures": {
-    "north": "pics/greystone.png",
-    "east": "pics/greystone.png",
-    "south": "pics/greystone.png",
-    "west": "pics/greystone.png"
+    "north": "textures/greystone.png",
+    "east": "textures/greystone.png",
+    "south": "textures/greystone.png",
+    "west": "textures/greystone.png"
   }
 }

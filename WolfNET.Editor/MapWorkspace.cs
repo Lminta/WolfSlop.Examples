@@ -63,8 +63,8 @@ public sealed partial class MapWorkspace
         foreach (var kind in new[] { "passages", "walls", "sprites", "sprite-groups" })
         foreach (var file in Directory.GetFiles(Path.Combine(Root, "objects", kind), "*.json").Order())
             objects.Add(new { path = "../" + Path.GetRelativePath(Root, file).Replace('\\', '/'), definition = Read<MapObjectDefinition>(file) });
-        var textures = Directory.GetFiles(Path.Combine(Root, "pics"), "*.png")
-            .Select(file => "pics/" + Path.GetFileName(file)).Order().ToArray();
+        var textures = Directory.GetFiles(Path.Combine(Root, "textures"), "*.png")
+            .Select(file => "textures/" + Path.GetFileName(file)).Order().ToArray();
         return new { objects, textures };
     }
 
@@ -165,7 +165,7 @@ public sealed partial class MapWorkspace
             var textures = new MapCompiler(Used(document), 64, 64).Compile(document.Map, 1).Renderer.Textures;
             foreach (var texture in textures.Layers.Values.OfType<string>().Select(path => path.Replace('\\', '/')).Distinct())
             {
-                if (!texture.StartsWith("pics/", StringComparison.Ordinal) || !texture.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!texture.StartsWith("textures/", StringComparison.Ordinal) || !texture.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
                 var file = AssetPath(texture);
                 if (!File.Exists(file)) continue;
                 using var source = File.OpenRead(file);
@@ -187,7 +187,7 @@ public sealed partial class MapWorkspace
         var name = Regex.Replace(Path.GetFileNameWithoutExtension(request.Name ?? "texture").ToLowerInvariant(), "[^a-z0-9_-]+", "-").Trim('-');
         name = string.IsNullOrEmpty(name) ? "texture" : name[..Math.Min(name.Length, 40)];
         var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png))[..12].ToLowerInvariant();
-        var relative = $"pics/imported-{name}-{hash}.png";
+        var relative = $"textures/imported-{name}-{hash}.png";
         var path = AssetPath(relative);
         await _saveLock.WaitAsync(token);
         try
@@ -230,7 +230,7 @@ public sealed partial class MapWorkspace
             {
                 if (type != "IHDR" || count != 13 || System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(16, 4)) != 64 ||
                     System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(20, 4)) != 64)
-                    throw new InvalidDataException("Engine textures must be 64 × 64 pixels.");
+                    throw new InvalidDataException("Imported textures must be normalized to 64 × 64 pixels.");
                 if (png[24] != 8 || png[25] is not (2 or 6) || png[26] != 0 || png[27] != 0 || png[28] != 0)
                     throw new InvalidDataException("Use a non-interlaced RGB or RGBA PNG.");
                 channels = png[25] == 6 ? 4 : 3;

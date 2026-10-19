@@ -258,7 +258,15 @@ public sealed class WebGpuRenderer : IDisposable
                 {
                     Module = spriteShader,
                     EntryPoint = "fragmentMain",
-                    Targets = [new GPUColorTargetState { Format = format }]
+                    Targets = [new GPUColorTargetState
+                    {
+                        Format = format,
+                        Blend = new GPUBlendState
+                        {
+                            Color = new GPUBlendComponent { SrcFactor = "src-alpha", DstFactor = "one-minus-src-alpha", Operation = "add" },
+                            Alpha = new GPUBlendComponent { SrcFactor = "one", DstFactor = "one-minus-src-alpha", Operation = "add" }
+                        }
+                    }]
                 }
             });
 
@@ -377,53 +385,82 @@ public sealed class WebGpuRenderer : IDisposable
 
     private async Task LoadTexturesAsync(TextureCatalog catalog, CancellationToken cancellationToken)
     {
-        // requestDevice() uses WebGPU's portable default limit of 256 array layers.
         if (catalog.LayerCount > TextureCatalog.MaxLayers)
             throw new InvalidDataException("TextureLayer must fit the GPU's 256 texture array layers.");
-        const uint size = TextureCatalog.TextureSize;
-        _wallTextures = _device!.CreateTexture(new GPUTextureDescriptor
+        var images = new Dictionary<uint, HTMLImageElement>();
+        try
         {
-            Label = "WolfNET Scene Textures",
-            Size = [(int)size, (int)size, (int)catalog.LayerCount],
-            Format = "rgba8unorm",
-            Usage = GPUTextureUsage.TextureBinding | GPUTextureUsage.CopyDst | GPUTextureUsage.RenderAttachment
-        });
-        using var queue = _device.Queue;
-        var pink = new byte[size * size * 4];
-        for (int i = 0; i < pink.Length; i += 4)
-        {
-            pink[i] = pink[i + 2] = pink[i + 3] = 255;
-        }
-        using var pixels = new Uint8Array(pink);
-        for (uint layer = 0; layer < catalog.LayerCount; layer++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            // Initialize holes and missing images to solid pink, including sprite slots.
-            queue.WriteTexture(new GPUTexelCopyTextureInfo
-                { Texture = _wallTextures, Origin = new GPUOrigin3DDict { Z = layer } },
-                pixels, new GPUTexelCopyBufferLayout { BytesPerRow = size * 4, RowsPerImage = size },
-                new GPUExtent3DDict { Width = size, Height = size, DepthOrArrayLayers = 1 });
-            if (!catalog.Layers.TryGetValue(layer, out var path) || path == null) continue;
-            using var image = new HTMLImageElement();
-            image.Src = path;
-            try
-            {
-                await image.Decode();
-            }
-            catch (Exception)
+            uint size = TextureCatalog.TextureSize;
+            foreach (var (layer, path) in catalog.Layers)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                continue;
+                if (path == null) continue;
+                var image = new HTMLImageElement { Src = path };
+                try { await image.Decode(); }
+                catch (Exception)
+                {
+                    image.Dispose();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    continue;
+                }
+                images.Add(layer, image);
+                size = Math.Max(size, (uint)Math.Max(image.NaturalWidth, image.NaturalHeight));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (image.NaturalWidth != size || image.NaturalHeight != size) continue;
-            queue.CopyExternalImageToTexture(new GPUCopyExternalImageSourceInfo { Source = image },
-                new GPUCopyExternalImageDestInfo
-                { Texture = _wallTextures, Origin = new GPUOrigin3DDict { Z = layer } },
-                new GPUExtent3DDict { Width = size, Height = size, DepthOrArrayLayers = 1 });
+            // Preserve source detail while limiting the full array to 128 MiB and 2048px per side.
+            var memoryLimit = (uint)Math.Sqrt(128 * 1024 * 1024 / (4.0 * catalog.LayerCount));
+            size = Math.Min(size, Math.Min(2048u, memoryLimit));
+            _wallTextures = _device!.CreateTexture(new GPUTextureDescriptor
+            {
+                Label = "WolfNET Scene Textures",
+                Size = [(int)size, (int)size, (int)catalog.LayerCount],
+                Format = "rgba8unorm",
+                Usage = GPUTextureUsage.TextureBinding | GPUTextureUsage.CopyDst | GPUTextureUsage.RenderAttachment
+            });
+            using var queue = _device.Queue;
+            using var window = _js.Get<Window>("window");
+            var pink = new byte[size * size * 4];
+            for (int i = 0; i < pink.Length; i += 4) pink[i] = pink[i + 2] = pink[i + 3] = 255;
+            using var pixels = new Uint8Array(pink);
+            for (uint layer = 0; layer < catalog.LayerCount; layer++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var extent = new GPUExtent3DDict { Width = size, Height = size, DepthOrArrayLayers = 1 };
+                if (!images.TryGetValue(layer, out var image))
+                {
+                    // Holes and missing images remain visible as solid pink.
+                    queue.WriteTexture(new GPUTexelCopyTextureInfo
+                        { Texture = _wallTextures, Origin = new GPUOrigin3DDict { Z = layer } },
+                        pixels, new GPUTexelCopyBufferLayout { BytesPerRow = size * 4, RowsPerImage = size }, extent);
+                    continue;
+                }
+                using var bitmap = await window.CreateImageBitmap(image, new ImageBitmapOptions
+                {
+                    ResizeWidth = (int)size,
+                    ResizeHeight = (int)size,
+                    ResizeQuality = "high",
+                    PremultiplyAlpha = "none"
+                });
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    queue.CopyExternalImageToTexture(new GPUCopyExternalImageSourceInfo { Source = bitmap },
+                        new GPUCopyExternalImageDestInfo
+                        {
+                            Texture = _wallTextures,
+                            Origin = new GPUOrigin3DDict { Z = layer },
+                            PremultipliedAlpha = false
+                        }, extent);
+                }
+                finally { bitmap.Close(); }
+            }
+            _wallTextureView = _wallTextures.CreateView();
+            Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers, {size}x{size})");
         }
-        _wallTextureView = _wallTextures.CreateView();
-        Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers)");
+        finally
+        {
+            foreach (var image in images.Values) image.Dispose();
+        }
     }
     private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition)
     {

@@ -39,7 +39,7 @@ dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj -- --EngineRoot="C:\pa
   WebP or BMP images (up to 10 MB). Images are resized to 64 × 64 using nearest-neighbor
   sampling and converted to PNG, preserving transparency. The imported texture is selected
   for the current surface; press **Apply definition** to use it. Imports are stored immediately
-  in the game's `wwwroot/pics` with unique filenames; existing textures are never overwritten.
+  in the game's `wwwroot/textures` with unique filenames; existing textures are never overwritten.
 - **Map settings** and **Object settings** have separate, independently scrolling panels.
   **Delete object** removes the selected definition from this map's library. When it is
   referenced, choose a replacement for its cells, passage references, or group members.

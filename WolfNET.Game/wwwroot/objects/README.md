@@ -38,9 +38,12 @@ Types:
   final positions must remain inside the map. Children must be Sprite objects.
   The group's flags control its original square, regardless of child flags or offsets.
 
-Texture paths are relative to the application base, e.g. `pics/wood.png`.
-Images use the existing 64x64 format. Missing fields, failed image loads, and images
-of other sizes render pink. Different images cannot claim the same explicit sprite
+Texture paths are relative to the application base, e.g. `textures/wood.png`.
+Images may use different resolutions. The renderer resamples them into a shared array,
+preserving source resolution up to 2048px per side and a 128 MiB scene texture budget.
+Missing fields and failed image loads render pink. Sprite transparency uses the image's
+alpha channel, including partial alpha; opaque black remains visible.
+Different images cannot claim the same explicit sprite
 layer. Sprite layers must fit the GPU's default 256-layer array; other surfaces
 are assigned unused layers automatically. All walls, sprites, and sprite groups require a valid passageId referencing a passage object. Missing floor/ceiling textures on that passage use the pink fallback.
 

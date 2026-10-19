@@ -3,6 +3,6 @@
   "id": 16,
   "raycastTransparent": true,
   "collides": false,
-  "floorTexture": "pics/showcase-missing-floor.png",
-  "ceilingTexture": "pics/showcase-missing-ceiling.png"
+  "floorTexture": "textures/showcase-missing-floor.png",
+  "ceilingTexture": "textures/showcase-missing-ceiling.png"
 }

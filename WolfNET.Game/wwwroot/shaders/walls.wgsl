@@ -163,7 +163,8 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     if (abs(horizonOffset) < 0.0001) {
         return vec4f(0.0, 0.0, 0.0, 1.0);
     }
-    let distance = camera.screenSize.y * 0.5 / abs(horizonOffset);
+    let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+    let distance = focalLength * 0.5 / abs(horizonOffset);
     let cameraX = 2.0 * floor(position.x) / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
     let worldPosition = camera.position + rayDir * distance;
@@ -198,7 +199,9 @@ fn fragmentMain(
         return floorCeilingColor(input.position.xy);
     }
     let screenHeight = camera.screenSize.y;
-    let lineHeight = screenHeight / hit.distance;
+    // Use the same focal length as horizontal ray projection so unit tiles stay square.
+    let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+    let lineHeight = focalLength / hit.distance;
 
     let drawStart = max(
         0.0,

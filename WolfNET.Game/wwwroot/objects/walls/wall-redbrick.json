@@ -5,9 +5,9 @@
   "collides": true,
   "passageId": 0,
   "textures": {
-    "north": "pics/redbrick.png",
-    "east": "pics/redbrick.png",
-    "south": "pics/redbrick.png",
-    "west": "pics/redbrick.png"
+    "north": "textures/redbrick.png",
+    "east": "textures/redbrick.png",
+    "south": "textures/redbrick.png",
+    "west": "textures/redbrick.png"
   }
 }

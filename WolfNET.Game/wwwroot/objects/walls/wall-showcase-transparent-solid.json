@@ -4,10 +4,10 @@
   "raycastTransparent": true,
   "collides": true,
   "textures": {
-    "north": "pics/bluestone.png",
-    "east": "pics/bluestone.png",
-    "south": "pics/bluestone.png",
-    "west": "pics/bluestone.png"
+    "north": "textures/bluestone.png",
+    "east": "textures/bluestone.png",
+    "south": "textures/bluestone.png",
+    "west": "textures/bluestone.png"
   },
   "passageId": 11
 }

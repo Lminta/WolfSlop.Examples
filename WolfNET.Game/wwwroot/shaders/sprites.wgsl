@@ -66,7 +66,8 @@ fn vertexMain(
     }
 
     // Square billboards, centered vertically, with the same scale as unit walls.
-    let size = camera.screenSize.y / depth;
+    let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+    let size = focalLength / depth;
     let center = vec2f(
         camera.screenSize.x * 0.5 * (1.0 + cameraX / depth),
         camera.screenSize.y * 0.5
@@ -92,9 +93,8 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
         vec2f(dimensions) - vec2f(1.0)
     ));
     let color = textureLoad(spriteTextures, texel, i32(input.textureLayer), 0);
-    // The tutorial's sprite PNGs use black as the transparent color.
-    if (color.a == 0.0 || all(color.rgb == vec3f(0.0))) {
+    if (color.a == 0.0) {
         discard;
     }
-    return vec4f(color.rgb, 1.0);
+    return color;
 }

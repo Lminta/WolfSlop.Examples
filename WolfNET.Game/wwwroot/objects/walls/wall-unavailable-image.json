@@ -5,9 +5,9 @@
   "collides": true,
   "passageId": 0,
   "textures": {
-    "north": "pics/showcase-missing-wall.png",
-    "east": "pics/showcase-missing-wall.png",
-    "south": "pics/showcase-missing-wall.png",
-    "west": "pics/showcase-missing-wall.png"
+    "north": "textures/showcase-missing-wall.png",
+    "east": "textures/showcase-missing-wall.png",
+    "south": "textures/showcase-missing-wall.png",
+    "west": "textures/showcase-missing-wall.png"
   }
 }

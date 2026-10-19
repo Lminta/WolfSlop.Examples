@@ -4,10 +4,10 @@
   "raycastTransparent": false,
   "collides": true,
   "textures": {
-    "north": "pics/wood.png",
-    "east": "pics/wood.png",
-    "south": "pics/wood.png",
-    "west": "pics/wood.png"
+    "north": "textures/wood.png",
+    "east": "textures/wood.png",
+    "south": "textures/wood.png",
+    "west": "textures/wood.png"
   },
   "passageId": 11
 }

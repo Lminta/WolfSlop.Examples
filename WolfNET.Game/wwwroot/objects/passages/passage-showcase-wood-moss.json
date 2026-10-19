@@ -3,6 +3,6 @@
   "id": 12,
   "raycastTransparent": true,
   "collides": false,
-  "floorTexture": "pics/wood.png",
-  "ceilingTexture": "pics/mossy.png"
+  "floorTexture": "textures/wood.png",
+  "ceilingTexture": "textures/mossy.png"
 }

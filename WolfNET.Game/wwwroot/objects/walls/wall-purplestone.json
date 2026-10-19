@@ -5,9 +5,9 @@
   "collides": true,
   "passageId": 0,
   "textures": {
-    "north": "pics/purplestone.png",
-    "east": "pics/purplestone.png",
-    "south": "pics/purplestone.png",
-    "west": "pics/purplestone.png"
+    "north": "textures/purplestone.png",
+    "east": "textures/purplestone.png",
+    "south": "textures/purplestone.png",
+    "west": "textures/purplestone.png"
   }
 }

@@ -13,10 +13,12 @@ export async function checkGpu(sources) {
         assert(!info.messages.some(message => message.type === "error"), name + ": " + info.messages.map(m => m.message).join("; "));
     }
     const computePipeline = await device.createComputePipelineAsync({layout: "auto", compute: {module: modules.raycast, entryPoint: "main"}});
-    const pipeline = (module, entryPoint) => device.createRenderPipelineAsync({layout: "auto",
-        vertex: {module, entryPoint: "vertexMain"}, fragment: {module, entryPoint, targets: [{format: "rgba8unorm"}]}});
+    const pipeline = (module, entryPoint, alpha = false) => device.createRenderPipelineAsync({layout: "auto",
+        vertex: {module, entryPoint: "vertexMain"}, fragment: {module, entryPoint, targets: [{format: "rgba8unorm",
+            ...(alpha ? {blend: {color: {srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha"},
+                alpha: {srcFactor: "one", dstFactor: "one-minus-src-alpha"}}} : {})}]}});
     const walls = await pipeline(modules.walls, "fragmentMain");
-    const spritePipeline = await pipeline(modules.sprites, "fragmentMain");
+    const spritePipeline = await pipeline(modules.sprites, "fragmentMain", true);
     const minimap = await pipeline(modules.walls, "minimapMain");
     const buffer = (size, usage) => device.createBuffer({size, usage: usage | GPUBufferUsage.COPY_DST});
     const camera = buffer(32, GPUBufferUsage.UNIFORM);
@@ -31,7 +33,7 @@ export async function checkGpu(sources) {
     const pixels = new Uint8Array(4 * 4 * 8 * 4);
     for (let layer = 0; layer < 8; layer++) for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
         const cutout = layer === 7 && (x === 0 || x === 3 || y === 0 || y === 3);
-        pixels.set(cutout ? [0,0,0,255] : colors[layer], (layer * 16 + y * 4 + x) * 4);
+        pixels.set(cutout ? [12,34,56,0] : colors[layer], (layer * 16 + y * 4 + x) * 4);
     }
     device.queue.writeTexture({texture: textures}, pixels, {bytesPerRow: 16, rowsPerImage: 4}, [4,4,8]);
     const bind = (pipe, entries) => device.createBindGroup({layout: pipe.getBindGroupLayout(0), entries});
@@ -57,14 +59,15 @@ export async function checkGpu(sources) {
         values.forEach(([x,y,layer,owner], i) => data.set([floatBits(x),floatBits(y),layer,owner], i * 4));
         device.queue.writeBuffer(sprites, 0, data);
     }
-    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5) {
-        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,128,128]));
+    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128) {
+        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height]));
         device.queue.writeBuffer(info, 0, new Uint32Array([5,5,count,0]));
         device.queue.writeBuffer(cells, 0, map);
         const encoder = device.createCommandEncoder();
         const compute = encoder.beginComputePass();
         compute.setPipeline(computePipeline); compute.setBindGroup(0,computeGroup); compute.dispatchWorkgroups(2); compute.end();
         const pass = encoder.beginRenderPass({colorAttachments: [{view: target.createView(),clearValue:[0,0,0,1],loadOp:"clear",storeOp:"store"}]});
+        pass.setViewport(0,0,width,height,0,1);
         pass.setPipeline(walls); pass.setBindGroup(0,wallGroup); pass.draw(3);
         if (count) { pass.setPipeline(spritePipeline); pass.setBindGroup(0,spriteGroup); pass.draw(6,count); }
         if (overlay) { pass.setPipeline(minimap); pass.setBindGroup(0,minimapGroup); pass.draw(3); }
@@ -75,7 +78,8 @@ export async function checkGpu(sources) {
         await Promise.all([readback.mapAsync(GPUMapMode.READ),hitReadback.mapAsync(GPUMapMode.READ)]);
         const data = new Uint8Array(readback.getMappedRange()).slice();
         const hit = new DataView(hitReadback.getMappedRange());
-        const result = {pixel:(x,y)=>Array.from(data.slice(y*512+x*4,y*512+x*4+4)), depth:hit.getFloat32(64*16,true), cell:hit.getUint32(64*16+8,true)};
+        const center = Math.floor(width / 2) * 16;
+        const result = {pixel:(x,y)=>Array.from(data.slice(y*512+x*4,y*512+x*4+4)), depth:hit.getFloat32(center,true), cell:hit.getUint32(center+8,true)};
         readback.unmap(); hitReadback.unmap(); return result;
     }
     const equal = (actual, expected) => actual.every((value,i)=>Math.abs(value-expected[i]) <= 1);
@@ -116,7 +120,32 @@ export async function checkGpu(sources) {
     setSprites([[1.2,2.5,1,12],[1.5,2.5,7,12]]);
     result = await draw(-1,0,2);
     assert(equal(result.pixel(64,64),colors[0]), "Near group sprite did not cover far sprite");
-    assert(equal(result.pixel(110,64),colors[1]), "Black cutout hid group sprite behind it");
+    assert(equal(result.pixel(96,64),colors[1]), "Alpha cutout hid group sprite behind it");
+    const solid = new Uint8Array(4 * 4 * 4);
+    for (let i = 0; i < solid.length; i += 4) solid.set([0,0,0,255], i);
+    device.queue.writeTexture({texture: textures, origin: [0,0,7]}, solid, {bytesPerRow:16,rowsPerImage:4}, [4,4,1]);
+    assert(equal((await draw(-1,0,2)).pixel(64,64),[0,0,0,255]), "Opaque black sprite became transparent");
+    for (let i = 0; i < solid.length; i += 4) solid.set([255,0,0,128], i);
+    device.queue.writeTexture({texture: textures, origin: [0,0,7]}, solid, {bytesPerRow:16,rowsPerImage:4}, [4,4,1]);
+    assert(equal((await draw(-1,0,2)).pixel(64,64),[128,127,0,255]), "Partial alpha did not blend with the sprite behind it");
+    for (const [width,height] of [[128,72],[128,128],[72,128]]) {
+        resetMap(); setMaterial([0,1,2,3]);
+        // Isolate one unit wall face with pink neighbors, viewed straight on.
+        map[5*4] = 0; map[15*4] = 0;
+        const wall = await draw(-1,0,0,false,2.5,2.5,width,height);
+        const wallWidth = Array.from({length:width},(_,x)=>wall.pixel(x,height/2)).filter(pixel=>equal(pixel,colors[1])).length;
+        const wallHeight = Array.from({length:height},(_,y)=>wall.pixel(width/2,y)).filter(pixel=>equal(pixel,colors[1])).length;
+        assert(Math.abs(wallWidth-wallHeight)<=1, `Unit wall stretched at ${width}x${height}: ${wallWidth}x${wallHeight}`);
+        const expectedSize = width / (2*.66*1.5);
+        assert(Math.abs(wallHeight-expectedSize)<=1, "Wall projection did not preserve the horizontal field of view");
+        // A unit billboard on that wall plane must occupy the same square.
+        setSprites([[1,2.5,2,11]]);
+        const sprite = await draw(-1,0,1,false,2.5,2.5,width,height);
+        const spriteWidth = Array.from({length:width},(_,x)=>sprite.pixel(x,height/2)).filter(pixel=>equal(pixel,colors[2])).length;
+        const spriteHeight = Array.from({length:height},(_,y)=>sprite.pixel(width/2,y)).filter(pixel=>equal(pixel,colors[2])).length;
+        assert(Math.abs(spriteWidth-wallWidth)<=1 && Math.abs(spriteHeight-wallHeight)<=1, "Sprite and wall projection scales differ");
+    }
+    resetMap();
     setSprites([[3.5,2.5,1,14]]);
     assert(!equal((await draw(-1,0,1)).pixel(64,64),colors[1]), "Sprite behind camera remained visible");
     result = await draw(-1,0,0,true);

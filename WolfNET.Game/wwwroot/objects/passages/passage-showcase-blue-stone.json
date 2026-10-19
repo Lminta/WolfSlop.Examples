@@ -3,6 +3,6 @@
   "id": 10,
   "raycastTransparent": true,
   "collides": false,
-  "floorTexture": "pics/bluestone.png",
-  "ceilingTexture": "pics/greystone.png"
+  "floorTexture": "textures/bluestone.png",
+  "ceilingTexture": "textures/greystone.png"
 }

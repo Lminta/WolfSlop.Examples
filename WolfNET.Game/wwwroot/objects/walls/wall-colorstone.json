@@ -5,9 +5,9 @@
   "collides": true,
   "passageId": 0,
   "textures": {
-    "north": "pics/colorstone.png",
-    "east": "pics/colorstone.png",
-    "south": "pics/colorstone.png",
-    "west": "pics/colorstone.png"
+    "north": "textures/colorstone.png",
+    "east": "textures/colorstone.png",
+    "south": "textures/colorstone.png",
+    "west": "textures/colorstone.png"
   }
 }

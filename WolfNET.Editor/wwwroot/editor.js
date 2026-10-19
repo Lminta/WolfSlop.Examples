@@ -5,7 +5,7 @@ const canvas = $("map-canvas"), ctx = canvas.getContext("2d");
 let doc, library, brush = 0, tool = "brush", cellSize = 32, dirty = false, definitionDirty = false;
 let undo = [], redo = [], gesture, hover, drawing = false, renderPending = false, toastTimer, draftTimer;
 let savedObjectState = "", mapNames = [], busy = false;
-const images = new Map(), spriteImages = new WeakMap(), draftKey = "wolfnet-editor-draft-v1", maxHistory = 80;
+const images = new Map(), draftKey = "wolfnet-editor-draft-v1", maxHistory = 80;
 
 async function api(path, body) {
     const response = await fetch(path, body === undefined ? {} : {
@@ -116,23 +116,6 @@ function image(path) {
     const img = images.get(url);
     return img.complete && img.naturalWidth > 0 ? img : null;
 }
-function spriteImage(path) {
-    const source = image(path);
-    if (!source) return null;
-    if (!spriteImages.has(source)) {
-        const transparent = document.createElement("canvas");
-        transparent.width = source.naturalWidth; transparent.height = source.naturalHeight;
-        const context = transparent.getContext("2d", { willReadFrequently: true });
-        context.drawImage(source, 0, 0);
-        const pixels = context.getImageData(0, 0, transparent.width, transparent.height);
-        for (let i = 0; i < pixels.data.length; i += 4)
-            if (pixels.data[i] === 0 && pixels.data[i + 1] === 0 && pixels.data[i + 2] === 0) pixels.data[i + 3] = 0;
-        context.putImageData(pixels, 0, 0);
-        spriteImages.set(source, transparent);
-    }
-    return spriteImages.get(source);
-}
-
 function palette() {
     const query = $("search").value.toLowerCase(), type = $("type-filter").value;
     const fragment = document.createDocumentFragment();
@@ -249,7 +232,7 @@ function draw() {
         }
     }
     function sprite(d, x, y) {
-        const img = spriteImage(d?.texture), size = s * .72;
+        const img = image(d?.texture), size = s * .72;
         if (img) ctx.drawImage(img, x * s - size / 2, y * s - size / 2, size, size);
         else { ctx.fillStyle = "#efb760"; ctx.beginPath(); ctx.arc(x * s, y * s, s * .15, 0, Math.PI * 2); ctx.fill(); }
     }
@@ -361,6 +344,14 @@ function install(document, unsaved = false) {
     const next = copy(document);
     next.map.objects ??= {};
     next.deletedObjectIds ??= next.map.editor?.deletedObjectIds ?? [];
+    // Restore older browser drafts against the replacement texture library.
+    const migrateTexture = path => typeof path === "string" && path.startsWith("pics/") &&
+        library.textures.includes("textures/" + path.slice(5)) ? "textures/" + path.slice(5) : path;
+    for (const d of Object.values(next.objects)) {
+        for (const field of ["texture", "floorTexture", "ceilingTexture"])
+            if (field in d) d[field] = migrateTexture(d[field]);
+        if (d.textures) for (const field of Object.keys(d.textures)) d.textures[field] = migrateTexture(d.textures[field]);
+    }
     next.objects = mergedObjects(next.objects, next.deletedObjectIds);
     usedObjects(next);
     doc = next;
@@ -506,14 +497,14 @@ $("add-object").onclick = act(() => {
     const type = $("new-type").value, id = Math.max(...Object.keys(doc.objects).map(Number), ...(doc.deletedObjectIds ?? [])) + 1;
     const { floor } = defaults();
     const d = { type, id, raycastTransparent: type !== "wall", collides: type === "wall" };
-    if (type === "passage") Object.assign(d, { floorTexture: "pics/mossy.png", ceilingTexture: "pics/wood.png" });
+    if (type === "passage") Object.assign(d, { floorTexture: "textures/mossy.png", ceilingTexture: "textures/wood.png" });
     else d.passageId = floor;
-    if (type === "wall") d.textures = { north: "pics/wood.png", east: "pics/wood.png", south: "pics/wood.png", west: "pics/wood.png" };
+    if (type === "wall") d.textures = { north: "textures/wood.png", east: "textures/wood.png", south: "textures/wood.png", west: "textures/wood.png" };
     if (type === "sprite") {
         const used = new Set(Object.values(doc.objects).filter(o => o.type === "sprite").map(o => o.textureLayer));
         let layer = 0; while (used.has(layer)) layer++;
         if (layer > 255) throw Error("All 256 sprite texture layers are already in use.");
-        Object.assign(d, { texture: "pics/barrel.png", textureLayer: layer });
+        Object.assign(d, { texture: "textures/barrel.png", textureLayer: layer });
     }
     if (type === "spriteGroup") d.sprites = [];
     change(() => { doc.objects[id] = d; doc.map.objects[id] = `../objects/editor/${doc.name}/${id}.json`; });

@@ -41,12 +41,12 @@ for (int y = 0; y < 24; y++)
     if (originalGrid[x][y] > 0)
     {
         var faces = map.RendererMap.Materials[(int)cell.MaterialIndex];
-        var texture = "pics/" + originalWallTextures[originalGrid[x][y] - 1] + ".png";
+        var texture = "textures/" + originalWallTextures[originalGrid[x][y] - 1] + ".png";
         Check(new[] { faces.North, faces.East, faces.South, faces.West }.All(layer => map.RendererMap.Textures.Layers[layer] == texture), "Migrated wall texture changed");
     }
     else
-        Check(map.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "pics/mossy.png" &&
-              map.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "pics/wood.png", "Migrated passage surfaces changed");
+        Check(map.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/mossy.png" &&
+              map.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wood.png", "Migrated passage surfaces changed");
 }
 var expectedSprites = original.RootElement.GetProperty("sprites").EnumerateArray().Select(value =>
     (new Vector2(value.GetProperty("x").GetSingle(), value.GetProperty("y").GetSingle()), value.GetProperty("textureLayer").GetUInt32())).ToList();
@@ -62,7 +62,7 @@ Check(map.PlayerStartPosition == new Vector2(22, 11.5f) && map.PlayerStartDirect
 Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 3, "Map player speeds not loaded");
 Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(24, 24), "Outside map is walkable");
 var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialIndex];
-Check(map.RendererMap.Textures.Layers[material.North] == "pics/colorstone.png", "Wall material changed");
+Check(map.RendererMap.Textures.Layers[material.North] == "textures/colorstone.png", "Wall material changed");
 Check(material.North == material.East && material.East == material.South && material.South == material.West, "Wall faces changed");
 
 Check(fileHandler.Requests.All(path => !path.Contains("showcase") && !path.EndsWith("index.json")), "Loaded another map or global index");
@@ -78,8 +78,8 @@ Check(!showcase.Objects.ContainsKey(113) && !showcase.Objects.ContainsKey(122), 
 foreach (var x in new[] { 15, 17, 19, 21 })
 {
     var cell = ShowcaseCell(x, 6);
-    Check(showcase.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "pics/colorstone.png" &&
-          showcase.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "pics/wood.png", "Lane wall surfaces missing");
+    Check(showcase.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/colorstone.png" &&
+          showcase.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wood.png", "Lane wall surfaces missing");
 }
 
 foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, true), (19, false, false), (21, false, true) })
@@ -91,8 +91,8 @@ Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalk
 foreach (var sprite in showcase.RendererMap.Sprites)
 {
     var definition = showcase.Objects.Values.OfType<SpriteDefinition>().First(value => value.TextureLayer == sprite.TextureLayer);
-    if (definition.Texture is "pics/barrel.png" or "pics/greenlight.png" or "pics/pillar.png")
-        Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) == (definition.Texture != "pics/pillar.png"),
+    if (definition.Texture is "textures/barrel.png" or "textures/greenlight.png" or "textures/pillar.png")
+        Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) == (definition.Texture != "textures/pillar.png"),
             "Showcase sprite walkability disagrees with its appearance");
 }
 Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21, 6).Flags.HasFlag(RenderCellFlags.Wall), "Showcase transparent wall demonstrations missing");
@@ -118,10 +118,10 @@ for (int y = 0; y < 25; y++)
     Check(!showcase.NavigationMap.IsWalkable(x, y) || reachable.Contains((x, y)), $"Unreachable showcase cell at {x},{y}");
 
 PassageDefinition Passage(int id, bool transparent = true, bool collides = false) => new()
-{ Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "pics/mossy.png", CeilingTexture = "pics/wood.png" };
+{ Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "textures/mossy.png", CeilingTexture = "textures/wood.png" };
 var wall = new WallDefinition { Id = 1, RaycastTransparent = false, Collides = true, PassageId = 0, Textures = new WallTextures
-{ North = "pics/north.png", East = "pics/east.png", South = "pics/south.png" } };
-var spriteDef = new SpriteDefinition { Id = 2, RaycastTransparent = false, Collides = true, PassageId = 0, Texture = "pics/barrel.png", TextureLayer = 8 };
+{ North = "textures/north.png", East = "textures/east.png", South = "textures/south.png" } };
+var spriteDef = new SpriteDefinition { Id = 2, RaycastTransparent = false, Collides = true, PassageId = 0, Texture = "textures/barrel.png", TextureLayer = 8 };
 var groupDef = new SpriteGroupDefinition { Id = 3, RaycastTransparent = true, Collides = false, PassageId = 0,
     Sprites = [new() { SpriteId = 2, Offset = new() { X = -0.25f, Y = 0 } }, new() { SpriteId = 2, Offset = new() { X = 0.75f, Y = 0.1f } }] };
 var definitions = new Dictionary<int, MapObjectDefinition> { [0] = Passage(0), [1] = wall, [2] = spriteDef, [3] = groupDef };
@@ -153,25 +153,25 @@ Check(group.NavigationMap.IsWalkable(2, 2), "Child flags overrode group flags");
 Check(group.RendererMap.Sprites.Count == 2, "Repeated sprite ID collapsed");
 Check(group.RendererMap.Sprites[0].Position == new Vector2(2.25f, 2.5f) && group.RendererMap.Sprites[1].Position == new Vector2(3.25f, 2.6f), "Group offsets incorrect");
 Check(group.RendererMap.Sprites.All(sprite => sprite.OwnerCell == 13), "Cross-cell correction changed owner");
-Check(group.RendererMap.Textures.Layers[8] == "pics/barrel.png", "Explicit sprite layer not reserved");
+Check(group.RendererMap.Textures.Layers[8] == "textures/barrel.png", "Explicit sprite layer not reserved");
 var groupPassage = Compile(SmallMap(3), new(definitions)
 {
-    [4] = Passage(4, false, true) with { FloorTexture = "pics/bluestone.png", CeilingTexture = "pics/greystone.png" },
+    [4] = Passage(4, false, true) with { FloorTexture = "textures/bluestone.png", CeilingTexture = "textures/greystone.png" },
     [3] = groupDef with { PassageId = 4 }
 });
 Check(groupPassage.NavigationMap.IsWalkable(2, 2) && !groupPassage.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay), "Passage flags overrode group flags");
-Check(groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].FloorTextureLayer] == "pics/bluestone.png" &&
-      groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].CeilingTextureLayer] == "pics/greystone.png", "Group did not use its own passage reference");
+Check(groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].FloorTextureLayer] == "textures/bluestone.png" &&
+      groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].CeilingTextureLayer] == "textures/greystone.png", "Group did not use its own passage reference");
 var walls = group.RendererMap.Materials[1];
 Check(walls.West == TextureCatalog.MissingLayer, "Missing wall side not pink");
 var wallSurfaces = Compile(SmallMap(1), new(definitions)
 {
-    [4] = Passage(4, false, true) with { FloorTexture = "pics/wall-floor.png", CeilingTexture = "pics/wall-ceiling.png" },
+    [4] = Passage(4, false, true) with { FloorTexture = "textures/wall-floor.png", CeilingTexture = "textures/wall-ceiling.png" },
     [1] = wall with { PassageId = 4 }
 });
 var wallCell = wallSurfaces.RendererMap.Cells[12];
-Check(wallSurfaces.RendererMap.Textures.Layers[wallCell.FloorTextureLayer] == "pics/wall-floor.png" &&
-      wallSurfaces.RendererMap.Textures.Layers[wallCell.CeilingTextureLayer] == "pics/wall-ceiling.png", "Wall surfaces not compiled");
+Check(wallSurfaces.RendererMap.Textures.Layers[wallCell.FloorTextureLayer] == "textures/wall-floor.png" &&
+      wallSurfaces.RendererMap.Textures.Layers[wallCell.CeilingTextureLayer] == "textures/wall-ceiling.png", "Wall surfaces not compiled");
 var missingWallCell = Compile(SmallMap(1), new(definitions)
 {
     [4] = Passage(4) with { FloorTexture = null, CeilingTexture = null },
@@ -180,7 +180,7 @@ var missingWallCell = Compile(SmallMap(1), new(definitions)
 Check(missingWallCell.FloorTextureLayer == TextureCatalog.MissingLayer && missingWallCell.CeilingTextureLayer == TextureCatalog.MissingLayer, "Missing wall surfaces should fall back to pink");
 var noWallTextures = Compile(objects: new(definitions) { [1] = wall with { Textures = null } }).RendererMap.Materials[1];
 Check(new[] { noWallTextures.North, noWallTextures.East, noWallTextures.South, noWallTextures.West }.All(layer => layer == TextureCatalog.MissingLayer), "Omitted wall textures did not fall back");
-Check(group.RendererMap.Textures.Layers[walls.North] == "pics/north.png" && group.RendererMap.Textures.Layers[walls.South] == "pics/south.png", "Wall side mapping incorrect");
+Check(group.RendererMap.Textures.Layers[walls.North] == "textures/north.png" && group.RendererMap.Textures.Layers[walls.South] == "textures/south.png", "Wall side mapping incorrect");
 var missing = new Dictionary<int, MapObjectDefinition>(definitions)
 { [0] = Passage(0) with { FloorTexture = null, CeilingTexture = null }, [2] = spriteDef with { Texture = null } };
 var missingMap = Compile(SmallMap(2), missing);
@@ -217,7 +217,7 @@ Reject(() => Compile(objects: new(definitions) { [1] = wall with { PassageId = 9
 Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 3, Offset = new() { X = 0, Y = 0 } }] } }), "Nested group accepted");
 Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 999, Offset = new() { X = 0, Y = 0 } }] } }), "Missing child accepted");
 Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 2, Offset = new() { X = 100, Y = 0 } }] } }), "Outside sprite accepted");
-Reject(() => Compile(objects: new(definitions) { [4] = spriteDef with { Id = 4, Texture = "pics/other.png" } }), "Texture slot conflict accepted");
+Reject(() => Compile(objects: new(definitions) { [4] = spriteDef with { Id = 4, Texture = "textures/other.png" } }), "Texture slot conflict accepted");
 Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { TextureLayer = 256 } }), "Unsupported texture layer accepted");
 var emptyGroup = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [] } });
 Check(emptyGroup.RendererMap.Sprites.Count == 0, "Empty group invalid");
@@ -243,14 +243,14 @@ var wallDependencyHandler = new FileHandler(webRoot, path => path switch
 {
     "maps/level1.json" => wallDependencyJson,
     "objects/walls/wall-eagle.json" => JsonSerializer.Serialize<MapObjectDefinition>(wall with { PassageId = 999 }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-    "objects/passages/wall-only-passage.json" => JsonSerializer.Serialize<MapObjectDefinition>(Passage(999) with { FloorTexture = "pics/wall-only-floor.png" }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+    "objects/passages/wall-only-passage.json" => JsonSerializer.Serialize<MapObjectDefinition>(Passage(999) with { FloorTexture = "textures/wall-only-floor.png" }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
     _ => null
 });
 using var wallDependencyHttp = new HttpClient(wallDependencyHandler) { BaseAddress = http.BaseAddress };
 var wallDependencyMap = await GameMap.LoadAsync(wallDependencyHttp, "maps/level1.json", 64, 64);
 Check(wallDependencyMap.Objects.ContainsKey(999) && wallDependencyHandler.Requests.Count(path => path.EndsWith("wall-only-passage.json")) == 1,
     "Wall-only passage dependency was not loaded exactly once");
-Check(wallDependencyMap.RendererMap.Textures.Layers.Values.Contains("pics/wall-only-floor.png"), "Wall-only passage surfaces were not compiled");
+Check(wallDependencyMap.RendererMap.Textures.Layers.Values.Contains("textures/wall-only-floor.png"), "Wall-only passage surfaces were not compiled");
 var missingWallPassage = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(webRoot, "objects/walls/wall-eagle.json")))!.AsObject();
 missingWallPassage.Remove("passageId");
 using var missingWallPassageHttp = new HttpClient(new FileHandler(webRoot, path => path == "objects/walls/wall-eagle.json" ? missingWallPassage.ToJsonString() : null)) { BaseAddress = http.BaseAddress };
@@ -266,11 +266,11 @@ await RejectLoad<InvalidDataException>(missingIndex, "Missing index entry accept
 var notFoundJson = ModifiedMap(json => json["objects"]!["0"] = "../objects/not-found.json");
 using var notFound = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? notFoundJson : null)) { BaseAddress = http.BaseAddress };
 await RejectLoad<HttpRequestException>(notFound, "Missing definition accepted");
-var unusedTexture = Compile(objects: new(definitions) { [99] = wall with { Id = 99, Textures = new() { North = "pics/unused.png" } } });
-Check(!unusedTexture.RendererMap.Textures.Layers.Values.Contains("pics/unused.png"), "Unused texture included in catalog");
+var unusedTexture = Compile(objects: new(definitions) { [99] = wall with { Id = 99, Textures = new() { North = "textures/unused.png" } } });
+Check(!unusedTexture.RendererMap.Textures.Layers.Values.Contains("textures/unused.png"), "Unused texture included in catalog");
 var childSurfaces = Compile(SmallMap(3), new(definitions)
 {
-    [5] = Passage(5) with { FloorTexture = "pics/child-only-floor.png", CeilingTexture = "pics/child-only-ceiling.png" },
+    [5] = Passage(5) with { FloorTexture = "textures/child-only-floor.png", CeilingTexture = "textures/child-only-ceiling.png" },
     [2] = spriteDef with { PassageId = 5 }
 });
 Check(childSurfaces.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("child-only")), "Unused child surfaces included in catalog");
@@ -364,12 +364,12 @@ try
     Check(File.ReadAllText(Path.Combine(editorRoot, "maps/editor-roundtrip.json")) == beforeOverwrite, "Rejected overwrite changed the map");
     var modifiedObjects = new Dictionary<int, MapObjectDefinition>(editorDocument.Objects)
     {
-        [11] = (PassageDefinition)editorDocument.Objects[11] with { FloorTexture = "pics/mossy.png" }
+        [11] = (PassageDefinition)editorDocument.Objects[11] with { FloorTexture = "textures/mossy.png" }
     };
     await store.SaveAsync(editorDocument with { Objects = modifiedObjects }, true, CancellationToken.None);
     var edited = store.Load("editor-roundtrip");
-    Check(((PassageDefinition)edited.Objects[11]).FloorTexture == "pics/mossy.png", "Editor overwrite did not persist definition edits");
-    Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "pics/colorstone.png", "Editor edited shared engine objects");
+    Check(((PassageDefinition)edited.Objects[11]).FloorTexture == "textures/mossy.png", "Editor overwrite did not persist definition edits");
+    Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "textures/colorstone.png", "Editor edited shared engine objects");
     using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
     Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
     Check(zip.Entries.Count(entry => entry.FullName.EndsWith(".json")) == editorDocument.Objects.Count + 1, "Editor export lost dependency files");

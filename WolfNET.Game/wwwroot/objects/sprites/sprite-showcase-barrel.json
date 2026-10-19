@@ -3,7 +3,7 @@
   "id": 111,
   "raycastTransparent": true,
   "collides": false,
-  "texture": "pics/barrel.png",
+  "texture": "textures/barrel.png",
   "textureLayer": 8,
   "passageId": 12
 }

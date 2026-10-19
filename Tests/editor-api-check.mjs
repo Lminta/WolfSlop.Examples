@@ -28,7 +28,7 @@ function rgbaPng(width, height) {
 }
 let server;
 try {
-    for (const folder of ["maps", "objects", "pics"])
+    for (const folder of ["maps", "objects", "textures"])
         await fs.cp(path.join(root, "WolfNET.Game", "wwwroot", folder), path.join(assets, folder), { recursive: true });
     const originalPassage = await fs.readFile(path.join(assets, "objects/passages/passage-showcase-color-stone.json"), "utf8");
     server = spawn("dotnet", ["bin/Debug/net10.0/WolfNET.Editor.dll", "--urls", "http://127.0.0.1:0", "--EngineRoot", assets], { cwd: editor, windowsHide: true });
@@ -50,12 +50,12 @@ try {
         return response.json();
     }
     const post = (route, body) => fetch(base + route, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const textureBytes = await fs.readFile(path.join(assets, "pics/mossy.png"));
+    const textureBytes = rgbaPng(64, 64);
     const textureImport = { name: "../Custom floor.png", png: textureBytes.toString("base64") };
     const uploaded = await post("/api/textures", textureImport);
     assert.equal(uploaded.status, 200, await uploaded.clone().text());
     const texturePath = (await uploaded.json()).path;
-    assert.match(texturePath, /^pics\/imported-custom-floor-[a-f0-9]{12}\.png$/);
+    assert.match(texturePath, /^textures\/imported-custom-floor-[a-f0-9]{12}\.png$/);
     assert.deepEqual(await fs.readFile(path.join(assets, texturePath)), textureBytes);
     assert.equal((await (await post("/api/textures", textureImport)).json()).path, texturePath, "Duplicate import should reuse the same texture");
     assert.equal((await post("/api/textures", { name: "broken.png", png: "invalid" })).status, 400);
@@ -98,7 +98,7 @@ try {
     assert.equal(badHostStatus, 403);
     const library = await get("/api/library");
     assert.ok(library.objects.some(entry => entry.definition.type === "wall" && Number.isInteger(entry.definition.passageId)));
-    assert.ok(library.textures.includes("pics/mossy.png"));
+    assert.ok(library.textures.includes("textures/mossy.png"));
     assert.ok(library.textures.includes(texturePath), "Imported texture missing from catalog");
     console.log("PASS: editor HTTP loading, validation, ZIP export, save/reopen, overwrite protection, isolated objects, invalid maps/paths, and local-host restriction.");
 } finally {

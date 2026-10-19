@@ -3,7 +3,7 @@
   "id": 112,
   "raycastTransparent": true,
   "collides": true,
-  "texture": "pics/pillar.png",
+  "texture": "textures/pillar.png",
   "textureLayer": 9,
   "passageId": 12
 }

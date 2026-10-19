@@ -38,7 +38,7 @@ socket.onmessage=event=>{
         if(failNextShowcase&&request.url.endsWith("/maps/showcase.json")) {
             failNextShowcase=false;
             void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
-        } else if(request.url.includes("/pics/")) {
+        } else if(request.url.includes("/textures/")) {
             failedTextures++;
             void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
         } else {
@@ -118,7 +118,7 @@ try {
         };
     `});
     await send("Fetch.enable",{patterns:[{urlPattern:"*objects/*.json"},
-        ...(missingTextures?[{urlPattern:"*pics/*"}]:[])]});
+        ...(missingTextures?[{urlPattern:"*textures/*"}]:[])]});
     await send("Emulation.setDeviceMetricsOverride",{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
     await send("Page.navigate",{url:appUrl}); await send("Page.bringToFront");
     for(let i=0;i<200&&!heldObjectRequest;i++) await delay(100);
