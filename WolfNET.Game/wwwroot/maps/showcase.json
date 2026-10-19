@@ -82,7 +82,7 @@
     "collisionRadius": 0.15
   },
   "sky": {
-    "texture": "textures/skyboxes/Full_Moon_Night.png",
+    "texture": "textures/skyboxes/skybox.jpg",
     "rotationDegrees": 0
   }
 }
