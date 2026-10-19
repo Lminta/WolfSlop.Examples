@@ -140,8 +140,8 @@ try {
     const start=await evaluate("window.__camera");
     assert(start[0]===22&&start[1]===11.5&&start[2]===-1&&start[3]===0,"Migrated spawn incorrect");
     async function key(type,code) {
-        await send("Input.dispatchKeyEvent",{type,code,key:code.startsWith("Key")?code.slice(3).toLowerCase():code,
-            windowsVirtualKeyCode:code==="Escape"?27:code.charCodeAt(3)});
+        await send("Input.dispatchKeyEvent",{type,code,key:code==="Space"?" ":code.startsWith("Key")?code.slice(3).toLowerCase():code,
+            windowsVirtualKeyCode:code==="Escape"?27:code==="Space"?32:code.charCodeAt(3)});
     }
     async function captureMouse() {
         await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
@@ -203,6 +203,20 @@ try {
     assert((await evaluate("window.__camera[8]"))===pitched[8],"Pitch drifted after mouse movement stopped");
     await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementY:1}))");
     await waitFor(`Math.abs(window.__camera[8]-${beforePitch[8]})<.0001`);
+    const beforeJump=await evaluate("window.__camera.slice()");
+    await key("keyDown","Space");
+    await waitFor("window.__camera[9]>0");
+    const airborne=await evaluate("window.__camera.slice()");
+    assert(Math.abs(Math.hypot(airborne[4],airborne[5])-Math.hypot(beforeJump[4],beforeJump[5]))<.0001,"Jump changed the field of view");
+    assert(airborne[0]!==beforeJump[0]||airborne[1]!==beforeJump[1],"Jump did not travel horizontally");
+    await waitFor("window.__camera[9]===0");
+    await delay(150);
+    assert(await evaluate("window.__camera[9]===0"),"Holding Space repeated the jump");
+    await key("keyUp","Space"); await delay(50);
+    await key("keyDown","Space");
+    await waitFor("window.__camera[9]>0");
+    await key("keyUp","Space");
+    await waitFor("window.__camera[9]===0");
     const unlockRace=await evaluate(`(async()=>{
         const before=window.__camera.slice(2,9);
         document.dispatchEvent(new MouseEvent('mousemove',{movementX:50,movementY:50}));
@@ -250,7 +264,10 @@ try {
     // Programmatic release avoids the browser's Escape recapture cooldown in this check.
     await captureMouse();
     const resumedFrom=await evaluate("window.__camera");
-    await key('keyDown','KeyW'); await delay(100); await key('keyUp','KeyW'); await delay(50);
+    // Retreat toward the spawn so this input check cannot run into a nearby wall.
+    await key('keyDown','KeyS');
+    await waitFor(`window.__camera[0]!==${resumedFrom[0]}||window.__camera[1]!==${resumedFrom[1]}`);
+    await key('keyUp','KeyS'); await delay(50);
     const resumed=await evaluate("window.__camera");
     assert(resumed[0]!==resumedFrom[0]||resumed[1]!==resumedFrom[1],"Fresh key press did not resume movement after recapture");
     await evaluate("document.exitPointerLock()");
@@ -334,7 +351,7 @@ try {
         if(hadScene) assert(await evaluate("window.__destroyedSceneTextures")>destroyedBefore,"Old textures were not destroyed");
     }
     await selectMap("Showcase",[6.5,10.5]);
-    assert(logs.some(line=>line.includes("34x25")&&line.includes("27 sprites")),"Showcase was not prepared");
+    assert(logs.some(line=>line.includes("34x25")&&line.includes("35 sprites")),"Showcase was not prepared");
     assert(await evaluate("!!document.querySelector('.showcase-guide')"),"Showcase guide missing");
     if(process.env.WOLFNET_SCREENSHOT) {
         const screenshot=await send("Page.captureScreenshot",{format:"png"});
@@ -355,6 +372,9 @@ try {
     await selectMap("Original",[22,11.5]);
     assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");
     console.log("PASS: map buttons, keyboard activation, repeated switches, frame cleanup, and failed-load recovery.");
+    // Input/frame checks are complete. Stop submitting game frames while the
+    // synthetic GPU fixtures run, so software adapters can drain their queues.
+    await evaluate("window.requestAnimationFrame=()=>0");
     const sources=Object.fromEntries(["raycast","walls","sprites"].map(name=>
         [name,fs.readFileSync(`WolfNET.Game/wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
     console.log("GPU CHECK",await evaluate(`(${checkGpu.toString()})(${JSON.stringify(sources)})`));

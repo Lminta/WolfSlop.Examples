@@ -62,6 +62,24 @@ Click the game to capture the mouse. **W/S** move forward/back, **A/D** strafe,
 and the **mouse** looks left/right and up/down. Vertical looking shifts the horizon
 with simulated pitch limited to ±30°. **Esc** releases the mouse and clears held movement keys.
 
+**Space** jumps while the mouse is captured. A jump follows a smooth up/down camera
+arc. Map `playerStart.jumpRise` sets upward camera travel (default 0.4 map squares,
+from 0 to less than 0.5); `jumpLength` sets horizontal distance (default 2 map
+squares, up to 64), and `jumpSpeedMultiplier` multiplies walking speed in the air
+(default 1.25, must be positive). Flight time is calculated as
+`jumpLength / (moveSpeed * jumpSpeedMultiplier)`. Zero length or walking speed
+disables jumping. Hold does not repeat: release Space before jumping again.
+The takeoff movement direction stays locked until landing; without movement input
+the jump goes forward. Mouse look stays available and cannot steer the jump.
+
+Every object type supports `jumpable` (default false). An object with both
+`collides: true` and `jumpable: true` permits movement only while the player is
+airborne. Groups use their own flags. Map boundaries must stay non-jumpable. Before
+takeoff, the engine checks the destination using the player's full collision circle.
+Any solid object overlapping the landing point stays solid for that jump, even if
+jumpable. The path stops at its near edge; the player never enters it and snaps back.
+Game code can read `Wolf.Player?.InAir` or `PlayerObject.InAir` to check jump status.
+
 The player collides as a circle and slides along solid cells and rounded corners.
 Each map sets `playerStart.collisionRadius` (default 0.15 map squares; greater than
 zero and less than 0.5). The editor exposes it under map settings. Movement uses
@@ -77,7 +95,10 @@ Player movement is configured in each map's `playerStart` object alongside the s
   "directionY": 0,
   "moveSpeed": 5,
   "rotSpeed": 2,
-  "collisionRadius": 0.15
+  "collisionRadius": 0.15,
+  "jumpRise": 0.4,
+  "jumpLength": 2,
+  "jumpSpeedMultiplier": 1.25
 }
 ```
 

@@ -15,6 +15,7 @@ public abstract record MapObjectDefinition
     public required int Id { get; init; }
     public required bool RaycastTransparent { get; init; }
     public required bool Collides { get; init; }
+    public bool Jumpable { get; init; }
 }
 
 public sealed record PassageDefinition : MapObjectDefinition

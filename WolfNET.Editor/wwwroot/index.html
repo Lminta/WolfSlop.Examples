@@ -52,6 +52,8 @@
       <label>Facing<select id="spawn-facing"><option value="-1,0">West ←</option><option value="0,-1">North ↑</option><option value="1,0">East →</option><option value="0,1">South ↓</option><option value="custom" hidden>Custom direction</option></select></label>
       <div class="field-row"><label>Move speed<input id="move-speed" type="number" min="0" step="0.5"></label><label>Turn speed<input id="rot-speed" type="number" min="0" step="0.5"></label></div>
       <label>Collision radius<input id="collision-radius" type="number" min="0.01" max="0.49" step="0.01"></label>
+      <div class="field-row"><label>Jump rise<input id="jump-rise" type="number" min="0" max="0.49" step="0.01"></label><label>Jump length<input id="jump-length" type="number" min="0" max="64" step="0.1"></label></div>
+      <label>Jump speed multiplier<input id="jump-speed-multiplier" type="number" min="0.01" step="0.05"></label>
       <div class="section-heading">SKY</div>
       <label>Panorama texture<input id="sky-texture" type="text" list="sky-textures" placeholder="No sky"></label>
       <datalist id="sky-textures"></datalist>

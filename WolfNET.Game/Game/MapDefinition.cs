@@ -26,4 +26,8 @@ public sealed record PlayerStartDefinition
     public required float MoveSpeed { get; init; }
     public required float RotSpeed { get; init; }
     public float CollisionRadius { get; init; } = 0.15f;
+    public float JumpRise { get; init; } = 0.4f;
+    // Horizontal travel in map units; zero disables jumping.
+    public float JumpLength { get; init; } = 2f;
+    public float JumpSpeedMultiplier { get; init; } = 1.25f;
 }

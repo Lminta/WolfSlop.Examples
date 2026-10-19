@@ -836,7 +836,8 @@ public sealed class WebGpuRenderer : IDisposable
         Vector2 position,
         Vector2 direction,
         Vector2 plane,
-        float pitch)
+        float pitch,
+        float elevation)
     {
         if (_device == null || _cameraBuffer == null)
         {
@@ -859,6 +860,7 @@ public sealed class WebGpuRenderer : IDisposable
         _cameraData[6] = _settings.Width;
         _cameraData[7] = _settings.Height;
         _cameraData[8] = pitch;
+        _cameraData[9] = elevation;
 
         using var data = new Float32Array(_cameraData);
 
@@ -877,7 +879,8 @@ public sealed class WebGpuRenderer : IDisposable
         Vector2 direction,
         Vector2 plane,
         RenderMap map,
-        float pitch = 0)
+        float pitch = 0,
+        float elevation = 0)
     {
         if (!_initialized ||
             _device == null ||
@@ -897,7 +900,7 @@ public sealed class WebGpuRenderer : IDisposable
         var sprites = map.Sprites;
 
         // 2. Update camera every frame.
-        UpdateCamera(position, direction, plane, pitch);
+        UpdateCamera(position, direction, plane, pitch, elevation);
         UpdateSprites(sprites, position);
 
         // 3. Create GPU command encoder.

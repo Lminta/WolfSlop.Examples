@@ -17,6 +17,14 @@ public class PlayerController : ComponentBase
     private readonly CameraComponent _camera;
     private readonly INavigationMap _map;
     private readonly PlayerStartDefinition _settings;
+    private float _jumpElapsed;
+    private float _jumpTime;
+    private float _jumpSpeed;
+    private Vector2 _jumpOrigin;
+    private Vector2 _jumpDirection;
+    private readonly HashSet<(int X, int Y)> _landingBlockers = [];
+    public bool InAir { get; private set; }
+    public Vector2 JumpDestination { get; private set; }
     
     public PlayerController(KeyTracker keyTracker, MouseTracker mouseTracker, INavigationMap map, CameraComponent camera, PlayerStartDefinition settings, ObjectBase parent) : base(parent)
     {
@@ -47,8 +55,39 @@ public class PlayerController : ComponentBase
         var movement = new Vector2(dirX, dirY) * forward +
                        new Vector2(dirY, -dirX) * strafe;
 
+        var jumpRequested = _keyTracker.ConsumeJump();
+        if (jumpRequested && !InAir && _settings.JumpLength > 0 && _settings.MoveSpeed > 0)
+        {
+            _jumpOrigin = ResolveContacts(new(posX, posY));
+            _jumpDirection = Vector2.Normalize(movement.LengthSquared() > 0 ? movement : new(dirX, dirY));
+            _jumpSpeed = _settings.MoveSpeed * _settings.JumpSpeedMultiplier;
+            _jumpTime = _settings.JumpLength / _jumpSpeed;
+            JumpDestination = PlanJump(_jumpOrigin, _jumpOrigin + _jumpDirection * _settings.JumpLength);
+            _jumpElapsed = 0;
+            InAir = true;
+        }
+
         // Combine inputs before normalizing so diagonal movement has the same speed.
-        if (movement.LengthSquared() > 0)
+        if (InAir)
+        {
+            // Horizontal input and subsequent camera turns cannot steer this trajectory.
+            _jumpElapsed = MathF.Min(_jumpTime, _jumpElapsed + deltaTime);
+            var distance = MathF.Min(_jumpElapsed * _jumpSpeed, Vector2.Distance(_jumpOrigin, JumpDestination));
+            var position = _jumpOrigin + _jumpDirection * distance;
+            posX = position.X;
+            posY = position.Y;
+            var progress = _jumpElapsed / _jumpTime;
+            _camera.Elevation = 4 * _settings.JumpRise * progress * (1 - progress);
+            if (progress >= 0.999999f)
+            {
+                posX = JumpDestination.X;
+                posY = JumpDestination.Y;
+                InAir = false;
+                _camera.Elevation = 0;
+                _landingBlockers.Clear();
+            }
+        }
+        else if (movement.LengthSquared() > 0)
         {
             movement = Vector2.Normalize(movement) * moveSpeed;
             // Short steps prevent crossing walls during fast movement or slow frames.
@@ -94,6 +133,51 @@ public class PlayerController : ComponentBase
         };
     }
 
+    private Vector2 PlanJump(Vector2 origin, Vector2 desired)
+    {
+        _landingBlockers.Clear();
+        var target = desired;
+        // A shortened path may end over another jumpable cell. Promote that cell
+        // to a solid obstacle too, until the complete circle has a clear landing.
+        for (int attempt = 0; attempt < 4096; attempt++)
+        {
+            for (int x = (int)MathF.Floor(target.X - CollisionRadius); x <= (int)MathF.Floor(target.X + CollisionRadius); x++)
+            for (int y = (int)MathF.Floor(target.Y - CollisionRadius); y <= (int)MathF.Floor(target.Y + CollisionRadius); y++)
+            {
+                if (_map.IsWalkable(x, y)) continue;
+                var nearest = Vector2.Clamp(target, new(x, y), new(x + 1, y + 1));
+                if (Vector2.DistanceSquared(target, nearest) < CollisionRadius * CollisionRadius)
+                    _landingBlockers.Add((x, y));
+            }
+            target = TraceJump(origin, desired);
+            if (CanOccupy(target.X, target.Y, inAir: false)) return target;
+        }
+        return origin;
+    }
+
+    private Vector2 TraceJump(Vector2 origin, Vector2 desired)
+    {
+        var delta = desired - origin;
+        var steps = Math.Max(1, (int)MathF.Ceiling(delta.Length() / (CollisionRadius * 0.5f)));
+        var previous = origin;
+        for (int i = 1; i <= steps; i++)
+        {
+            var candidate = origin + delta * (i / (float)steps);
+            if (CanOccupy(candidate.X, candidate.Y, inAir: true)) { previous = candidate; continue; }
+            float clear = 0, blocked = 1;
+            for (int iteration = 0; iteration < 16; iteration++)
+            {
+                var fraction = (clear + blocked) * 0.5f;
+                var point = Vector2.Lerp(previous, candidate, fraction);
+                if (CanOccupy(point.X, point.Y, inAir: true)) clear = fraction;
+                else blocked = fraction;
+            }
+            var distance = MathF.Max(0, Vector2.Distance(previous, candidate) * clear - ContactClearance);
+            return previous + Vector2.Normalize(delta) * distance;
+        }
+        return desired;
+    }
+
     private Vector2 ResolveContacts(Vector2 position)
     {
         // Push along the contact normal, preserving tangential movement around corners.
@@ -108,7 +192,7 @@ public class PlayerController : ComponentBase
             for (int x = minX; x <= maxX; x++)
             for (int y = minY; y <= maxY; y++)
             {
-                if (_map.IsWalkable(x, y)) continue;
+                if (_map.IsWalkable(x, y, InAir)) continue;
                 var nearest = Vector2.Clamp(position, new(x, y), new(x + 1, y + 1));
                 var separation = position - nearest;
                 var distanceSquared = separation.LengthSquared();
@@ -138,12 +222,13 @@ public class PlayerController : ComponentBase
         return position;
     }
 
-    private bool CanOccupy(float x, float y)
+    private bool CanOccupy(float x, float y, bool? inAir = null)
     {
+        var airborne = inAir ?? InAir;
         for (int cellX = (int)MathF.Floor(x - CollisionRadius); cellX <= (int)MathF.Floor(x + CollisionRadius); cellX++)
         for (int cellY = (int)MathF.Floor(y - CollisionRadius); cellY <= (int)MathF.Floor(y + CollisionRadius); cellY++)
         {
-            if (_map.IsWalkable(cellX, cellY)) continue;
+            if (_map.IsWalkable(cellX, cellY, airborne) && (!airborne || !_landingBlockers.Contains((cellX, cellY)))) continue;
             // Circle versus square, including rounded clearance around corners.
             var dx = x - Math.Clamp(x, cellX, cellX + 1);
             var dy = y - Math.Clamp(y, cellY, cellY + 1);

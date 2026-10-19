@@ -13,12 +13,28 @@ namespace WolfNET.Game.InputEvents
 {
     public struct KeyState
     {
-        public bool Forward, Backward, Left, Right, StrafeLeft, StrafeRight;
+        public bool Forward, Backward, Left, Right, StrafeLeft, StrafeRight, Jump;
     }
 
     public sealed class KeyTracker
     {
-        public KeyState KeyState { get; set; }
+        private KeyState _state;
+        private bool _jumpRequested;
+        public KeyState KeyState
+        {
+            get => _state;
+            set
+            {
+                if (value.Jump && !_state.Jump) _jumpRequested = true;
+                _state = value;
+            }
+        }
+        public bool ConsumeJump()
+        {
+            var requested = _jumpRequested;
+            _jumpRequested = false;
+            return requested;
+        }
     }
 
     public sealed class MouseTracker
@@ -41,5 +57,6 @@ namespace WolfNET.Game.Player.Components
     {
         public Vector2 Plane { get; set; }
         public float Pitch { get; set; }
+        public float Elevation { get; set; }
     }
 }

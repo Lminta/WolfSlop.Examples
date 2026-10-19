@@ -3,6 +3,7 @@
   "id": 6,
   "raycastTransparent": false,
   "collides": true,
+  "jumpable": false,
   "passageId": 0,
   "textures": {
     "north": "textures/mossy.png",

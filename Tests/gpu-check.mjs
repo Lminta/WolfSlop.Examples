@@ -73,8 +73,8 @@ export async function checkGpu(sources) {
             [floatBits(x),floatBits(y),layer,owner,floatBits(sx),floatBits(sy),floatBits(z),0], i * 8));
         device.queue.writeBuffer(sprites, 0, data);
     }
-    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128, pitch = 0) {
-        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height,pitch,0,0,0]));
+    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128, pitch = 0, elevation = 0) {
+        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height,pitch,elevation,0,0]));
         device.queue.writeBuffer(info, 0, new Uint32Array([5,5,count,0]));
         device.queue.writeBuffer(cells, 0, map);
         const encoder = device.createCommandEncoder();
@@ -209,6 +209,15 @@ export async function checkGpu(sources) {
     const upSprite=blueBounds(await draw(-1,0,1,false,2.5,2.5,128,128,pitch));
     assert(neutralSprite&&upSprite&&Math.abs(upSprite.centerY-neutralSprite.centerY-20)<=1&&upSprite.height===neutralSprite.height,
         "Sprite did not follow the pitched horizon");
+    const jumpedSprite=blueBounds(await draw(-1,0,1,false,2.5,2.5,128,128,0,.2));
+    const elevationPixels=.2*128/(2*.66);
+    assert(jumpedSprite&&Math.abs(jumpedSprite.centerY-neutralSprite.centerY-elevationPixels)<=1,
+        "Jump elevation did not shift sprites according to their distance");
+    const jumpedWall=await draw(-1,0,0,false,2.5,2.5,128,128,0,.2);
+    assert(equal(jumpedWall.pixel(64,40),colors[5])&&equal(neutral.pixel(64,40),colors[1]),
+        "Jump elevation did not reveal more ceiling above the wall");
+    assert(equal(jumpedWall.pixel(64,100),colors[1])&&equal(neutral.pixel(64,100),colors[4]),
+        "Jump elevation did not move the wall base and floor consistently");
     // Open ceilings and premultiplied alpha blend against the distant sky.
     resetMap();
     device.queue.writeBuffer(skyInfo,0,new Float32Array([0,1,0,0]));

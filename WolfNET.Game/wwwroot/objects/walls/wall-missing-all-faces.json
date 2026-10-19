@@ -3,5 +3,6 @@
   "id": 30,
   "raycastTransparent": false,
   "collides": true,
+  "jumpable": false,
   "passageId": 0
 }

@@ -4,7 +4,7 @@ struct Camera {
     direction: vec2f,
     plane: vec2f,
     screenSize: vec2f,
-    look: vec4f, // x: simulated pitch in radians; remaining values reserved.
+    look: vec4f, // x: pitch (radians), y: jump elevation (world units), zw: reserved.
 };
 
 struct MapInfo {

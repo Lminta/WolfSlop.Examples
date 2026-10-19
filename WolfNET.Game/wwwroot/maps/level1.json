@@ -52,6 +52,9 @@
     "directionY": 0,
     "moveSpeed": 5,
     "rotSpeed": 3,
-    "collisionRadius": 0.15
+    "collisionRadius": 0.15,
+    "jumpRise": 0.4,
+    "jumpLength": 2,
+    "jumpSpeedMultiplier": 1.25
   }
 }

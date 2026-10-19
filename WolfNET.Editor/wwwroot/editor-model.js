@@ -7,6 +7,8 @@ export function checkDefinition(definition, objects) {
         throw Error("An object needs a supported type and a nonnegative integer id.");
     if (typeof d.collides !== "boolean" || typeof d.raycastTransparent !== "boolean")
         throw Error("collides and raycastTransparent must both be true or false.");
+    if (d.jumpable !== undefined && typeof d.jumpable !== "boolean")
+        throw Error("jumpable must be true or false.");
     if (d.type !== "passage" && (!Number.isInteger(d.passageId) || objects[d.passageId]?.type !== "passage"))
         throw Error("passageId must reference a passage in the object library.");
     if (d.type === "passage" && d.ceilingMode !== undefined && !["texture", "sky"].includes(d.ceilingMode))
@@ -47,6 +49,10 @@ export function checkGrid(map) {
         throw Error("playerStart needs finite coordinates, a nonzero direction, and nonnegative movement/turn speeds.");
     if (p.collisionRadius !== undefined && (!Number.isFinite(p.collisionRadius) || p.collisionRadius <= 0 || p.collisionRadius >= 0.5))
         throw Error("collisionRadius must be greater than zero and less than 0.5.");
+    if ((p.jumpRise !== undefined && (!Number.isFinite(p.jumpRise) || p.jumpRise < 0 || p.jumpRise >= 0.5)) ||
+        (p.jumpLength !== undefined && (!Number.isFinite(p.jumpLength) || p.jumpLength < 0 || p.jumpLength > 64)) ||
+        (p.jumpSpeedMultiplier !== undefined && (!Number.isFinite(p.jumpSpeedMultiplier) || p.jumpSpeedMultiplier <= 0)))
+        throw Error("jumpRise must be in [0, 0.5), jumpLength in [0, 64], and jumpSpeedMultiplier positive.");
     return map;
 }
 

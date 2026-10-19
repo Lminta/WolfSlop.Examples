@@ -3,6 +3,7 @@
   "id": 11,
   "raycastTransparent": true,
   "collides": false,
+  "jumpable": false,
   "floorTexture": "textures/colorstone.png",
   "ceilingTexture": "textures/wood.png"
 }

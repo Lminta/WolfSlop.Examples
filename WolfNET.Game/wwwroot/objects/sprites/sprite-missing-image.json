@@ -3,6 +3,7 @@
   "id": 118,
   "raycastTransparent": true,
   "collides": false,
+  "jumpable": false,
   "textureLayer": 12,
   "passageId": 13
 }

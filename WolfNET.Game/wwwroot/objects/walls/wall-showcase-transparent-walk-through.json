@@ -3,6 +3,7 @@
   "id": 25,
   "raycastTransparent": true,
   "collides": false,
+  "jumpable": false,
   "textures": {
     "north": "textures/bluestone.png",
     "east": "textures/bluestone.png",

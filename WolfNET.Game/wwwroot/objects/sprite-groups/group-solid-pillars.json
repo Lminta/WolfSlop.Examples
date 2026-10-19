@@ -3,6 +3,7 @@
   "id": 120,
   "raycastTransparent": true,
   "collides": true,
+  "jumpable": false,
   "passageId": 12,
   "sprites": [
     {

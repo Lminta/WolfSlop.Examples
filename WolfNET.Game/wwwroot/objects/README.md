@@ -52,6 +52,12 @@ Barrels use Z = -0.2 to compensate for transparent padding and remain grounded; 
 Texture paths are relative to the application base, e.g. `textures/wood.png`.
 Images may use different resolutions. The renderer resamples them into a shared array,
 preserving source resolution up to 2048px per side and a 128 MiB scene texture budget.
+All object definitions accept `jumpable` (default `false`). Solid jumpable cells
+permit player movement while `InAir` is true, independently of ray transparency.
+Sprite groups use the group's flag, rather than their members' flags. Passage
+references supply surfaces; each wall/sprite/group retains its own jumpable flag.
+Keep boundary objects non-jumpable.
+
 Maps can define `"sky": { "texture": "textures/skyboxes/skybox.jpg", "rotationDegrees": 0 }`.
 Passages default to `"ceilingMode": "texture"`; `"ceilingMode": "sky"` opens the ceiling.
 A ceiling texture's alpha reveals the map's sky, supporting mesh and translucent

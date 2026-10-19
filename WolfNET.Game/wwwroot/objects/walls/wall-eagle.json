@@ -3,6 +3,7 @@
   "id": 1,
   "raycastTransparent": false,
   "collides": true,
+  "jumpable": false,
   "passageId": 0,
   "textures": {
     "north": "textures/eagle.png",

@@ -71,7 +71,7 @@ Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.C
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 27, "Showcase sprite demonstrations missing");
+Check(showcase.RendererMap.Sprites.Count == 35, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
@@ -91,14 +91,16 @@ foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, 
     Check(ShowcaseCell(x, 6).Flags.HasFlag(RenderCellFlags.StopsRay) == blocksRays, "Showcase ray-blocking lane incorrect");
     Check(showcase.NavigationMap.IsWalkable(x, 6) == walkable, "Showcase collision lane incorrect");
 }
-Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalkable(6, 21), "Showcase group walkability incorrect");
+Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalkable(4, 21), "Showcase group walkability incorrect");
 foreach (var sprite in showcase.RendererMap.Sprites)
 {
     var definition = showcase.Objects.Values.OfType<SpriteDefinition>().First(value => value.TextureLayer == sprite.TextureLayer);
     if (definition.Texture is "textures/barrel.png" or "textures/greenlight.png" or "textures/pillar.png")
-        Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) == (definition.Texture != "textures/pillar.png"),
+        Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) ==
+            (definition.Texture != "textures/pillar.png"),
             "Showcase sprite walkability disagrees with its appearance");
 }
+Check(!showcase.NavigationMap.IsWalkable(9,20) && showcase.NavigationMap.IsWalkable(9,20,inAir:true), "Showcase jumpable columns collision is incorrect");
 Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21, 6).Flags.HasFlag(RenderCellFlags.Wall), "Showcase transparent wall demonstrations missing");
 Check(showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
       !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Open floor outside the test lanes is blocked");
@@ -152,6 +154,7 @@ Reject(() => Compile(skyMap with { Sky = skyMap.Sky! with { Texture = "" } }), "
 Reject(() => Compile(objects: new(definitions) { [0] = Passage(0) with { CeilingMode = "invalid" } }), "Unknown ceiling mode accepted");
 foreach (bool transparent in new[] { false, true })
 foreach (bool collides in new[] { false, true })
+foreach (bool jumpable in new[] { false, true })
 foreach (int type in new[] { 0, 1, 2, 3 })
 {
     const int testId = 10;
@@ -162,9 +165,10 @@ foreach (int type in new[] { 0, 1, 2, 3 })
         2 => spriteDef with { Id = testId, RaycastTransparent = transparent, Collides = collides },
         _ => groupDef with { Id = testId, RaycastTransparent = transparent, Collides = collides }
     };
-    var objects = new Dictionary<int, MapObjectDefinition>(definitions) { [testId] = value };
+    var objects = new Dictionary<int, MapObjectDefinition>(definitions) { [testId] = value with { Jumpable = jumpable } };
     var compiled = Compile(SmallMap(testId), objects);
     Check(compiled.NavigationMap.IsWalkable(2, 2) == !collides, "Collision flag ignored");
+    Check(compiled.NavigationMap.IsWalkable(2, 2, inAir: true) == (!collides || jumpable), "Jumpable flag ignored or inherited incorrectly");
     Check(compiled.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) == !transparent, "Ray transparency flag ignored");
 }
 var group = Compile(SmallMap(3));
@@ -468,7 +472,115 @@ foreach (float initialPitch in new[] { -MathF.PI / 6, 0f, MathF.PI / 6 })
     Check(camera.Pitch == expected, "Vertical movement continued after the mouse stopped");
 }
 
+MapDefinition JumpMap(float length = 4, float multiplier = 2, float rise = 0.25f) => new()
+{
+    WorldMap = Enumerable.Range(0, 9).Select(x => Enumerable.Range(0, 7)
+        .Select(y => x == 0 || x == 8 || y == 0 || y == 6 ? 1 : x == 4 && y == 3 ? 10 : 0).ToArray()).ToArray(),
+    PlayerStart = SmallMap().PlayerStart with { X = 2.5f, Y = 3.5f, MoveSpeed = 4, JumpLength = length, JumpRise = rise, JumpSpeedMultiplier = multiplier }
+};
+GameMap JumpLevel(MapDefinition? definition = null, bool jumpable = true) => Compile(definition ?? JumpMap(),
+    new(definitions) { [10] = Passage(10, collides: true) with { Jumpable = jumpable } });
+(WolfNET.Game.Core.ObjectBase Player, WolfNET.Game.InputEvents.KeyTracker Keys,
+    WolfNET.Game.Player.Components.CameraComponent Camera, WolfNET.Game.Player.Components.PlayerController Controller,
+    WolfNET.Game.InputEvents.MouseTracker Mouse) JumpPlayer(GameMap level)
+{
+    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = level.PlayerStartPosition, Rotation = Vector2.UnitX } };
+    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Jump = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new(0,-0.66f) };
+    var mouse = new WolfNET.Game.InputEvents.MouseTracker();
+    return (player, keys, camera, new(keys, mouse, level.NavigationMap, camera, level.PlayerStart, player), mouse);
+}
+{
+    var jump = JumpPlayer(JumpLevel());
+    jump.Controller.Update(0);
+    Check(jump.Controller.InAir && jump.Camera.Elevation == 0 && jump.Controller.JumpDestination == new Vector2(6.5f,3.5f), "Jump destination was not planned at takeoff");
+    jump.Controller.Update(250);
+    Check(MathF.Abs(jump.Camera.Elevation - .25f) < .0001f && jump.Player.Transform.Position == new Vector2(4.5f,3.5f), "Jump rise, travel speed, or apex timing incorrect");
+    jump.Keys.KeyState = new() { Backward = true, StrafeRight = true, Jump = true };
+    jump.Mouse.HorizontalMovement = 100;
+    jump.Controller.Update(250);
+    Check(!jump.Controller.InAir && jump.Camera.Elevation == 0 && jump.Player.Transform.Position == new Vector2(6.5f,3.5f), "Airborne input steered the jump or changed its distance");
+    Check(jump.Player.Transform.Rotation != Vector2.UnitX, "Jumping prevented mouse look");
+    jump.Keys.KeyState = new() { Jump = true }; jump.Controller.Update(100);
+    Check(!jump.Controller.InAir && jump.Player.Transform.Position == new Vector2(6.5f,3.5f), "Held Space repeated the jump");
+    jump.Keys.KeyState = new();
+    jump.Keys.KeyState = new() { Jump = true }; jump.Controller.Update(0);
+    Check(jump.Controller.InAir, "Space released and pressed between frames did not restart jumping");
+}
+foreach (float multiplier in new[] { 0.5f, 1f, 2f })
+foreach (float rise in new[] { 0f, .1f, .4f })
+{
+    var jump = JumpPlayer(JumpLevel(JumpMap(multiplier: multiplier, rise: rise)));
+    var seconds = 4 / (4 * multiplier);
+    jump.Controller.Update(seconds * 500);
+    Check(jump.Controller.InAir && MathF.Abs(jump.Camera.Elevation - rise) < .0001f && MathF.Abs(jump.Player.Transform.Position.X - 4.5f) < .0001f,
+        "Configured jump rise or walking-speed multiplier was ignored");
+    jump.Controller.Update(seconds * 500);
+    Check(!jump.Controller.InAir && jump.Player.Transform.Position == new Vector2(6.5f,3.5f), "Derived jump time did not produce the requested distance");
+}
+foreach (bool jumpable in new[] { false, true })
+foreach (float frame in new[] { 16f, 100f, 500f })
+{
+    var jump = JumpPlayer(JumpLevel(jumpable: jumpable));
+    for(float elapsed=0;elapsed<500;elapsed+=frame)jump.Controller.Update(MathF.Min(frame,500-elapsed));
+    Check(!jump.Controller.InAir && jump.Camera.Elevation == 0, "Jump timing depended on frame interval");
+    Check(MathF.Abs(jump.Player.Transform.Position.X - (jumpable ? 6.5f : 3.8f)) < .0001f, "Jump failed to cross a jumpable obstacle or stop at a solid obstacle");
+}
+foreach (float length in new[] { 1.35f, 2f })
+{
+    var jump = JumpPlayer(JumpLevel(JumpMap(length)));
+    jump.Controller.Update(0);
+    Check(MathF.Abs(jump.Controller.JumpDestination.X - 3.8f) < .0001f, "Blocked landing circle was not identified before takeoff");
+    float previous=2.5f;
+    for(int i=0;i<40;i++)
+    {
+        jump.Controller.Update(16);
+        var x=jump.Player.Transform.Position.X;
+        Check(x>=previous-.00001f && x<=3.80001f, "Jump entered its blocked destination or snapped backward");
+        previous=x;
+    }
+    Check(!jump.Controller.InAir, "Blocked jump never finished");
+}
+{
+    var definition = JumpMap(); definition.WorldMap[5][3]=1;
+    var jump = JumpPlayer(JumpLevel(definition)); jump.Controller.Update(0);
+    Check(MathF.Abs(jump.Controller.JumpDestination.X - 3.8f)<.0001f, "Solid wall beyond a jumpable cell left a blocked landing inside that cell");
+    jump.Controller.Update(500);
+    Check(jump.Player.Transform.Position.X<=3.8f, "Jump crossed the obstacle that blocks its landing");
+}
+{
+    var jump=JumpPlayer(JumpLevel(JumpMap(length:0))); jump.Controller.Update(500);
+    Check(!jump.Controller.InAir && jump.Player.Transform.Position==new Vector2(2.5f,3.5f), "Zero length did not disable jumping");
+    var level=JumpLevel(); level.SetCell(4,3,1);
+    Check(!level.NavigationMap.IsWalkable(4,3,inAir:true), "Map revisions retained stale airborne collision flags");
+    Check(!level.NavigationMap.IsWalkable(-1,2,inAir:true)&&!level.NavigationMap.IsWalkable(0,2,inAir:true), "Airborne player could pass map boundaries");
+}
+Reject(() => Compile(objects: new(definitions) { [1] = wall with { Jumpable = true } }), "Jumpable boundary accepted");
+foreach(float invalid in new[]{-1f,0.5f,float.NaN,float.PositiveInfinity})
+    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpRise=invalid}}), "Invalid jump rise accepted");
+foreach(float invalid in new[]{-1f,65f,float.NaN,float.PositiveInfinity})
+    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpLength=invalid}}), "Invalid jump length accepted");
+foreach(float invalid in new[]{-1f,0f,float.NaN,float.PositiveInfinity})
+    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpSpeedMultiplier=invalid}}), "Invalid jump multiplier accepted");
+
 var editorSource = new WolfNET.Editor.MapWorkspace(webRoot);
+foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, -Vector2.UnitY })
+{
+    var center = new Vector2(9.5f,20.5f);
+    var start = center - direction;
+    var destination = center + direction;
+    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = start, Rotation = direction } };
+    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Jump = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(direction.Y,-direction.X) * .66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
+    controller.Update(0);
+    Check(Vector2.Distance(controller.JumpDestination,destination)<.0001f,$"Showcase column jump destination is blocked in direction {direction}");
+    controller.Update(160);
+    Check(controller.InAir && Vector2.Distance(player.Transform.Position,center)<.0001f && MathF.Abs(camera.Elevation-.4f)<.0001f,
+        "Showcase jump did not cross the column rows at the configured rise");
+    controller.Update(160);
+    Check(!controller.InAir && Vector2.Distance(player.Transform.Position,destination)<.0001f,"Showcase column jump did not land beyond both rows");
+}
 var editorDocument = editorSource.Load("showcase") with { Name = "editor-roundtrip" };
 Check(editorSource.Maps().Contains("showcase"), "Editor map catalog missing showcase");
 Reject(() => editorSource.Load("../showcase"), "Editor accepted a path outside maps");

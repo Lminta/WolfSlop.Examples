@@ -19,6 +19,7 @@ public sealed class Wolf : IDisposable
     
     private ObjectCollection _objectCollection;
     private PlayerObject _player;
+    public PlayerObject? Player => _running ? _player : null;
     public KeyTracker KeyTracker { get; private set;}
     public MouseTracker MouseTracker { get; private set; } = null!;
     public IMap Map { get; private set;}
@@ -150,7 +151,8 @@ public sealed class Wolf : IDisposable
                 _player.Camera.Transform.Rotation,
                 _player.Camera.Plane,
                 Map.RendererMap,
-                _player.Camera.Pitch);
+                _player.Camera.Pitch,
+                _player.Camera.Elevation);
             _window.RequestAnimationFrame(() => Frame(generation));
         }
         catch (Exception ex)

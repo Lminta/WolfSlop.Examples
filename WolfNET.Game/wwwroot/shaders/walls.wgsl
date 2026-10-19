@@ -196,7 +196,9 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     if (abs(horizonOffset) < 0.0001) {
         return vec4f(skyColor(position), 1.0);
     }
-    let distance = focalLength * 0.5 / abs(horizonOffset);
+    let cameraHeight = 0.5 + camera.look.y;
+    let planeDistance = select(1.0 - cameraHeight, cameraHeight, horizonOffset > 0.0);
+    let distance = focalLength * planeDistance / abs(horizonOffset);
     let cameraX = 2.0 * position.x / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
     let worldPosition = camera.position + rayDir * distance;
@@ -247,15 +249,16 @@ fn fragmentMain(
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let lineHeight = focalLength / hit.distance;
     let horizon = screenHeight * 0.5 + tan(camera.look.x) * focalLength;
+    let wallCenter = horizon + camera.look.y * lineHeight;
 
     let drawStart = max(
         0.0,
-        -lineHeight * 0.5 + horizon
+        -lineHeight * 0.5 + wallCenter
     );
 
     let drawEnd = min(
         screenHeight,
-        lineHeight * 0.5 + horizon
+        lineHeight * 0.5 + wallCenter
     );
 
     let y = input.position.y;
@@ -265,7 +268,7 @@ fn fragmentMain(
     }
 
     // Use the full projected wall, even when its top is above the screen.
-    let wallV = (y - horizon) / lineHeight + 0.5;
+    let wallV = (y - wallCenter) / lineHeight + 0.5;
     // Side 0 crosses an X face; side 1 crosses a Y face.
     let cameraX = 2.0 * f32(x) / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;

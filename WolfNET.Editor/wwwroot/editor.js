@@ -155,7 +155,7 @@ function select(id, force = false) {
     const d = doc.objects[brush];
     $("selected-id").textContent = `#${brush}`;
     $("object-json").value = JSON.stringify(d, null, 2);
-    $("object-summary").textContent = `${title(brush)} · ${d.collides ? "Blocks movement" : "Walkable"} · ${d.raycastTransparent ? "Rays pass through" : "Stops rays"}`;
+    $("object-summary").textContent = `${title(brush)} · ${d.collides ? "Blocks movement" : "Walkable"} · ${d.raycastTransparent ? "Rays pass through" : "Stops rays"} · ${d.jumpable ? "Jumpable" : "Not jumpable"}`;
     const fields = d.type === "passage" ? ["floorTexture", "ceilingTexture"] : d.type === "wall" ? ["north", "east", "south", "west"] : d.type === "sprite" ? ["texture"] : [];
     $("texture-picker").hidden = !fields.length;
     $("texture-target").replaceChildren(...fields.map(field => {
@@ -179,6 +179,9 @@ function refresh(resetInspector = false) {
     $("move-speed").value = p.moveSpeed;
     $("rot-speed").value = p.rotSpeed;
     $("collision-radius").value = p.collisionRadius ?? 0.15;
+    $("jump-rise").value = p.jumpRise ?? 0.4;
+    $("jump-length").value = p.jumpLength ?? 2;
+    $("jump-speed-multiplier").value = p.jumpSpeedMultiplier ?? 1.25;
     $("sky-texture").value = map.sky?.texture ?? "";
     $("sky-rotation").value = map.sky?.rotationDegrees ?? 0;
     $("sky-rotation").disabled = !map.sky;
@@ -456,7 +459,7 @@ $("new").onclick = act(() => {
     doc.name = name;
     doc.map.worldMap = resizeGrid([], 24, 24, floor, wall);
     delete doc.map.sky;
-    doc.map.playerStart = { x: 2.5, y: 2.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3, collisionRadius: 0.15 };
+    doc.map.playerStart = { x: 2.5, y: 2.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3, collisionRadius: 0.15, jumpRise: 0.4, jumpLength: 2, jumpSpeedMultiplier: 1.25 };
     commit(before); fit(); toast("New 24 × 24 map created. Resize it in Map settings.");
 });
 $("resize").onclick = act(() => {
@@ -480,11 +483,14 @@ $("map-name").onchange = act(() => {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(name)) { refresh(); throw Error("Use 1–64 letters, digits, underscores or hyphens."); }
     change(() => doc.name = name);
 });
-for (const [id, property] of [["spawn-x", "x"], ["spawn-y", "y"], ["move-speed", "moveSpeed"], ["rot-speed", "rotSpeed"], ["collision-radius", "collisionRadius"]])
+for (const [id, property] of [["spawn-x", "x"], ["spawn-y", "y"], ["move-speed", "moveSpeed"], ["rot-speed", "rotSpeed"], ["collision-radius", "collisionRadius"], ["jump-rise", "jumpRise"], ["jump-length", "jumpLength"], ["jump-speed-multiplier", "jumpSpeedMultiplier"]])
     $(id).onchange = act(() => {
         const value = Number($(id).value);
         if (!Number.isFinite(value) || value < 0 || $(id).value === "") { refresh(); throw Error("Enter a finite nonnegative value."); }
         if (property === "collisionRadius" && (value <= 0 || value >= 0.5)) { refresh(); throw Error("Collision radius must be greater than zero and less than 0.5."); }
+        if (property === "jumpRise" && value >= 0.5) { refresh(); throw Error("Jump rise must be less than 0.5 map squares."); }
+        if (property === "jumpLength" && value > 64) { refresh(); throw Error("Jump length must be at most 64 map squares."); }
+        if (property === "jumpSpeedMultiplier" && value <= 0) { refresh(); throw Error("Jump speed multiplier must be positive."); }
         change(() => doc.map.playerStart[property] = value);
     });
 $("sky-texture").onchange = act(() => {
@@ -516,7 +522,7 @@ $("apply-object").onclick = act(() => {
 $("add-object").onclick = act(() => {
     const type = $("new-type").value, id = Math.max(...Object.keys(doc.objects).map(Number), ...(doc.deletedObjectIds ?? [])) + 1;
     const { floor } = defaults();
-    const d = { type, id, raycastTransparent: type !== "wall", collides: type === "wall" };
+    const d = { type, id, raycastTransparent: type !== "wall", collides: type === "wall", jumpable: false };
     if (type === "passage") Object.assign(d, { floorTexture: "textures/mossy.png", ceilingTexture: "textures/wood.png" });
     else d.passageId = floor;
     if (type === "wall") d.textures = { north: "textures/wood.png", east: "textures/wood.png", south: "textures/wood.png", west: "textures/wood.png" };

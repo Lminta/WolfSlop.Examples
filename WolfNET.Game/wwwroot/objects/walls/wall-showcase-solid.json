@@ -3,6 +3,7 @@
   "id": 22,
   "raycastTransparent": false,
   "collides": true,
+  "jumpable": false,
   "textures": {
     "north": "textures/wood.png",
     "east": "textures/wood.png",

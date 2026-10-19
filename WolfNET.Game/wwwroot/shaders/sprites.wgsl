@@ -75,7 +75,7 @@ fn vertexMain(
     let size = focalLength / depth;
     let center = vec2f(
         camera.screenSize.x * 0.5 * (1.0 + cameraX / depth),
-        camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength - sprite.elevation * size
+        camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength + (camera.look.y - sprite.elevation) * size
     );
     let pixel = center + (output.uv - vec2f(0.5)) * size * sprite.scale;
     let ndc = pixel / camera.screenSize * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0);
