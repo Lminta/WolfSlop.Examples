@@ -322,7 +322,7 @@ try {
         if(hadScene) assert(await evaluate("window.__destroyedSceneTextures")>destroyedBefore,"Old textures were not destroyed");
     }
     await selectMap("Showcase",[6.5,10.5]);
-    assert(logs.some(line=>line.includes("25x25")&&line.includes("21 sprites")),"Showcase was not prepared");
+    assert(logs.some(line=>line.includes("25x25")&&line.includes("24 sprites")),"Showcase was not prepared");
     assert(await evaluate("!!document.querySelector('.showcase-guide')"),"Showcase guide missing");
     if(process.env.WOLFNET_SCREENSHOT) {
         const screenshot=await send("Page.captureScreenshot",{format:"png"});
