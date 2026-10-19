@@ -678,6 +678,8 @@ public sealed class WebGpuRenderer : IDisposable
             throw new ArgumentException("Graphics maxAnisotropy must be between 1 and 16.");
         if (_settings.TargetFPS <= 0)
             throw new ArgumentException("Graphics targetFPS must be positive.");
+        if (!float.IsFinite(_settings.FovDegrees) || _settings.FovDegrees < 1 || _settings.FovDegrees > 179)
+            throw new ArgumentException("Graphics fovDegrees must be between 1 and 179 degrees.");
 
         if (_settings.Width <= 0 ||
             _settings.Height <= 0)

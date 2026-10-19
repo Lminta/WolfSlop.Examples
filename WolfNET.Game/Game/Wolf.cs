@@ -89,7 +89,7 @@ public sealed class Wolf : IDisposable
                 }
             };
             _player.Camera.Plane = new Vector2(map.PlayerStartDirection.Y, -map.PlayerStartDirection.X) *
-                                   _player.Camera.Plane.Length();
+                                   MathF.Tan(RendererSettings.FovDegrees * MathF.PI / 360f);
 
             _objectCollection.Add(_player);
 

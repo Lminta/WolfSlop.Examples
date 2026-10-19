@@ -15,7 +15,8 @@ to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.
 
 Edit `WolfNET.Game/wwwroot/graphics-settings.json` to change render width, height,
-target FPS, and `maxAnisotropy` (1–16, default 4). Reload the game to apply changes.
+target FPS, `maxAnisotropy` (1–16, default 4), and `fovDegrees` (horizontal field of
+view, 1–179°, default 66.85°). Reload the game to apply changes.
 
 Shader and pixel regression tests can run independently of the game loop:
 
