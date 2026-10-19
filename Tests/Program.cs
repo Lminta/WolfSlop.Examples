@@ -132,7 +132,7 @@ for (int direction = 0; direction < 8; direction++)
     Check(car.ViewLayer(observer) == 32 + direction, "Directional view did not use its reserved layer");
     var frame = car.Atlas.Frames[direction];
     Check(showcase.RendererMap.Textures.Frames[(uint)(32+direction)] == frame &&
-        showcase.RendererMap.Textures.Layers[(uint)(32+direction)] == "textures/race/car.png", "Atlas frame was pruned from scene textures");
+        showcase.RendererMap.Textures.Layers[(uint)(32+direction)] == "textures/race/car-game-atlas.png", "Atlas frame was pruned from scene textures");
     Check(Math.Abs(car.ViewScale(observer).X - 1f * frame.Width / frame.Height) < .00001f, "Atlas aspect ratio lost");
 }
 Check(car.ViewFrame(car.Position) == 0, "Coincident observer produced an invalid view");

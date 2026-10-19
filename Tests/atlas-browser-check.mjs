@@ -59,7 +59,7 @@ try {
         };
         const bitmap=window.createImageBitmap;
         window.createImageBitmap=function(...args){
-            if(args[0]?.src?.endsWith('/textures/race/car.png'))window.__atlasCrops.push(args.slice(1,5));
+            if(args[0]?.src?.endsWith('/textures/race/car-game-atlas.png'))window.__atlasCrops.push(args.slice(1,5));
             return bitmap.apply(this,args);
         };
         const write=GPUQueue.prototype.writeBuffer;
@@ -83,7 +83,7 @@ try {
     for(const frame of definition.atlas.frames)
         assert(crops.some(c=>c.every((v,i)=>v===[frame.x,frame.y,frame.width,frame.height][i])), 'Atlas rectangle was not cropped');
     const clipped=await evaluate(`(async()=>{
-        const image=new Image();image.src='textures/race/car.png';await image.decode();
+        const image=new Image();image.src='textures/race/car-game-atlas.png';await image.decode();
         return ${JSON.stringify(definition.atlas.frames)}.map(frame=>{
             const canvas=new OffscreenCanvas(frame.width,frame.height),context=canvas.getContext('2d');
             context.drawImage(image,frame.x,frame.y,frame.width,frame.height,0,0,frame.width,frame.height);

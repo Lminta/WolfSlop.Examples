@@ -1,0 +1,15 @@
+Use case: stylized-concept.
+Asset type: production directional billboard sprite atlas for a retro first-person raycaster game.
+Create ONE transparent PNG sprite sheet, landscape 2048 by 1024 pixels, exactly 4 equal columns and 2 equal rows (eight 512 by 512 cells). One view of the SAME red low-slung sports car per cell, with black tires, silver rims, dark glass and a rear spoiler. Detailed readable hand-painted/pixel-art-inspired retro game rendering, crisp clean silhouettes and subtle material shading, no logos or text.
+These are EIGHT successive 45-degree views of ONE fixed car, consistent proportions, lighting, wheel size, paint and spoiler across every view. Camera horizontal at the car body's mid-height, very little roof visible, no top-down or isometric perspective. Orthographic-like projection, no camera zoom differences.
+Read cells left to right, top row then bottom row:
+0 straight FRONT (two headlights, symmetric).
+1 FRONT three-quarter with the NOSE POINTING LEFT on the image.
+2 exact SIDE profile with the NOSE POINTING LEFT.
+3 REAR three-quarter with NOSE POINTING LEFT and rear lights/rear bumper visible, NOT a front view.
+4 straight REAR (two taillights and spoiler, symmetric).
+5 REAR three-quarter with NOSE POINTING RIGHT and rear lights/rear bumper visible, NOT a front view.
+6 exact SIDE profile with the NOSE POINTING RIGHT.
+7 FRONT three-quarter with the NOSE POINTING RIGHT.
+Frame pairs 1/7, 2/6 and 3/5 must be opposing views. Rear diagonals must join logically between the adjacent side profile and rear view. Do not duplicate orientations.
+Composition: precisely center each vehicle horizontally within its OWN cell. Keep every wheel contact at the same local baseline y=448 within the 512px cell (global y=448 top row, y=960 bottom row). Same physical rendering scale across all cells; side views up to 420px wide, front/rear narrower naturally. Keep at least 40px fully transparent margins left/right and 60px top within EVERY cell; no part touches cell edges. All sprites fit fully in cells. No visible grid, no frame borders, no labels, no extra wheels, no floor, no background, no smoke, no cast/drop shadows. All empty areas have true alpha=0; retain clean antialiased alpha edges only immediately at vehicle silhouettes. It must be directly usable as an eight-direction sprite atlas without cleanup.
