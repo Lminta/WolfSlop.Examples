@@ -27,8 +27,8 @@ public sealed class Wolf : IDisposable
     private readonly Stopwatch _clock = new();
     
 
-    private double _lastFrameEndTime;
-    private double _lastFrameDeltaTime;
+    private double _lastFrameTime;
+    private double _nextFrameTime;
     private bool _running;
     private bool _disposed;
     private int _frameGeneration;
@@ -93,8 +93,8 @@ public sealed class Wolf : IDisposable
             _running = true;
 
             _clock.Restart();
-            _lastFrameEndTime = 0;
-            _lastFrameDeltaTime = 0;
+            _lastFrameTime = 0;
+            _nextFrameTime = 0;
             CurrentMapPath = mapPath;
             _sceneTextures = map.RendererMap.Textures;
             int generation = ++_frameGeneration;
@@ -123,7 +123,20 @@ public sealed class Wolf : IDisposable
         try
         {
             var frameStartTime = _clock.Elapsed.TotalMilliseconds;
-            _objectCollection.Update((float) _lastFrameDeltaTime);
+            // Yield to the browser between frames so mouse events and painting can run.
+            // Never sleep on the browser thread to enforce the FPS limit.
+            if (frameStartTime + 0.5 < _nextFrameTime)
+            {
+                _window.RequestAnimationFrame(() => Frame(generation));
+                return;
+            }
+
+            var deltaTime = Math.Min(frameStartTime - _lastFrameTime, 100);
+            _lastFrameTime = frameStartTime;
+            var interval = RendererSettings.TargetFrameInterval;
+            // Skip missed deadlines rather than rendering a burst of catch-up frames.
+            _nextFrameTime += Math.Max(1, Math.Floor((frameStartTime - _nextFrameTime) / interval) + 1) * interval;
+            _objectCollection.Update((float)deltaTime);
             if (!ReferenceEquals(_sceneTextures, Map.RendererMap.Textures))
             {
                 _ = RefreshSceneAsync(generation);
@@ -134,8 +147,6 @@ public sealed class Wolf : IDisposable
                 _player.Camera.Transform.Rotation,
                 _player.Camera.Plane,
                 Map.RendererMap);
-            FrameDelay();
-            _lastFrameDeltaTime = _clock.Elapsed.TotalMilliseconds- frameStartTime;
             _window.RequestAnimationFrame(() => Frame(generation));
         }
         catch (Exception ex)
@@ -162,7 +173,8 @@ public sealed class Wolf : IDisposable
                 return;
             }
             _sceneTextures = map.Textures;
-            _lastFrameDeltaTime = 0;
+            _lastFrameTime = _clock.Elapsed.TotalMilliseconds;
+            _nextFrameTime = _lastFrameTime;
             _window.RequestAnimationFrame(() => Frame(generation));
         }
         catch (Exception ex)
@@ -174,19 +186,6 @@ public sealed class Wolf : IDisposable
         {
             _mapSwitchLock.Release();
         }
-    }
-
-    private void FrameDelay()
-    {
-        var elapsed = _clock.Elapsed.TotalMilliseconds - _lastFrameEndTime;
-        var diff = RendererSettings.TargetFrameInterval - elapsed;
-
-        if (diff > 0)
-        {
-            Thread.Sleep((int) diff);
-        }
-
-        _lastFrameEndTime = _clock.Elapsed.TotalMilliseconds;
     }
 
     public void Stop()
