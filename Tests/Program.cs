@@ -70,7 +70,7 @@ Check(fileHandler.Requests.Count == map.Objects.Count + 1, "An object was loaded
 Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("showcase-missing")), "Unrelated map textures leaked");
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
-Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
+Check(showcase.PlayerStartPosition == new Vector2(18.5f, 22.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
 Check(showcase.RendererMap.Sprites.Count == 76, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
@@ -105,11 +105,11 @@ Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21
 Check(showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
       !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Open floor outside the test lanes is blocked");
 Check(!showcase.Objects.ContainsKey(26), "Stray invisible passage barrier is still loaded");
-var fourFaces = showcase.RendererMap.Materials[(int)ShowcaseCell(6, 5).MaterialIndex];
+var fourFaces = showcase.RendererMap.Materials[(int)ShowcaseCell(18, 17).MaterialIndex];
 Check(new[] { fourFaces.North, fourFaces.East, fourFaces.South, fourFaces.West }.Distinct().Count() == 4, "Showcase wall needs four different faces");
-Check(ShowcaseCell(3, 4).FloorTextureLayer != ShowcaseCell(3, 3).FloorTextureLayer, "Showcase floor variation missing");
-Check(ShowcaseCell(15, 21).FloorTextureLayer == TextureCatalog.MissingLayer && ShowcaseCell(15, 21).CeilingTextureLayer == TextureCatalog.MissingLayer, "Showcase missing surface fields not demonstrated");
-Check(showcase.RendererMap.Materials[(int)ShowcaseCell(18, 17).MaterialIndex].West == TextureCatalog.MissingLayer, "Showcase missing wall face not demonstrated");
+Check(ShowcaseCell(15, 16).FloorTextureLayer != ShowcaseCell(15, 15).FloorTextureLayer, "Showcase floor variation missing");
+Check(ShowcaseCell(3, 7).FloorTextureLayer == TextureCatalog.MissingLayer && ShowcaseCell(3, 7).CeilingTextureLayer == TextureCatalog.MissingLayer, "Showcase missing surface fields not demonstrated");
+Check(showcase.RendererMap.Materials[(int)ShowcaseCell(6, 4).MaterialIndex].West == TextureCatalog.MissingLayer, "Showcase missing wall face not demonstrated");
 Check(showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 11) && showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 12), "Showcase missing sprites not demonstrated");
 foreach (var (x, y, jump) in new[] { (26, 8, true), (26, 4, false), (30, 4, true), (30, 8, false) })
 {
@@ -138,8 +138,8 @@ for (int direction = 0; direction < 8; direction++)
 Check(car.ViewFrame(car.Position) == 0, "Coincident observer produced an invalid view");
 Check((car with { RotationDegrees = 270 }).ViewFrame(car.Position + new Vector2(0,-1)) == 0, "Direction angle wrapping failed");
 Check((car with { Atlas = null }).ViewLayer(car.Position + Vector2.One) == car.TextureLayer, "Ordinary sprite selection changed");
-var reachable = new HashSet<(int X, int Y)> { (6, 10) };
-var frontier = new Queue<(int X, int Y)>(); frontier.Enqueue((6, 10));
+var reachable = new HashSet<(int X, int Y)> { (18, 22) };
+var frontier = new Queue<(int X, int Y)>(); frontier.Enqueue((18, 22));
 while (frontier.TryDequeue(out var cell))
 foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
 {

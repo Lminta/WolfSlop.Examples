@@ -357,7 +357,7 @@ try {
         assert(await evaluate("window.__sceneTextures.size===1&&window.__sceneBuffers.size===2"),"Old scene GPU resources retained");
         if(hadScene) assert(await evaluate("window.__destroyedSceneTextures")>destroyedBefore,"Old textures were not destroyed");
     }
-    await selectMap("Showcase",[6.5,10.5]);
+    await selectMap("Showcase",[18.5,22.5]);
     assert(logs.some(line=>line.includes("34x25")&&line.includes("76 sprites")),"Showcase was not prepared");
     assert(await evaluate("!!document.querySelector('.showcase-guide')"),"Showcase guide missing");
     if(process.env.WOLFNET_SCREENSHOT) {
@@ -365,7 +365,7 @@ try {
         fs.writeFileSync(process.env.WOLFNET_SCREENSHOT,Buffer.from(screenshot.data,"base64"));
     }
     await selectMap("Original",[22,11.5],true);
-    await selectMap("Showcase",[6.5,10.5]);
+    await selectMap("Showcase",[18.5,22.5]);
     await selectMap("Original",[22,11.5]);
     await delay(150);
     assert(await evaluate("window.__duplicateFrames")===0,"Repeated switches duplicated animation loops");
