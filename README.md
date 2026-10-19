@@ -58,7 +58,8 @@ See [the editor guide](WolfNET.Editor/README.md) for shortcuts, imports, and dep
 ## Player movement
 
 Click the game to capture the mouse. **W/S** move forward/back, **A/D** strafe,
-and the **mouse** turns. **Esc** releases the mouse and clears held movement keys.
+and the **mouse** looks left/right and up/down. Vertical looking shifts the horizon
+with simulated pitch limited to ±30°. **Esc** releases the mouse and clears held movement keys.
 
 The player collides as a circle and slides along solid cells and rounded corners.
 Each map sets `playerStart.collisionRadius` (default 0.15 map squares; greater than

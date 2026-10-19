@@ -4,6 +4,7 @@ struct Camera {
     direction: vec2f,
     plane: vec2f,
     screenSize: vec2f,
+    look: vec4f,
 };
 
 struct RenderCell {
@@ -173,7 +174,8 @@ fn skyColor(position: vec2f) -> vec3f {
     let pi = 3.141592653589793;
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let ray = camera.direction + camera.plane * (2.0 * position.x / camera.screenSize.x - 1.0);
-    let vertical = (camera.screenSize.y * 0.5 - position.y) / focalLength;
+    let horizon = camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength;
+    let vertical = (horizon - position.y) / focalLength;
     let horizontalLength = length(ray);
     let uv = vec2f(atan2(ray.y, ray.x) / (2.0 * pi) + 0.5 + skySettings.x,
                    atan2(horizontalLength, vertical) / pi);
@@ -188,11 +190,12 @@ fn skyColor(position: vec2f) -> vec3f {
 }
 
 fn floorCeilingColor(position: vec2f) -> vec4f {
-    let horizonOffset = position.y - camera.screenSize.y * 0.5;
+    let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+    let horizon = camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength;
+    let horizonOffset = position.y - horizon;
     if (abs(horizonOffset) < 0.0001) {
         return vec4f(skyColor(position), 1.0);
     }
-    let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let distance = focalLength * 0.5 / abs(horizonOffset);
     let cameraX = 2.0 * position.x / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
@@ -243,15 +246,16 @@ fn fragmentMain(
     // Use the same focal length as horizontal ray projection so unit tiles stay square.
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let lineHeight = focalLength / hit.distance;
+    let horizon = screenHeight * 0.5 + tan(camera.look.x) * focalLength;
 
     let drawStart = max(
         0.0,
-        -lineHeight * 0.5 + screenHeight * 0.5
+        -lineHeight * 0.5 + horizon
     );
 
     let drawEnd = min(
         screenHeight,
-        lineHeight * 0.5 + screenHeight * 0.5
+        lineHeight * 0.5 + horizon
     );
 
     let y = input.position.y;
@@ -261,7 +265,7 @@ fn fragmentMain(
     }
 
     // Use the full projected wall, even when its top is above the screen.
-    let wallV = (y - screenHeight * 0.5) / lineHeight + 0.5;
+    let wallV = (y - horizon) / lineHeight + 0.5;
     // Side 0 crosses an X face; side 1 crosses a Y face.
     let cameraX = 2.0 * f32(x) / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
@@ -282,7 +286,7 @@ fn fragmentMain(
     if ((hit.side == 0u && rayDir.x > 0.0) || (hit.side == 1u && rayDir.y < 0.0)) {
         wallUStep = -wallUStep;
     }
-    let gradientX = vec2f(wallUStep, (y - screenHeight * 0.5) * distanceStep / focalLength);
+    let gradientX = vec2f(wallUStep, (y - horizon) * distanceStep / focalLength);
     let gradientY = vec2f(0.0, 1.0 / lineHeight);
     var color = sampleTexture(layer, vec2f(hit.wallU, wallV), gradientX, gradientY, false).rgb;
     if (hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {

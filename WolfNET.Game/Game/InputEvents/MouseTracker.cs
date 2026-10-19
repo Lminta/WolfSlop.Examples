@@ -1,3 +1,4 @@
+using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 
@@ -7,7 +8,7 @@ public sealed class MouseTracker : IDisposable
 {
     private readonly HTMLCanvasElement _canvas;
     private readonly Document _document;
-    private float _horizontalMovement;
+    private Vector2 _movement;
     private bool _disposed;
     private bool _wasLocked;
     private bool _requestPending;
@@ -80,7 +81,7 @@ public sealed class MouseTracker : IDisposable
     private void OnMouseMove(MouseEvent e)
     {
         if (IsLocked)
-            _horizontalMovement += (float)e.MovementX;
+            _movement += new Vector2((float)e.MovementX, (float)e.MovementY);
     }
 
     private void OnPointerLockChange(Event e)
@@ -96,7 +97,7 @@ public sealed class MouseTracker : IDisposable
         _wasLocked = locked;
         if (locked || wasLocked) _requestPending = false;
         if (!locked) _releasePending = false;
-        _horizontalMovement = 0;
+        _movement = Vector2.Zero;
         if (locked) CaptureError = null;
         if (wasLocked && !locked) PointerLockReleased?.Invoke();
         CaptureStateChanged?.Invoke();
@@ -119,19 +120,19 @@ public sealed class MouseTracker : IDisposable
         _requestPending = false;
         _releasePending = false;
         _wasLocked = false;
-        _horizontalMovement = 0;
+        _movement = Vector2.Zero;
         PointerLockReleased?.Invoke();
         CaptureError = "Mouse capture was blocked. If you just pressed Esc, wait a moment, then click the game again.";
         Console.Error.WriteLine($"[INPUT] Mouse capture rejected: {reason ?? "pointerlockerror"}");
         CaptureStateChanged?.Invoke();
     }
 
-    public float ConsumeHorizontalMovement()
+    public Vector2 ConsumeMovement()
     {
         // Escape can release the browser lock before pointerlockchange is delivered.
         // Drop queued deltas during that gap, including cursor restoration movement.
-        var movement = IsLocked ? _horizontalMovement : 0;
-        _horizontalMovement = 0;
+        var movement = IsLocked ? _movement : Vector2.Zero;
+        _movement = Vector2.Zero;
         return movement;
     }
 
@@ -140,7 +141,7 @@ public sealed class MouseTracker : IDisposable
         var wasLocked = _wasLocked || HasPointerLock();
         _releasePending = HasPointerLock();
         _wasLocked = false;
-        _horizontalMovement = 0;
+        _movement = Vector2.Zero;
         if (wasLocked) PointerLockReleased?.Invoke();
         if (_releasePending)
             _document.ExitPointerLock();

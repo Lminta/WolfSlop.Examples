@@ -447,6 +447,27 @@ foreach (int keyboard in new[] { -1, 0, 1 })
     Check(MathF.Abs(MathF.Atan2(player.Transform.Rotation.Y, player.Transform.Rotation.X) - angle) < 0.00001f,
         "Mouse movement was applied more than once");
 }
+foreach (float configuredSpeed in new[] { 0f, 0.5f, 3f })
+foreach (float milliseconds in new[] { 0f, 16f, 100f })
+foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })
+foreach (float initialPitch in new[] { -MathF.PI / 6, 0f, MathF.PI / 6 })
+{
+    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = new(2.5f), Rotation = Vector2.UnitX } };
+    var mouse = new WolfNET.Game.InputEvents.MouseTracker { VerticalMovement = pixels };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new(0, -0.66f), Pitch = initialPitch };
+    var level = Compile();
+    var controller = new WolfNET.Game.Player.Components.PlayerController(new(), mouse, level.NavigationMap, camera,
+        level.PlayerStart with { RotSpeed = configuredSpeed }, player);
+    controller.Update(milliseconds);
+    var limit = configuredSpeed * milliseconds / 1000;
+    var expected = Math.Clamp(initialPitch + Math.Clamp(-pixels * 0.0025f, -limit, limit), -MathF.PI / 6, MathF.PI / 6);
+    Check(MathF.Abs(camera.Pitch - expected) < 0.00001f, "Vertical mouse look ignored speed, direction, or pitch limits");
+    Check(player.Transform.Position == new Vector2(2.5f) && player.Transform.Rotation == Vector2.UnitX && camera.Plane == new Vector2(0, -0.66f),
+        "Vertical looking changed horizontal movement or field of view");
+    controller.Update(100);
+    Check(camera.Pitch == expected, "Vertical movement continued after the mouse stopped");
+}
+
 var editorSource = new WolfNET.Editor.MapWorkspace(webRoot);
 var editorDocument = editorSource.Load("showcase") with { Name = "editor-roundtrip" };
 Check(editorSource.Maps().Contains("showcase"), "Editor map catalog missing showcase");

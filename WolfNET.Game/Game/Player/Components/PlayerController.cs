@@ -13,6 +13,7 @@ public class PlayerController : ComponentBase
     private readonly MouseTracker _mouseTracker;
     // Radians per pixel before applying the map's maximum turn rate.
     private const float MouseSensitivity = 0.0025f;
+    public const float MaxPitch = MathF.PI / 6;
     private readonly CameraComponent _camera;
     private readonly INavigationMap _map;
     private readonly PlayerStartDefinition _settings;
@@ -62,7 +63,10 @@ public class PlayerController : ComponentBase
             posX = position.X;
             posY = position.Y;
         }
-        var turn = -_mouseTracker.ConsumeHorizontalMovement() * MouseSensitivity;
+        var mouseMovement = _mouseTracker.ConsumeMovement();
+        var turn = -mouseMovement.X * MouseSensitivity;
+        var pitchChange = Math.Clamp(-mouseMovement.Y * MouseSensitivity, -rotSpeed, rotSpeed);
+        _camera.Pitch = Math.Clamp(_camera.Pitch + pitchChange, -MaxPitch, MaxPitch);
         if (_keyTracker.KeyState.Right)
             turn -= rotSpeed;
         if (_keyTracker.KeyState.Left)

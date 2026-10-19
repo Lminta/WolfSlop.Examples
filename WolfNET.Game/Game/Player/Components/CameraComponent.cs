@@ -11,4 +11,6 @@ public class CameraComponent : ComponentBase, ICamera
 
     public Transform Transform => Parent.Transform;
     public Vector2 Plane { get; set; } = new(0, 0.66f);
+    // Radians; positive looks up. Simulated pitch shifts the projected horizon.
+    public float Pitch { get; set; }
 }

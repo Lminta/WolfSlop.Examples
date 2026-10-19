@@ -10,7 +10,7 @@ public sealed class WebGpuRenderer : IDisposable
 {
     private const uint WorkgroupSize = 64;
     private const int RayHitSize = 16;
-    private const int CameraBufferSize = 32;
+    private const int CameraBufferSize = 48;
     private const int MapInfoBufferSize = 16;
     private const int SpriteSize = 32;
 
@@ -47,7 +47,7 @@ public sealed class WebGpuRenderer : IDisposable
     private GPUBuffer? _skyBuffer;
 
     // Reusable CPU buffers.
-    private readonly float[] _cameraData = new float[8];
+    private readonly float[] _cameraData = new float[12];
     private GPUBuffer? _materialsBuffer;
     private TextureCatalog? _preparedTextures;
     private RenderMap? _uploadedMap;
@@ -718,7 +718,8 @@ public sealed class WebGpuRenderer : IDisposable
         // direction  vec2f
         // plane      vec2f
         // screenSize vec2f
-        // Total: 32 bytes
+        // look       vec4f (pitch and padding)
+        // Total: 48 bytes
 
         _cameraBuffer = _device.CreateBuffer(
             new GPUBufferDescriptor
@@ -832,7 +833,8 @@ public sealed class WebGpuRenderer : IDisposable
     private void UpdateCamera(
         Vector2 position,
         Vector2 direction,
-        Vector2 plane)
+        Vector2 plane,
+        float pitch)
     {
         if (_device == null || _cameraBuffer == null)
         {
@@ -841,7 +843,7 @@ public sealed class WebGpuRenderer : IDisposable
         }
 
         // Must match Camera in raycast.wgsl
-        // and screen.wgsl.
+        // and walls.wgsl / sprites.wgsl (48 bytes including look padding).
 
         _cameraData[0] = position.X;
         _cameraData[1] = position.Y;
@@ -854,6 +856,7 @@ public sealed class WebGpuRenderer : IDisposable
 
         _cameraData[6] = _settings.Width;
         _cameraData[7] = _settings.Height;
+        _cameraData[8] = pitch;
 
         using var data = new Float32Array(_cameraData);
 
@@ -871,7 +874,8 @@ public sealed class WebGpuRenderer : IDisposable
         Vector2 position,
         Vector2 direction,
         Vector2 plane,
-        RenderMap map)
+        RenderMap map,
+        float pitch = 0)
     {
         if (!_initialized ||
             _device == null ||
@@ -891,7 +895,7 @@ public sealed class WebGpuRenderer : IDisposable
         var sprites = map.Sprites;
 
         // 2. Update camera every frame.
-        UpdateCamera(position, direction, plane);
+        UpdateCamera(position, direction, plane, pitch);
         UpdateSprites(sprites, position);
 
         // 3. Create GPU command encoder.

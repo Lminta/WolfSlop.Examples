@@ -24,10 +24,12 @@ namespace WolfNET.Game.InputEvents
     public sealed class MouseTracker
     {
         public float HorizontalMovement { get; set; }
-        public float ConsumeHorizontalMovement()
+        public float VerticalMovement { get; set; }
+        public Vector2 ConsumeMovement()
         {
-            var movement = HorizontalMovement;
+            var movement = new Vector2(HorizontalMovement, VerticalMovement);
             HorizontalMovement = 0;
+            VerticalMovement = 0;
             return movement;
         }
     }
@@ -38,5 +40,6 @@ namespace WolfNET.Game.Player.Components
     public sealed class CameraComponent
     {
         public Vector2 Plane { get; set; }
+        public float Pitch { get; set; }
     }
 }

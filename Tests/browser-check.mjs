@@ -109,7 +109,7 @@ try {
         };
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...rest) {
             if(buffer.label==='WolfNET Camera') {
-                window.__camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,8));
+                window.__camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,12));
                 window.__cameraWrites++;
                 if(window.__frameStamp!==undefined&&window.__lastCameraStamp===window.__frameStamp)window.__duplicateFrames++;
                 window.__lastCameraStamp=window.__frameStamp;
@@ -186,20 +186,32 @@ try {
     await waitFor("document.pointerLockElement===document.querySelector('canvas')"); await delay(100);
     // A small delta stays below the per-frame turn cap. Large-delta limits are
     // checked deterministically with the real controller in the .NET checks.
-    await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementX:1}))"); await delay(100);
+    const beforeTurn=await evaluate("window.__camera.slice()");
+    await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementX:1}))");
+    await waitFor(`window.__camera[2]!==${beforeTurn[2]}||window.__camera[3]!==${beforeTurn[3]}`);
     const turned=await evaluate("window.__camera");
-    let angle=Math.atan2(turned[3],turned[2])-Math.atan2(left[3],left[2]);
+    let angle=Math.atan2(turned[3],turned[2])-Math.atan2(beforeTurn[3],beforeTurn[2]);
     angle=Math.atan2(Math.sin(angle),Math.cos(angle));
     assert(Math.abs(angle+.0025)<.0001,"Mouse turning changed below the configured rate limit");
+    const beforePitch=await evaluate("window.__camera.slice()");
+    await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementY:-1}))");
+    await waitFor(`window.__camera[8]>${beforePitch[8]}`);
+    const pitched=await evaluate("window.__camera.slice()");
+    assert(Math.abs(pitched[8]-beforePitch[8]-.0025)<.0001,"Moving the mouse up did not look up");
+    assert(pitched.slice(0,6).every((value,i)=>value===beforePitch[i]),"Pitch changed yaw, position, or camera plane");
+    await delay(150);
+    assert((await evaluate("window.__camera[8]"))===pitched[8],"Pitch drifted after mouse movement stopped");
+    await evaluate("document.dispatchEvent(new MouseEvent('mousemove',{movementY:1}))");
+    await waitFor(`Math.abs(window.__camera[8]-${beforePitch[8]})<.0001`);
     const unlockRace=await evaluate(`(async()=>{
-        const before=window.__camera.slice(2,6);
-        document.dispatchEvent(new MouseEvent('mousemove',{movementX:50}));
+        const before=window.__camera.slice(2,9);
+        document.dispatchEvent(new MouseEvent('mousemove',{movementX:50,movementY:50}));
         // Model the native lock disappearing before pointerlockchange reaches C#.
         Object.defineProperty(document,'pointerLockElement',{configurable:true,get:()=>null});
         try {
-            document.dispatchEvent(new MouseEvent('mousemove',{movementX:1000}));
+            document.dispatchEvent(new MouseEvent('mousemove',{movementX:1000,movementY:1000}));
             for(let frame=0;frame<3;frame++)await new Promise(requestAnimationFrame);
-            return {before,after:window.__camera.slice(2,6)};
+            return {before,after:window.__camera.slice(2,9)};
         } finally { delete document.pointerLockElement; }
     })()`);
     assert(unlockRace.after.every((value,i)=>value===unlockRace.before[i]),"Cursor restoration or queued delta changed direction during unlock race");

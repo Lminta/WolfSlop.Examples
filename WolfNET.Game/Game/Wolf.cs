@@ -149,7 +149,8 @@ public sealed class Wolf : IDisposable
                 _player.Camera.Transform.Position, 
                 _player.Camera.Transform.Rotation,
                 _player.Camera.Plane,
-                Map.RendererMap);
+                Map.RendererMap,
+                _player.Camera.Pitch);
             _window.RequestAnimationFrame(() => Frame(generation));
         }
         catch (Exception ex)

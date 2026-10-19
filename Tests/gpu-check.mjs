@@ -21,17 +21,17 @@ export async function checkGpu(sources) {
     const spritePipeline = await pipeline(modules.sprites, "fragmentMain", true);
     const minimap = await pipeline(modules.walls, "minimapMain");
     const buffer = (size, usage) => device.createBuffer({size, usage: usage | GPUBufferUsage.COPY_DST});
-    const camera = buffer(32, GPUBufferUsage.UNIFORM);
+    const camera = buffer(48, GPUBufferUsage.UNIFORM);
     const info = buffer(16, GPUBufferUsage.UNIFORM);
     const cells = buffer(25 * 16, GPUBufferUsage.STORAGE);
     const materials = buffer(32, GPUBufferUsage.STORAGE);
     const hits = buffer(128 * 16, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
     const sprites = buffer(128, GPUBufferUsage.STORAGE);
     const skyInfo = buffer(16, GPUBufferUsage.UNIFORM);
-    const skyTexture = device.createTexture({size:[4,2],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST});
-    const skyPixels = new Uint8Array(4*2*4);
-    for(let i=0;i<8;i++)skyPixels.set([40,80,120,255],i*4);
-    device.queue.writeTexture({texture:skyTexture},skyPixels,{bytesPerRow:16},[4,2]);
+    const skyTexture = device.createTexture({size:[4,8],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST});
+    const skyPixels = new Uint8Array(4*8*4);
+    for(let i=0;i<32;i++)skyPixels.set([40,80,120,255],i*4);
+    device.queue.writeTexture({texture:skyTexture},skyPixels,{bytesPerRow:16},[4,8]);
     const skyEntries = [{binding:9,resource:skyTexture.createView()},
         {binding:10,resource:device.createSampler({addressModeU:"repeat",addressModeV:"clamp-to-edge"})},
         {binding:11,resource:{buffer:skyInfo}}];
@@ -73,8 +73,8 @@ export async function checkGpu(sources) {
             [floatBits(x),floatBits(y),layer,owner,floatBits(sx),floatBits(sy),floatBits(z),0], i * 8));
         device.queue.writeBuffer(sprites, 0, data);
     }
-    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128) {
-        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height]));
+    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128, pitch = 0) {
+        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height,pitch,0,0,0]));
         device.queue.writeBuffer(info, 0, new Uint32Array([5,5,count,0]));
         device.queue.writeBuffer(cells, 0, map);
         const encoder = device.createCommandEncoder();
@@ -194,6 +194,21 @@ export async function checkGpu(sources) {
     result = await draw(0,-1,1,true);
     assert(equal(result.pixel(44,36),[130,145,158,255]), "Minimap wall did not follow horizontal reflection");
     assert(equal(result.pixel(44,44),[227,173,97,255]), "Minimap sprite did not follow horizontal reflection");
+    // Simulated pitch shifts every scene projection by the same number of pixels.
+    resetMap(); setMaterial([0,1,2,3]);
+    const pitch = Math.atan(20 / (128 / (2 * .66)));
+    const neutral = await draw();
+    const up = await draw(-1,0,0,false,2.5,2.5,128,128,pitch);
+    const down = await draw(-1,0,0,false,2.5,2.5,128,128,-pitch);
+    for(const y of [0,16,31,40,63,90,100])
+        assert(equal(neutral.pixel(64,y),up.pixel(64,y+20)),"Looking up misaligned walls, floor, or ceiling");
+    for(const y of [24,40,63,90,115,127])
+        assert(equal(neutral.pixel(64,y),down.pixel(64,y-20)),"Looking down misaligned walls, floor, or ceiling");
+    setSprites([[1.5,2.5,2,12,.5,.5,0]]);
+    const neutralSprite=blueBounds(await draw(-1,0,1));
+    const upSprite=blueBounds(await draw(-1,0,1,false,2.5,2.5,128,128,pitch));
+    assert(neutralSprite&&upSprite&&Math.abs(upSprite.centerY-neutralSprite.centerY-20)<=1&&upSprite.height===neutralSprite.height,
+        "Sprite did not follow the pitched horizon");
     // Open ceilings and premultiplied alpha blend against the distant sky.
     resetMap();
     device.queue.writeBuffer(skyInfo,0,new Float32Array([0,1,0,0]));
@@ -216,8 +231,8 @@ export async function checkGpu(sources) {
     result=await draw();
     assert(equal(result.pixel(64,8),colors[6]),"Opaque ceiling did not conceal the sky");
     for(let y=1;y<4;y++)for(let x=1;x<4;x++)map[(y*5+x)*4+3]=4;
-    for(let y=0;y<2;y++)for(let x=0;x<4;x++)skyPixels.set(colors[x],(y*4+x)*4);
-    device.queue.writeTexture({texture:skyTexture},skyPixels,{bytesPerRow:16},[4,2]);
+    for(let y=0;y<8;y++)for(let x=0;x<4;x++)skyPixels.set([x*60,y*30,120,255],(y*4+x)*4);
+    device.queue.writeTexture({texture:skyTexture},skyPixels,{bytesPerRow:16},[4,8]);
     const skyView=await draw();
     result=await draw(-1,0,0,false,2.75,2.5);
     assert(equal(result.pixel(64,8),skyView.pixel(64,8)),"Walking moved the distant sky");
@@ -226,6 +241,10 @@ export async function checkGpu(sources) {
     device.queue.writeBuffer(skyInfo,0,new Float32Array([.5,1,0,0]));
     result=await draw();
     assert(!equal(result.pixel(64,8),skyView.pixel(64,8)),"Map sky rotation was ignored");
+    device.queue.writeBuffer(skyInfo,0,new Float32Array([0,1,0,0]));
+    const skyUp=await draw(-1,0,0,false,2.5,2.5,128,128,Math.atan(50/(128/(2*.66))));
+    assert(equal(skyUp.pixel(64,50),skyView.pixel(64,0)),"Sky pitch did not align with the projected horizon");
+    assert(!equal(skyUp.pixel(64,0),skyView.pixel(64,0)),"Looking up did not change sky elevation");
     device.queue.writeBuffer(skyInfo,0,new Float32Array([0,0,0,0]));
     resetMap();
     // A one-texel camera movement flips a distant, unfiltered checkerboard. Mips
