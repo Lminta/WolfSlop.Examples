@@ -73,7 +73,7 @@ Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && s
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
 Check(showcase.RendererMap.Sprites.Count == 27, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
-Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
+Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/Full_Moon_Night.png", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
 Check(!ShowcaseCell(26, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
     showcase.RendererMap.Textures.Layers[ShowcaseCell(26,18).CeilingTextureLayer] == "textures/mesh.png", "Mesh showroom ceiling missing");
@@ -462,7 +462,7 @@ try
 {
     var store = new WolfNET.Editor.MapWorkspace(editorRoot);
     Directory.CreateDirectory(Path.Combine(editorRoot, "textures", "skyboxes"));
-    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "skyboxes", "skybox.jpg"), [1, 2, 3]);
+    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "skyboxes", "Full_Moon_Night.png"), [1, 2, 3]);
     File.WriteAllBytes(Path.Combine(editorRoot, "textures", "mesh.png"), [4, 5, 6]);
     await store.SaveAsync(editorDocument, false, CancellationToken.None);
     var persisted = store.Load("editor-roundtrip");
@@ -488,8 +488,8 @@ try
     Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "textures/colorstone.png", "Editor edited shared engine objects");
     using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
     Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
-    Check(zip.GetEntry("textures/skyboxes/skybox.jpg")?.Length == 3 && zip.GetEntry("textures/mesh.png")?.Length == 3,
-        "Editor export omitted the nested sky JPG or alpha ceiling texture");
+    Check(zip.GetEntry("textures/skyboxes/Full_Moon_Night.png")?.Length == 3 && zip.GetEntry("textures/mesh.png")?.Length == 3,
+        "Editor export omitted the nested sky texture or alpha ceiling texture");
     Check(zip.Entries.Count(entry => entry.FullName.EndsWith(".json")) == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
     foreach (var path in persisted.Map.Objects.Values)
         Check(zip.GetEntry(path[3..]) != null, "Editor export index points outside bundle");
