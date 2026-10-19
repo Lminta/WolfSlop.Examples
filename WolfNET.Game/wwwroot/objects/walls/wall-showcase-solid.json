@@ -6,10 +6,10 @@
   "jumpable": false,
   "crouchable": false,
   "textures": {
-    "north": "textures/wood.png",
-    "east": "textures/wood.png",
-    "south": "textures/wood.png",
-    "west": "textures/wood.png"
+    "north": "textures/wolf/wood.png",
+    "east": "textures/wolf/wood.png",
+    "south": "textures/wolf/wood.png",
+    "west": "textures/wolf/wood.png"
   },
   "passageId": 11
 }

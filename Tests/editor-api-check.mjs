@@ -103,7 +103,7 @@ try {
     assert.equal(badHostStatus, 403);
     const library = await get("/api/library");
     assert.ok(library.objects.some(entry => entry.definition.type === "wall" && Number.isInteger(entry.definition.passageId)));
-    assert.ok(library.textures.includes("textures/mossy.png"));
+    assert.ok(library.textures.includes("textures/wolf/mossy.png"));
     assert.ok(library.textures.includes(texturePath), "Imported texture missing from catalog");
     console.log("PASS: editor HTTP loading, validation, ZIP export, save/reopen, overwrite protection, isolated objects, invalid maps/paths, and local-host restriction.");
 } finally {

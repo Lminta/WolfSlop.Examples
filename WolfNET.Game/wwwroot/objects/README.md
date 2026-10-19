@@ -49,7 +49,7 @@ The supplied maps use scaled group presets for barrels (`0.75` on both axes) and
 lights (`0.5` on both axes), including single-member groups for direct placements.
 Barrels use Z = -0.2 to compensate for transparent padding and remain grounded; lights use Z = 0.25 to hang from the ceiling.
 
-Texture paths are relative to the application base, e.g. `textures/wood.png`.
+Texture paths are relative to the application base, e.g. `textures/wolf/wood.png`.
 Images may use different resolutions. The renderer resamples them into a shared array,
 preserving source resolution up to 2048px per side and a 128 MiB scene texture budget.
 All object definitions accept `jumpable` (default `false`). Solid jumpable cells

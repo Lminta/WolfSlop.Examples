@@ -5,7 +5,7 @@
   "collides": false,
   "jumpable": false,
   "crouchable": false,
-  "texture": "textures/greenlight.png",
+  "texture": "textures/wolf/greenlight.png",
   "textureLayer": 10,
   "passageId": 12
 }

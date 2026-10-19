@@ -52,9 +52,9 @@ try {
     await click("validate");
     await waitFor("document.getElementById('validation').classList.contains('success')");
     await evaluate(`window.__latest=null; const realFetch=window.fetch; window.fetch=async (...args)=>{if(args[0]==='/api/validate')window.__latest=JSON.parse(args[1].body);return realFetch(...args);};`);
-    await evaluate(`document.querySelector('.palette-item[data-id="11"]').click(); document.getElementById('texture-target').value='floorTexture'; document.querySelector('#texture-options button[title="textures/wood.png"]').click();`);
+    await evaluate(`document.querySelector('.palette-item[data-id="11"]').click(); document.getElementById('texture-target').value='floorTexture'; document.querySelector('#texture-options button[title="textures/wolf/wood.png"]').click();`);
     await click("apply-object"); await click("validate");
-    await waitFor("window.__latest?.objects[11].floorTexture==='textures/wood.png'");
+    await waitFor("window.__latest?.objects[11].floorTexture==='textures/wolf/wood.png'");
     await click("undo");
     await evaluate("document.querySelector('.palette-item[data-id=\"1\"]').click()");
     await cell(10, 10, "left", "fill"); await click("validate");
@@ -94,10 +94,10 @@ try {
     await click("undo");
 
     // Object edits affect only this browser document until Save is explicitly pressed.
-    await evaluate(`document.querySelector('.palette-item[data-id="11"]').click(); const field=document.getElementById('object-json'); const d=JSON.parse(field.value); d.floorTexture='textures/mossy.png'; field.value=JSON.stringify(d); field.dispatchEvent(new Event('input'));`);
+    await evaluate(`document.querySelector('.palette-item[data-id="11"]').click(); const field=document.getElementById('object-json'); const d=JSON.parse(field.value); d.floorTexture='textures/wolf/mossy.png'; field.value=JSON.stringify(d); field.dispatchEvent(new Event('input'));`);
     await click("apply-object"); await click("validate");
     await waitFor("window.__documents.length===3");
-    assert.equal(await evaluate("window.__documents.at(-1).objects[11].floorTexture"), "textures/mossy.png");
+    assert.equal(await evaluate("window.__documents.at(-1).objects[11].floorTexture"), "textures/wolf/mossy.png");
     await click("undo");
     await evaluate("document.getElementById('show-collision').click(); document.getElementById('show-rays').click(); document.getElementById('show-ids').click()");
     await click("fit");
@@ -116,7 +116,7 @@ try {
     }
     // Exercise browser decoding/conversion without adding files to the user's texture library.
     await evaluate(`(async()=>{window.__textureUpload=null; const textureFetch=window.fetch; window.fetch=async (...args)=>{
-        if(args[0]==='/api/textures'){window.__textureUpload=JSON.parse(args[1].body);return new Response(JSON.stringify({path:'textures/mossy.png',width:64,height:64}),{headers:{'Content-Type':'application/json'}});}
+        if(args[0]==='/api/textures'){window.__textureUpload=JSON.parse(args[1].body);return new Response(JSON.stringify({path:'textures/wolf/mossy.png',width:64,height:64}),{headers:{'Content-Type':'application/json'}});}
         return textureFetch(...args);
     };
     document.querySelector('.palette-item[data-id="11"]').click();
@@ -127,7 +127,7 @@ try {
     const transfer=new DataTransfer();transfer.items.add(new File([blob],'custom-texture.png',{type:'image/png'}));
     const input=document.getElementById('texture-file');input.files=transfer.files;input.dispatchEvent(new Event('change'));})()`);
     await waitFor("window.__textureUpload && !document.getElementById('import-texture').disabled");
-    assert.equal(await evaluate("JSON.parse(document.getElementById('object-json').value).floorTexture"), "textures/mossy.png");
+    assert.equal(await evaluate("JSON.parse(document.getElementById('object-json').value).floorTexture"), "textures/wolf/mossy.png");
     const pngInfo = await evaluate(`(async()=>{
         const bytes=Uint8Array.from(atob(window.__textureUpload.png),c=>c.charCodeAt(0)),data=new DataView(bytes.buffer);
         const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));

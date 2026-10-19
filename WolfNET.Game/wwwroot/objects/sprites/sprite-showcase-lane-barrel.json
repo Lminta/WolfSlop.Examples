@@ -5,7 +5,7 @@
   "collides": false,
   "jumpable": false,
   "crouchable": false,
-  "texture": "textures/barrel.png",
+  "texture": "textures/wolf/barrel.png",
   "textureLayer": 8,
   "passageId": 11
 }

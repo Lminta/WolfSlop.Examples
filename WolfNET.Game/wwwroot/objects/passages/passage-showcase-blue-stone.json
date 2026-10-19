@@ -5,6 +5,6 @@
   "collides": false,
   "jumpable": false,
   "crouchable": false,
-  "floorTexture": "textures/bluestone.png",
-  "ceilingTexture": "textures/greystone.png"
+  "floorTexture": "textures/wolf/bluestone.png",
+  "ceilingTexture": "textures/wolf/greystone.png"
 }

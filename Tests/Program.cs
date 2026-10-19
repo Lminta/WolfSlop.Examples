@@ -41,12 +41,12 @@ for (int y = 0; y < 24; y++)
     if (originalGrid[x][y] > 0)
     {
         var faces = map.RendererMap.Materials[(int)cell.MaterialIndex];
-        var texture = "textures/" + originalWallTextures[originalGrid[x][y] - 1] + ".png";
+        var texture = "textures/wolf/" + originalWallTextures[originalGrid[x][y] - 1] + ".png";
         Check(new[] { faces.North, faces.East, faces.South, faces.West }.All(layer => map.RendererMap.Textures.Layers[layer] == texture), "Migrated wall texture changed");
     }
     else
-        Check(map.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/mossy.png" &&
-              map.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wood.png", "Migrated passage surfaces changed");
+        Check(map.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/wolf/mossy.png" &&
+              map.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wolf/wood.png", "Migrated passage surfaces changed");
 }
 var expectedSprites = original.RootElement.GetProperty("sprites").EnumerateArray().Select(value =>
     (new Vector2(value.GetProperty("x").GetSingle(), value.GetProperty("y").GetSingle()), value.GetProperty("textureLayer").GetUInt32())).ToList();
@@ -62,7 +62,7 @@ Check(map.PlayerStartPosition == new Vector2(22, 11.5f) && map.PlayerStartDirect
 Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 3, "Map player speeds not loaded");
 Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(24, 24), "Outside map is walkable");
 var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialIndex];
-Check(map.RendererMap.Textures.Layers[material.North] == "textures/colorstone.png", "Wall material changed");
+Check(map.RendererMap.Textures.Layers[material.North] == "textures/wolf/colorstone.png", "Wall material changed");
 Check(material.North == material.East && material.East == material.South && material.South == material.West, "Wall faces changed");
 
 Check(fileHandler.Requests.All(path => !path.Contains("showcase") && !path.EndsWith("index.json")), "Loaded another map or global index");
@@ -76,14 +76,14 @@ RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
 Check(!ShowcaseCell(26, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
-    showcase.RendererMap.Textures.Layers[ShowcaseCell(26,18).CeilingTextureLayer] == "textures/mesh.png", "Mesh showroom ceiling missing");
+    showcase.RendererMap.Textures.Layers[ShowcaseCell(26,18).CeilingTextureLayer] == "textures/wolf/mesh.png", "Mesh showroom ceiling missing");
 Check(showcase.Objects.Values.Where(value => value is SpriteDefinition or SpriteGroupDefinition).All(value => value.RaycastTransparent), "Showcase contains ray-blocking sprites");
 Check(!showcase.Objects.ContainsKey(113) && !showcase.Objects.ContainsKey(122), "Removed sprite examples still loaded");
 foreach (var x in new[] { 15, 17, 19, 21 })
 {
     var cell = ShowcaseCell(x, 6);
-    Check(showcase.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/colorstone.png" &&
-          showcase.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wood.png", "Lane wall surfaces missing");
+    Check(showcase.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/wolf/colorstone.png" &&
+          showcase.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wolf/wood.png", "Lane wall surfaces missing");
 }
 
 foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, true), (19, false, false), (21, false, true) })
@@ -95,9 +95,9 @@ Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalk
 foreach (var sprite in showcase.RendererMap.Sprites)
 {
     var definition = showcase.Objects.Values.OfType<SpriteDefinition>().First(value => value.TextureLayer == sprite.TextureLayer);
-    if (definition.Texture is "textures/barrel.png" or "textures/greenlight.png" or "textures/pillar.png")
+    if (definition.Texture is "textures/wolf/barrel.png" or "textures/wolf/greenlight.png" or "textures/wolf/pillar.png")
         Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) ==
-            (definition.Texture != "textures/pillar.png"),
+            (definition.Texture != "textures/wolf/pillar.png"),
             "Showcase sprite walkability disagrees with its appearance");
 }
 Check(!showcase.NavigationMap.IsWalkable(9,20) && showcase.NavigationMap.IsWalkable(9,20,inAir:true), "Showcase jumpable columns collision is incorrect");
@@ -134,10 +134,10 @@ for (int y = 0; y < showcase.RendererMap.Height; y++)
     Check(!showcase.NavigationMap.IsWalkable(x, y) || reachable.Contains((x, y)), $"Unreachable showcase cell at {x},{y}");
 
 PassageDefinition Passage(int id, bool transparent = true, bool collides = false) => new()
-{ Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "textures/mossy.png", CeilingTexture = "textures/wood.png" };
+{ Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "textures/wolf/mossy.png", CeilingTexture = "textures/wolf/wood.png" };
 var wall = new WallDefinition { Id = 1, RaycastTransparent = false, Collides = true, PassageId = 0, Textures = new WallTextures
 { North = "textures/north.png", East = "textures/east.png", South = "textures/south.png" } };
-var spriteDef = new SpriteDefinition { Id = 2, RaycastTransparent = false, Collides = true, PassageId = 0, Texture = "textures/barrel.png", TextureLayer = 8 };
+var spriteDef = new SpriteDefinition { Id = 2, RaycastTransparent = false, Collides = true, PassageId = 0, Texture = "textures/wolf/barrel.png", TextureLayer = 8 };
 var groupDef = new SpriteGroupDefinition { Id = 3, RaycastTransparent = true, Collides = false, PassageId = 0,
     Sprites = [new() { SpriteId = 2, Offset = new() { X = -0.25f, Y = 0 } }, new() { SpriteId = 2, Offset = new() { X = 0.75f, Y = 0.1f } }] };
 var definitions = new Dictionary<int, MapObjectDefinition> { [0] = Passage(0), [1] = wall, [2] = spriteDef, [3] = groupDef };
@@ -209,15 +209,15 @@ foreach (var invalidZ in new[] { float.NaN, float.PositiveInfinity })
     Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Offset = groupDef.Sprites[0].Offset with { Z = invalidZ } }] } }), "Invalid member elevation accepted");
 var hiddenMember = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Scale = new() { X = 0, Y = 0 } }] } });
 Check(hiddenMember.RendererMap.Sprites.Single().Scale == Vector2.Zero, "Zero scale should allow a hidden billboard");
-Check(group.RendererMap.Textures.Layers[8] == "textures/barrel.png", "Explicit sprite layer not reserved");
+Check(group.RendererMap.Textures.Layers[8] == "textures/wolf/barrel.png", "Explicit sprite layer not reserved");
 var groupPassage = Compile(SmallMap(3), new(definitions)
 {
-    [4] = Passage(4, false, true) with { FloorTexture = "textures/bluestone.png", CeilingTexture = "textures/greystone.png" },
+    [4] = Passage(4, false, true) with { FloorTexture = "textures/wolf/bluestone.png", CeilingTexture = "textures/wolf/greystone.png" },
     [3] = groupDef with { PassageId = 4 }
 });
 Check(groupPassage.NavigationMap.IsWalkable(2, 2) && !groupPassage.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay), "Passage flags overrode group flags");
-Check(groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].FloorTextureLayer] == "textures/bluestone.png" &&
-      groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].CeilingTextureLayer] == "textures/greystone.png", "Group did not use its own passage reference");
+Check(groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].FloorTextureLayer] == "textures/wolf/bluestone.png" &&
+      groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].CeilingTextureLayer] == "textures/wolf/greystone.png", "Group did not use its own passage reference");
 var walls = group.RendererMap.Materials[1];
 Check(walls.West == TextureCatalog.MissingLayer, "Missing wall side not pink");
 var wallSurfaces = Compile(SmallMap(1), new(definitions)
@@ -649,7 +649,8 @@ try
     var store = new WolfNET.Editor.MapWorkspace(editorRoot);
     Directory.CreateDirectory(Path.Combine(editorRoot, "textures", "skyboxes"));
     File.WriteAllBytes(Path.Combine(editorRoot, "textures", "skyboxes", "skybox.jpg"), [1, 2, 3]);
-    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "mesh.png"), [4, 5, 6]);
+    Directory.CreateDirectory(Path.Combine(editorRoot, "textures", "wolf"));
+    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "wolf", "mesh.png"), [4, 5, 6]);
     await store.SaveAsync(editorDocument, false, CancellationToken.None);
     var persisted = store.Load("editor-roundtrip");
     Check(persisted.Map.WorldMap.SelectMany(column => column).SequenceEqual(editorDocument.Map.WorldMap.SelectMany(column => column)), "Editor save changed grid orientation");
@@ -666,15 +667,15 @@ try
     Check(File.ReadAllText(Path.Combine(editorRoot, "maps/editor-roundtrip.json")) == beforeOverwrite, "Rejected overwrite changed the map");
     var modifiedObjects = new Dictionary<int, MapObjectDefinition>(editorDocument.Objects)
     {
-        [11] = (PassageDefinition)editorDocument.Objects[11] with { FloorTexture = "textures/mossy.png" }
+        [11] = (PassageDefinition)editorDocument.Objects[11] with { FloorTexture = "textures/wolf/mossy.png" }
     };
     await store.SaveAsync(editorDocument with { Objects = modifiedObjects }, true, CancellationToken.None);
     var edited = store.Load("editor-roundtrip");
-    Check(((PassageDefinition)edited.Objects[11]).FloorTexture == "textures/mossy.png", "Editor overwrite did not persist definition edits");
-    Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "textures/colorstone.png", "Editor edited shared engine objects");
+    Check(((PassageDefinition)edited.Objects[11]).FloorTexture == "textures/wolf/mossy.png", "Editor overwrite did not persist definition edits");
+    Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "textures/wolf/colorstone.png", "Editor edited shared engine objects");
     using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
     Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
-    Check(zip.GetEntry("textures/skyboxes/skybox.jpg")?.Length == 3 && zip.GetEntry("textures/mesh.png")?.Length == 3,
+    Check(zip.GetEntry("textures/skyboxes/skybox.jpg")?.Length == 3 && zip.GetEntry("textures/wolf/mesh.png")?.Length == 3,
         "Editor export omitted the nested sky JPG or alpha ceiling texture");
     Check(zip.Entries.Count(entry => entry.FullName.EndsWith(".json")) == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
     foreach (var path in persisted.Map.Objects.Values)

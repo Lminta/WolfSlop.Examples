@@ -527,14 +527,14 @@ $("add-object").onclick = act(() => {
     const type = $("new-type").value, id = Math.max(...Object.keys(doc.objects).map(Number), ...(doc.deletedObjectIds ?? [])) + 1;
     const { floor } = defaults();
     const d = { type, id, raycastTransparent: type !== "wall", collides: type === "wall", jumpable: false, crouchable: false };
-    if (type === "passage") Object.assign(d, { floorTexture: "textures/mossy.png", ceilingTexture: "textures/wood.png" });
+    if (type === "passage") Object.assign(d, { floorTexture: "textures/wolf/mossy.png", ceilingTexture: "textures/wolf/wood.png" });
     else d.passageId = floor;
-    if (type === "wall") d.textures = { north: "textures/wood.png", east: "textures/wood.png", south: "textures/wood.png", west: "textures/wood.png" };
+    if (type === "wall") d.textures = { north: "textures/wolf/wood.png", east: "textures/wolf/wood.png", south: "textures/wolf/wood.png", west: "textures/wolf/wood.png" };
     if (type === "sprite") {
         const used = new Set(Object.values(doc.objects).filter(o => o.type === "sprite").map(o => o.textureLayer));
         let layer = 0; while (used.has(layer)) layer++;
         if (layer > 255) throw Error("All 256 sprite texture layers are already in use.");
-        Object.assign(d, { texture: "textures/barrel.png", textureLayer: layer });
+        Object.assign(d, { texture: "textures/wolf/barrel.png", textureLayer: layer });
     }
     if (type === "spriteGroup") d.sprites = [];
     change(() => { doc.objects[id] = d; doc.map.objects[id] = `../objects/editor/${doc.name}/${id}.json`; });

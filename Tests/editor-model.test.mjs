@@ -62,7 +62,7 @@ for (const collisionRadius of [0, -1, 0.5, NaN, Infinity])
 assert.deepEqual(Object.keys(usedObjects({ map, objects })), ["0", "1", "2", "3"]);
 assert.throws(() => usedObjects({ map, objects: { 0: passage, 1: wall, 3: group } }));
 assert.throws(() => checkGrid({ ...map, worldMap: [[0], [0, 0]] }));
-assert.throws(() => checkDefinition({ ...wall, floorTexture: "textures/wood.png" }, objects));
+assert.throws(() => checkDefinition({ ...wall, floorTexture: "textures/wolf/wood.png" }, objects));
 assert.throws(() => checkDefinition({ ...wall, passageId: 2 }, objects));
 assert.throws(() => checkDefinition({ ...sprite, textureLayer: 256 }, objects));
 assert.throws(() => checkDefinition({ ...group, sprites: [{ spriteId: 1, offset: { x: 0, y: 0 } }] }, objects));

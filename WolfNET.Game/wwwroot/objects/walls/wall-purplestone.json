@@ -7,9 +7,9 @@
   "crouchable": false,
   "passageId": 0,
   "textures": {
-    "north": "textures/purplestone.png",
-    "east": "textures/purplestone.png",
-    "south": "textures/purplestone.png",
-    "west": "textures/purplestone.png"
+    "north": "textures/wolf/purplestone.png",
+    "east": "textures/wolf/purplestone.png",
+    "south": "textures/wolf/purplestone.png",
+    "west": "textures/wolf/purplestone.png"
   }
 }
