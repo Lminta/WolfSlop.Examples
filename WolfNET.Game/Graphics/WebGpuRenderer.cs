@@ -83,6 +83,14 @@ public sealed class WebGpuRenderer : IDisposable
 
         try
         {
+            if (!_js.Get<bool>("window.isSecureContext"))
+            {
+                throw new NotSupportedException(
+                    "WebGPU requires a secure connection. Open this game over HTTPS " +
+                    "with a certificate trusted by this device. HTTP only works on localhost; " +
+                    "an HTTP LAN IP address cannot use WebGPU. See README.md for LAN HTTPS setup.");
+            }
+
             // 1. Request GPU adapter and device.
 
             using var navigator =
@@ -90,7 +98,8 @@ public sealed class WebGpuRenderer : IDisposable
 
             using var gpu = navigator.Gpu
                 ?? throw new NotSupportedException(
-                    "WebGPU is not supported.");
+                    "WebGPU is unavailable in this browser. Use a WebGPU-capable browser " +
+                    "with hardware acceleration enabled and a supported graphics driver.");
 
             Console.WriteLine("[GPU] Requesting adapter");
 
@@ -429,13 +438,13 @@ public sealed class WebGpuRenderer : IDisposable
             _textureSampler = _device.CreateSampler(new GPUSamplerDescriptor
             {
                 Label = "WolfNET Wall and Sprite Filtering",
-                MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear", MaxAnisotropy = 8,
+                MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear", MaxAnisotropy = _settings.MaxAnisotropy,
                 AddressModeU = "clamp-to-edge", AddressModeV = "clamp-to-edge"
             });
             _surfaceSampler = _device.CreateSampler(new GPUSamplerDescriptor
             {
                 Label = "WolfNET Repeating Surface Filtering",
-                MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear", MaxAnisotropy = 8,
+                MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear", MaxAnisotropy = _settings.MaxAnisotropy,
                 AddressModeU = "repeat", AddressModeV = "repeat"
             });
             using var queue = _device.Queue;
@@ -481,7 +490,7 @@ public sealed class WebGpuRenderer : IDisposable
                 }
             }
             _wallTextureView = _wallTextures.CreateView();
-            Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers, {size}x{size}, {mipLevels} mip levels, 8x anisotropic filtering)");
+            Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers, {size}x{size}, {mipLevels} mip levels, {_settings.MaxAnisotropy}x anisotropic filtering)");
         }
         finally
         {
@@ -570,6 +579,11 @@ public sealed class WebGpuRenderer : IDisposable
 
     private void ValidateSettings()
     {
+        if (_settings.MaxAnisotropy is < 1 or > 16)
+            throw new ArgumentException("Graphics maxAnisotropy must be between 1 and 16.");
+        if (_settings.TargetFPS <= 0)
+            throw new ArgumentException("Graphics targetFPS must be positive.");
+
         if (_settings.Width <= 0 ||
             _settings.Height <= 0)
         {

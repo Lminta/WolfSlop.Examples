@@ -10,9 +10,12 @@ The solution contains sibling projects:
 
 Build both applications with `dotnet build WolfNET.slnx`.
 
-Texture rendering uses mipmaps, trilinear filtering and 8× anisotropic filtering
+Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filtering
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.
+
+Edit `WolfNET.Game/wwwroot/graphics-settings.json` to change render width, height,
+target FPS, and `maxAnisotropy` (1–16, default 4). Reload the game to apply changes.
 
 Shader and pixel regression tests can run independently of the game loop:
 
@@ -102,6 +105,21 @@ dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile https
 Install the `rootCA.pem` from the directory printed by `mkcert -CAROOT` into each client's trusted certificate authorities, following that device's certificate trust instructions. On iOS, also enable full trust in Certificate Trust Settings. Share only the public `rootCA.pem`, never `rootCA-key.pem` or `lan-key.pem`. Regenerate the server certificate if the LAN IP changes. The environment variables above apply to the current terminal; configure them in Rider's run configuration if launching there.
 
 ## Connection troubleshooting
+
+If the page loads but reports that WebGPU requires a secure connection, check
+`window.isSecureContext` and `navigator.gpu` in the browser console on the client PC.
+An HTTP LAN URL is not a secure context, even though HTTP localhost works on the
+server PC. Use the HTTPS profile and trusted LAN certificate described above.
+If the context is secure but `navigator.gpu` is absent, check that the client browser
+supports WebGPU and has hardware acceleration enabled.
+
+A refused WebSocket connection to `ws://localhost:<port>/` from
+`aspnetcore-browser-refresh.js` is the development browser-refresh service trying
+to connect to the client PC's own localhost. It is separate from WebGPU rendering.
+For LAN testing, start with `dotnet run` as shown above rather than `dotnet watch`
+or the IDE's browser-refresh integration. When using `dotnet watch`, set
+`$env:DOTNET_WATCH_SUPPRESS_BROWSER_REFRESH = "true"` before starting it to suppress
+automatic browser refresh.
 
 If another device cannot connect, check Windows Firewall and ensure the devices are on the same LAN without guest Wi-Fi/client isolation. If needed, run this in an administrator PowerShell to allow only local-subnet connections to these ports:
 
