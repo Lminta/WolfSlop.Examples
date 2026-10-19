@@ -52,6 +52,10 @@ Barrels use Z = -0.2 to compensate for transparent padding and remain grounded; 
 Texture paths are relative to the application base, e.g. `textures/wood.png`.
 Images may use different resolutions. The renderer resamples them into a shared array,
 preserving source resolution up to 2048px per side and a 128 MiB scene texture budget.
+All texture layers have a complete mip chain, with trilinear and 8× anisotropic
+filtering to reduce distant texture shimmer and moiré. The memory budget includes
+mipmaps. Wall and floor gradients are calculated before texture-coordinate wrapping;
+sprites use premultiplied alpha filtering to avoid dark fringes around cutouts.
 Missing fields and failed image loads render pink. Sprite transparency uses the image's
 alpha channel, including partial alpha; opaque black remains visible.
 Different images cannot claim the same explicit sprite

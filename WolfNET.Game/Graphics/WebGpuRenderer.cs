@@ -39,6 +39,8 @@ public sealed class WebGpuRenderer : IDisposable
     private GPUBindGroup? _renderBindGroup;
     private GPUTexture? _wallTextures;
     private GPUTextureView? _wallTextureView;
+    private GPUSampler? _textureSampler;
+    private GPUSampler? _surfaceSampler;
 
     // Reusable CPU buffers.
     private readonly float[] _cameraData = new float[8];
@@ -263,7 +265,7 @@ public sealed class WebGpuRenderer : IDisposable
                         Format = format,
                         Blend = new GPUBlendState
                         {
-                            Color = new GPUBlendComponent { SrcFactor = "src-alpha", DstFactor = "one-minus-src-alpha", Operation = "add" },
+                            Color = new GPUBlendComponent { SrcFactor = "one", DstFactor = "one-minus-src-alpha", Operation = "add" },
                             Alpha = new GPUBlendComponent { SrcFactor = "one", DstFactor = "one-minus-src-alpha", Operation = "add" }
                         }
                     }]
@@ -353,7 +355,9 @@ public sealed class WebGpuRenderer : IDisposable
                 new GPUBindGroupEntry { Binding = 2, Resource = _wallTextureView! },
                 BufferEntry(3, _worldMapBuffer!),
                 BufferEntry(4, _mapInfoBuffer!),
-                BufferEntry(6, _materialsBuffer)
+                BufferEntry(6, _materialsBuffer),
+                new GPUBindGroupEntry { Binding = 7, Resource = _textureSampler! },
+                new GPUBindGroupEntry { Binding = 8, Resource = _surfaceSampler! }
             ]
         });
         _preparedTextures = map.Textures;
@@ -376,6 +380,9 @@ public sealed class WebGpuRenderer : IDisposable
         _materialsBuffer = null;
         _wallTextureView?.Dispose();
         _wallTextureView = null;
+        _textureSampler?.Dispose();
+        _surfaceSampler?.Dispose();
+        _textureSampler = _surfaceSampler = null;
         _wallTextures?.Destroy();
         _wallTextures?.Dispose();
         _wallTextures = null;
@@ -407,15 +414,29 @@ public sealed class WebGpuRenderer : IDisposable
                 size = Math.Max(size, (uint)Math.Max(image.NaturalWidth, image.NaturalHeight));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            // Preserve source detail while limiting the full array to 128 MiB and 2048px per side.
-            var memoryLimit = (uint)Math.Sqrt(128 * 1024 * 1024 / (4.0 * catalog.LayerCount));
+            // Include the complete mip pyramid in the 128 MiB scene texture budget.
+            var memoryLimit = (uint)Math.Sqrt(128 * 1024 * 1024 / (4.0 * catalog.LayerCount * (4.0 / 3.0)));
             size = Math.Min(size, Math.Min(2048u, memoryLimit));
+            var mipLevels = (uint)Math.Floor(Math.Log2(size)) + 1;
             _wallTextures = _device!.CreateTexture(new GPUTextureDescriptor
             {
                 Label = "WolfNET Scene Textures",
                 Size = [(int)size, (int)size, (int)catalog.LayerCount],
+                MipLevelCount = (int)mipLevels,
                 Format = "rgba8unorm",
                 Usage = GPUTextureUsage.TextureBinding | GPUTextureUsage.CopyDst | GPUTextureUsage.RenderAttachment
+            });
+            _textureSampler = _device.CreateSampler(new GPUSamplerDescriptor
+            {
+                Label = "WolfNET Wall and Sprite Filtering",
+                MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear", MaxAnisotropy = 8,
+                AddressModeU = "clamp-to-edge", AddressModeV = "clamp-to-edge"
+            });
+            _surfaceSampler = _device.CreateSampler(new GPUSamplerDescriptor
+            {
+                Label = "WolfNET Repeating Surface Filtering",
+                MagFilter = "linear", MinFilter = "linear", MipmapFilter = "linear", MaxAnisotropy = 8,
+                AddressModeU = "repeat", AddressModeV = "repeat"
             });
             using var queue = _device.Queue;
             using var window = _js.Get<Window>("window");
@@ -424,38 +445,43 @@ public sealed class WebGpuRenderer : IDisposable
             using var pixels = new Uint8Array(pink);
             for (uint layer = 0; layer < catalog.LayerCount; layer++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var extent = new GPUExtent3DDict { Width = size, Height = size, DepthOrArrayLayers = 1 };
-                if (!images.TryGetValue(layer, out var image))
-                {
-                    // Holes and missing images remain visible as solid pink.
-                    queue.WriteTexture(new GPUTexelCopyTextureInfo
-                        { Texture = _wallTextures, Origin = new GPUOrigin3DDict { Z = layer } },
-                        pixels, new GPUTexelCopyBufferLayout { BytesPerRow = size * 4, RowsPerImage = size }, extent);
-                    continue;
-                }
-                using var bitmap = await window.CreateImageBitmap(image, new ImageBitmapOptions
-                {
-                    ResizeWidth = (int)size,
-                    ResizeHeight = (int)size,
-                    ResizeQuality = "high",
-                    PremultiplyAlpha = "none"
-                });
-                try
+                for (uint mip = 0; mip < mipLevels; mip++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    queue.CopyExternalImageToTexture(new GPUCopyExternalImageSourceInfo { Source = bitmap },
-                        new GPUCopyExternalImageDestInfo
-                        {
-                            Texture = _wallTextures,
-                            Origin = new GPUOrigin3DDict { Z = layer },
-                            PremultipliedAlpha = false
-                        }, extent);
+                    var mipSize = Math.Max(1u, size >> (int)mip);
+                    var extent = new GPUExtent3DDict { Width = mipSize, Height = mipSize, DepthOrArrayLayers = 1 };
+                    if (!images.TryGetValue(layer, out var image))
+                    {
+                        // Populate every mip of holes and missing images with solid pink.
+                        queue.WriteTexture(new GPUTexelCopyTextureInfo
+                            { Texture = _wallTextures, MipLevel = mip, Origin = new GPUOrigin3DDict { Z = layer } },
+                            pixels, new GPUTexelCopyBufferLayout { BytesPerRow = mipSize * 4, RowsPerImage = mipSize }, extent);
+                        continue;
+                    }
+                    // High-quality area resampling creates the minification levels once per scene.
+                    using var bitmap = await window.CreateImageBitmap(image, new ImageBitmapOptions
+                    {
+                        ResizeWidth = (int)mipSize,
+                        ResizeHeight = (int)mipSize,
+                        ResizeQuality = "high",
+                        PremultiplyAlpha = "premultiply"
+                    });
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        queue.CopyExternalImageToTexture(new GPUCopyExternalImageSourceInfo { Source = bitmap },
+                            new GPUCopyExternalImageDestInfo
+                            {
+                                Texture = _wallTextures, MipLevel = mip,
+                                Origin = new GPUOrigin3DDict { Z = layer },
+                                PremultipliedAlpha = true
+                            }, extent);
+                    }
+                    finally { bitmap.Close(); }
                 }
-                finally { bitmap.Close(); }
             }
             _wallTextureView = _wallTextures.CreateView();
-            Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers, {size}x{size})");
+            Console.WriteLine($"[GPU] Loaded scene texture array ({catalog.LayerCount} layers, {size}x{size}, {mipLevels} mip levels, 8x anisotropic filtering)");
         }
         finally
         {
@@ -496,7 +522,8 @@ public sealed class WebGpuRenderer : IDisposable
                     BufferEntry(0, _rayHitsBuffer!),
                     BufferEntry(1, _cameraBuffer!),
                     new GPUBindGroupEntry { Binding = 2, Resource = _wallTextureView! },
-                    BufferEntry(3, _spriteBuffer)
+                    BufferEntry(3, _spriteBuffer),
+                    new GPUBindGroupEntry { Binding = 4, Resource = _textureSampler! }
                 ]
             });
 

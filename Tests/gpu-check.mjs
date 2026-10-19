@@ -15,7 +15,7 @@ export async function checkGpu(sources) {
     const computePipeline = await device.createComputePipelineAsync({layout: "auto", compute: {module: modules.raycast, entryPoint: "main"}});
     const pipeline = (module, entryPoint, alpha = false) => device.createRenderPipelineAsync({layout: "auto",
         vertex: {module, entryPoint: "vertexMain"}, fragment: {module, entryPoint, targets: [{format: "rgba8unorm",
-            ...(alpha ? {blend: {color: {srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha"},
+            ...(alpha ? {blend: {color: {srcFactor: "one", dstFactor: "one-minus-src-alpha"},
                 alpha: {srcFactor: "one", dstFactor: "one-minus-src-alpha"}}} : {})}]}});
     const walls = await pipeline(modules.walls, "fragmentMain");
     const spritePipeline = await pipeline(modules.sprites, "fragmentMain", true);
@@ -39,9 +39,14 @@ export async function checkGpu(sources) {
     const bind = (pipe, entries) => device.createBindGroup({layout: pipe.getBindGroupLayout(0), entries});
     const entry = (binding, value) => ({binding, resource: {buffer: value}});
     const textureEntry = {binding: 2, resource: textures.createView()};
+    // Keep geometry/color fixtures exact; the filtering regression below uses real mip samplers.
+    const clampSampler = device.createSampler({addressModeU:"clamp-to-edge",addressModeV:"clamp-to-edge"});
+    const repeatSampler = device.createSampler({addressModeU:"repeat",addressModeV:"repeat"});
     const computeGroup = bind(computePipeline, [entry(0,camera),entry(1,cells),entry(2,hits),entry(3,info)]);
-    const wallGroup = bind(walls, [entry(0,hits),entry(1,camera),textureEntry,entry(3,cells),entry(4,info),entry(6,materials)]);
-    const spriteGroup = bind(spritePipeline, [entry(0,hits),entry(1,camera),textureEntry,entry(3,sprites)]);
+    const wallGroup = bind(walls, [entry(0,hits),entry(1,camera),textureEntry,entry(3,cells),entry(4,info),entry(6,materials),
+        {binding:7,resource:clampSampler},{binding:8,resource:repeatSampler}]);
+    let activeWallGroup = wallGroup;
+    const spriteGroup = bind(spritePipeline, [entry(0,hits),entry(1,camera),textureEntry,entry(3,sprites),{binding:4,resource:clampSampler}]);
     const minimapGroup = bind(minimap, [entry(0,hits),entry(1,camera),entry(3,cells),entry(4,info),entry(5,sprites)]);
     const target = device.createTexture({size: [128,128], format: "rgba8unorm", usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC});
     const readback = device.createBuffer({size: 512 * 128, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
@@ -69,7 +74,7 @@ export async function checkGpu(sources) {
         compute.setPipeline(computePipeline); compute.setBindGroup(0,computeGroup); compute.dispatchWorkgroups(2); compute.end();
         const pass = encoder.beginRenderPass({colorAttachments: [{view: target.createView(),clearValue:[0,0,0,1],loadOp:"clear",storeOp:"store"}]});
         pass.setViewport(0,0,width,height,0,1);
-        pass.setPipeline(walls); pass.setBindGroup(0,wallGroup); pass.draw(3);
+        pass.setPipeline(walls); pass.setBindGroup(0,activeWallGroup); pass.draw(3);
         if (count) { pass.setPipeline(spritePipeline); pass.setBindGroup(0,spriteGroup); pass.draw(6,count); }
         if (overlay) { pass.setPipeline(minimap); pass.setBindGroup(0,minimapGroup); pass.draw(3); }
         pass.end();
@@ -126,7 +131,7 @@ export async function checkGpu(sources) {
     for (let i = 0; i < solid.length; i += 4) solid.set([0,0,0,255], i);
     device.queue.writeTexture({texture: textures, origin: [0,0,7]}, solid, {bytesPerRow:16,rowsPerImage:4}, [4,4,1]);
     assert(equal((await draw(-1,0,2)).pixel(64,64),[0,0,0,255]), "Opaque black sprite became transparent");
-    for (let i = 0; i < solid.length; i += 4) solid.set([255,0,0,128], i);
+    for (let i = 0; i < solid.length; i += 4) solid.set([128,0,0,128], i);
     device.queue.writeTexture({texture: textures, origin: [0,0,7]}, solid, {bytesPerRow:16,rowsPerImage:4}, [4,4,1]);
     assert(equal((await draw(-1,0,2)).pixel(64,64),[128,127,0,255]), "Partial alpha did not blend with the sprite behind it");
     for (const [width,height] of [[128,72],[128,128],[72,128]]) {
@@ -166,8 +171,8 @@ export async function checkGpu(sources) {
     assert(lowered && Math.abs(lowered.centerY-(64+unitSize*.25))<=1, "Negative offset.z did not move the billboard down");
     setSprites([[1,2.5,2,11,0,0,0]]);
     assert(blueBounds(await draw(-1,0,1))===null, "Zero-scale billboard still rendered");
-    setSprites([[3.5,2.5,1,14]]);
-    assert(!equal((await draw(-1,0,1)).pixel(64,64),colors[1]), "Sprite behind camera remained visible");
+    setSprites([[3.5,2.5,2,14]]);
+    assert(!equal((await draw(-1,0,1)).pixel(64,64),colors[2]), "Sprite behind camera remained visible");
     result = await draw(-1,0,0,true);
     assert(equal(result.pixel(36,36),[69,191,255,255]), "GPU minimap player marker missing");
     // Facing north, A moves toward +world X: the minimap marker must move left.
@@ -181,8 +186,40 @@ export async function checkGpu(sources) {
     result = await draw(0,-1,1,true);
     assert(equal(result.pixel(44,36),[130,145,158,255]), "Minimap wall did not follow horizontal reflection");
     assert(equal(result.pixel(44,44),[227,173,97,255]), "Minimap sprite did not follow horizontal reflection");
+    // A one-texel camera movement flips a distant, unfiltered checkerboard. Mips
+    // must converge to its average instead, on walls and sloped floor/ceiling rays.
+    const mipTexture = device.createTexture({size:[256,256,8],mipLevelCount:9,format:"rgba8unorm",
+        usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST});
+    for (let layer=0;layer<8;layer++) for (let mip=0;mip<9;mip++) {
+        const size=256>>mip, data=new Uint8Array(size*size*4);
+        for (let y=0;y<size;y++) for (let x=0;x<size;x++) {
+            const value=mip===0?((x+y)%2)*255:128;
+            data.set([value,value,value,255],(y*size+x)*4);
+        }
+        device.queue.writeTexture({texture:mipTexture,mipLevel:mip,origin:[0,0,layer]},data,
+            {bytesPerRow:size*4,rowsPerImage:size},[size,size,1]);
+    }
+    const filteredClamp=device.createSampler({magFilter:"linear",minFilter:"linear",mipmapFilter:"linear",maxAnisotropy:8});
+    const filteredRepeat=device.createSampler({magFilter:"linear",minFilter:"linear",mipmapFilter:"linear",maxAnisotropy:8,
+        addressModeU:"repeat",addressModeV:"repeat"});
+    const filteredGroup=(view,clamp,repeat)=>bind(walls,[entry(0,hits),entry(1,camera),{binding:2,resource:view},
+        entry(3,cells),entry(4,info),entry(6,materials),{binding:7,resource:clamp},{binding:8,resource:repeat}]);
+    resetMap(); setMaterial([0,1,2,3]);
+    activeWallGroup=filteredGroup(mipTexture.createView({mipLevelCount:1}),clampSampler,repeatSampler);
+    const noisyA=await draw(-1,0,0,false,3.5,2.5), noisyB=await draw(-1,0,0,false,3.5,2.5+1/256);
+    const unfilteredChange=Math.abs(noisyA.pixel(64,64)[0]-noisyB.pixel(64,64)[0]);
+    assert(unfilteredChange>200,"Checkerboard control did not expose minification aliasing");
+    activeWallGroup=filteredGroup(mipTexture.createView(),filteredClamp,filteredRepeat);
+    const smoothA=await draw(-1,0,0,false,3.5,2.5), smoothB=await draw(-1,0,0,false,3.5,2.5+1/256);
+    assert(equal(smoothA.pixel(64,64),[128,128,128,255])&&equal(smoothB.pixel(64,64),[128,128,128,255]),
+        "Wall mip filtering did not remove checkerboard shimmer");
+    assert(equal(smoothA.pixel(64,118),[128,128,128,255]),"Floor gradients selected the wrong mip level");
+    assert(equal(smoothA.pixel(64,5),[128,128,128,255]),"Ceiling gradients selected the wrong mip level");
+    activeWallGroup=wallGroup;
+    mipTexture.destroy();
     await device.queue.onSubmittedWorkDone();
     assert(errors.length === 0, "GPU validation errors: " + errors.join("; "));
     device.destroy();
-    return {checks, passed:true};
+    return {checks, passed:true, unfilteredCheckerboardChange:unfilteredChange, filteredCheckerboardChange:
+        Math.abs(smoothA.pixel(64,64)[0]-smoothB.pixel(64,64)[0])};
 }

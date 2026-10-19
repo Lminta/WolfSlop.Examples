@@ -10,6 +10,21 @@ The solution contains sibling projects:
 
 Build both applications with `dotnet build WolfNET.slnx`.
 
+Texture rendering uses mipmaps, trilinear filtering and 8× anisotropic filtering
+to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
+filtering preserves alpha without adding dark borders.
+
+Shader and pixel regression tests can run independently of the game loop:
+
+```powershell
+node Tests/gpu-browser-check.mjs 9252 http://127.0.0.1:5195
+```
+
+Start the game at the specified address and Chromium with remote debugging on that
+port first. For headless GPU testing, use `--enable-unsafe-webgpu` and
+`--use-webgpu-adapter=swiftshader`. The pixel checks cover projection, sprite scaling,
+alpha blending, and camera movement over distant checkerboards with and without mipmaps.
+
 ## Map editor
 
 Open `WolfNET.slnx` in Rider to see the engine, browser map editor, and regression checks.

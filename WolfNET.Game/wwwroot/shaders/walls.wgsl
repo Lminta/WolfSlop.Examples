@@ -61,6 +61,8 @@ var wallTextures: texture_2d_array<f32>;
 @group(0) @binding(5) var<storage, read> sprites: array<Sprite>;
 
 @group(0) @binding(6) var<storage, read> materials: array<WallMaterial>;
+@group(0) @binding(7) var wallSampler: sampler;
+@group(0) @binding(8) var surfaceSampler: sampler;
 
 // A final overlay pass on the game canvas, using the compute pass's DDA results.
 @fragment
@@ -152,13 +154,14 @@ fn vertexMain(
     return output;
 }
 
-fn sampleTexture(layer: u32, uv: vec2f) -> vec3f {
+fn sampleTexture(layer: u32, uv: vec2f, gradientX: vec2f, gradientY: vec2f, repeat: bool) -> vec3f {
     if (layer == 0xffffffffu || layer >= textureNumLayers(wallTextures)) {
         return vec3f(1.0, 0.0, 1.0);
     }
-    let dimensions = textureDimensions(wallTextures, 0);
-    let texel = vec2i(clamp(uv * vec2f(dimensions), vec2f(0.0), vec2f(dimensions) - vec2f(1.0)));
-    return textureLoad(wallTextures, texel, i32(layer), 0).rgb;
+    if (repeat) {
+        return textureSampleGrad(wallTextures, surfaceSampler, uv, i32(layer), gradientX, gradientY).rgb;
+    }
+    return textureSampleGrad(wallTextures, wallSampler, uv, i32(layer), gradientX, gradientY).rgb;
 }
 
 fn floorCeilingColor(position: vec2f) -> vec4f {
@@ -168,7 +171,7 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     }
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
     let distance = focalLength * 0.5 / abs(horizonOffset);
-    let cameraX = 2.0 * floor(position.x) / camera.screenSize.x - 1.0;
+    let cameraX = 2.0 * position.x / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
     let worldPosition = camera.position + rayDir * distance;
     // Surface textures belong to the projected cell, not the camera's current tile.
@@ -179,7 +182,10 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     let tile = vec2u(worldPosition);
     let cell = worldMap[tile.y * mapInfo.width + tile.x];
     let layer = select(cell.ceilingLayer, cell.floorLayer, horizonOffset > 0.0);
-    return vec4f(sampleTexture(layer, fract(worldPosition)), 1.0);
+    // Gradients of the continuous world coordinates, before fract() wraps at tile seams.
+    let gradientX = camera.plane * (2.0 * distance / camera.screenSize.x);
+    let gradientY = -rayDir * (distance / horizonOffset);
+    return vec4f(sampleTexture(layer, fract(worldPosition), gradientX, gradientY, true), 1.0);
 }
 @fragment
 fn fragmentMain(
@@ -232,7 +238,21 @@ fn fragmentMain(
     if (hit.side == 1u) {
         layer = select(material.south, material.north, rayDir.y > 0.0);
     }
-    var color = sampleTexture(layer, vec2f(hit.wallU, wallV));
+    // Differentiate this wall plane analytically. Neighboring rays may hit a different
+    // tile or face, so derivatives of the wrapped wallU would pick incorrect mip levels.
+    let rayStep = camera.plane * (2.0 / camera.screenSize.x);
+    let rayNormal = select(rayDir.y, rayDir.x, hit.side == 0u);
+    let stepNormal = select(rayStep.y, rayStep.x, hit.side == 0u);
+    let rayAlong = select(rayDir.x, rayDir.y, hit.side == 0u);
+    let stepAlong = select(rayStep.x, rayStep.y, hit.side == 0u);
+    let distanceStep = -hit.distance * stepNormal / rayNormal;
+    var wallUStep = hit.distance * stepAlong + distanceStep * rayAlong;
+    if ((hit.side == 0u && rayDir.x > 0.0) || (hit.side == 1u && rayDir.y < 0.0)) {
+        wallUStep = -wallUStep;
+    }
+    let gradientX = vec2f(wallUStep, (y - screenHeight * 0.5) * distanceStep / focalLength);
+    let gradientY = vec2f(0.0, 1.0 / lineHeight);
+    var color = sampleTexture(layer, vec2f(hit.wallU, wallV), gradientX, gradientY, false);
     if (hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {
         color *= 0.5;
     }

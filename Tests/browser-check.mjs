@@ -168,12 +168,16 @@ try {
     }
     await assertKeyboardInactive("Keyboard moved the player before capture");
     await captureMouse();
-    await key("keyDown","KeyA"); await delay(100); await key("keyUp","KeyA"); await delay(50);
+    await key("keyDown","KeyA");
+    await waitFor(`window.__camera[1]<${start[1]}`);
+    await key("keyUp","KeyA"); await delay(50);
     const left=await evaluate("window.__camera");
     assert(left[1]<start[1]&&left[0]===start[0]&&left[2]===start[2],"Navigation-map strafing failed");
     await delay(100);
     assert((await evaluate("window.__camera"))[1]===left[1],"Movement continued after key release");
-    await key("keyDown","KeyD"); await delay(100); await key("keyUp","KeyD"); await delay(50);
+    await key("keyDown","KeyD");
+    await waitFor(`window.__camera[1]>${left[1]}`);
+    await key("keyUp","KeyD"); await delay(50);
     const right=await evaluate("window.__camera");
     assert(right[1]>left[1]&&right[0]===left[0],"D did not strafe right");
     assert(right.slice(2,6).every((value,i)=>value===left[i+2]),"A/D strafing changed the viewing direction");
@@ -257,7 +261,7 @@ try {
     await captureMouse();
     const beforeStaleError=await evaluate("window.__camera");
     await evaluate(`document.dispatchEvent(new Event('pointerlockerror'));document.dispatchEvent(new MouseEvent('mousemove',{movementX:40}))`);
-    await delay(100);
+    await waitFor(`window.__camera[2]!==${beforeStaleError[2]}||window.__camera[3]!==${beforeStaleError[3]}`);
     const afterStaleError=await evaluate("window.__camera");
     assert(afterStaleError[2]!==beforeStaleError[2]||afterStaleError[3]!==beforeStaleError[3],"Delayed pointerlockerror disabled an active capture");
     await evaluate("document.exitPointerLock()");

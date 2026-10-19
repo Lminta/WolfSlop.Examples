@@ -33,6 +33,7 @@ struct VertexOutput {
 @group(0) @binding(1) var<uniform> camera: Camera;
 @group(0) @binding(2) var spriteTextures: texture_2d_array<f32>;
 @group(0) @binding(3) var<storage, read> sprites: array<Sprite>;
+@group(0) @binding(4) var spriteSampler: sampler;
 
 @vertex
 fn vertexMain(
@@ -83,19 +84,17 @@ fn vertexMain(
 
 @fragment
 fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
+    // Evaluate derivatives before the per-column occlusion branch/discard.
+    let gradientX = dpdx(input.uv);
+    let gradientY = dpdy(input.uv);
     let hit = rayHits[u32(input.position.x)];
     // The compute ray distances serve as Lode's one-dimensional Z buffer.
     if (hit.hitCell != 0u && hit.hitCell != input.ownerCell && input.depth >= hit.distance) {
         discard;
     }
 
-    let dimensions = textureDimensions(spriteTextures, 0);
-    let texel = vec2i(clamp(
-        input.uv * vec2f(dimensions),
-        vec2f(0.0),
-        vec2f(dimensions) - vec2f(1.0)
-    ));
-    let color = textureLoad(spriteTextures, texel, i32(input.textureLayer), 0);
+    // Mips store premultiplied RGBA; blending uses ONE, ONE_MINUS_SRC_ALPHA.
+    let color = textureSampleGrad(spriteTextures, spriteSampler, input.uv, i32(input.textureLayer), gradientX, gradientY);
     if (color.a == 0.0) {
         discard;
     }
