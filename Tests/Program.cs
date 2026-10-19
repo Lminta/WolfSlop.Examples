@@ -71,7 +71,7 @@ Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.C
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(6.5f, 10.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 43, "Showcase sprite demonstrations missing");
+Check(showcase.RendererMap.Sprites.Count == 75, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
@@ -111,13 +111,23 @@ Check(ShowcaseCell(3, 4).FloorTextureLayer != ShowcaseCell(3, 3).FloorTextureLay
 Check(ShowcaseCell(15, 21).FloorTextureLayer == TextureCatalog.MissingLayer && ShowcaseCell(15, 21).CeilingTextureLayer == TextureCatalog.MissingLayer, "Showcase missing surface fields not demonstrated");
 Check(showcase.RendererMap.Materials[(int)ShowcaseCell(18, 17).MaterialIndex].West == TextureCatalog.MissingLayer, "Showcase missing wall face not demonstrated");
 Check(showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 11) && showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 12), "Showcase missing sprites not demonstrated");
+foreach (var (x, y, jump) in new[] { (26, 8, true), (26, 4, false), (30, 4, true), (30, 8, false) })
+{
+    Check(!showcase.NavigationMap.IsWalkable(x,y), "Corridor obstacle allows standing movement");
+    Check(showcase.NavigationMap.IsWalkable(x,y,inAir:true) == jump &&
+          showcase.NavigationMap.IsWalkable(x,y,crouching:true) == !jump, "Corridor obstacle requires the wrong movement");
+    Check(showcase.NavigationMap.IsWalkable(x,y-1) && showcase.NavigationMap.IsWalkable(x,y+1), "Corridor obstacle lacks approach/landing space");
+    Check(!showcase.NavigationMap.IsWalkable(x-1,y) && !showcase.NavigationMap.IsWalkable(x+1,y), "Corridor obstacle can be bypassed sideways");
+}
+Check(showcase.NavigationMap.IsWalkable(24,11), "Obstacle corridor entrance is blocked");
 var reachable = new HashSet<(int X, int Y)> { (6, 10) };
 var frontier = new Queue<(int X, int Y)>(); frontier.Enqueue((6, 10));
 while (frontier.TryDequeue(out var cell))
 foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
 {
     var next = (X: cell.X + dx, Y: cell.Y + dy);
-    if (showcase.NavigationMap.IsWalkable(next.X, next.Y) && reachable.Add(next)) frontier.Enqueue(next);
+    if ((showcase.NavigationMap.IsWalkable(next.X, next.Y, inAir:true) ||
+         showcase.NavigationMap.IsWalkable(next.X, next.Y, crouching:true)) && reachable.Add(next)) frontier.Enqueue(next);
 }
 for (int x = 0; x < showcase.RendererMap.Width; x++)
 for (int y = 0; y < showcase.RendererMap.Height; y++)
