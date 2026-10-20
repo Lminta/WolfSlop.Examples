@@ -1,0 +1,10 @@
+{
+  "type": "passage",
+  "id": 56,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "floorTexture": "textures/wolf/mossy.png",
+  "ceilingMode": "sky"
+}

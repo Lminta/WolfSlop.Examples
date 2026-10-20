@@ -28,44 +28,73 @@ async Task RejectLoad<T>(HttpClient client, string message, CancellationToken to
 }
 
 var map = await GameMap.LoadAsync(http, "maps/level1.json", 64, 64);
-using var original = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "Tests/Fixtures/original-level.json")));
-var originalGrid = original.RootElement.GetProperty("worldMap").Deserialize<int[][]>()!;
-string[] originalWallTextures = ["eagle", "redbrick", "purplestone", "greystone", "bluestone", "mossy", "wood", "colorstone"];
-Check(map.Revision == 1 && map.RendererMap.Width == 24 && map.RendererMap.Height == 24, "Initial revision/dimensions changed");
-for (int x = 0; x < 24; x++)
-for (int y = 0; y < 24; y++)
+Check(map.Revision == 1 && map.RendererMap.Width == 35 && map.RendererMap.Height == 31, "Brickyard revision/dimensions invalid");
+Check(map.PlayerStartPosition == new Vector2(6.5f, 26.5f) && map.PlayerStartDirection == Vector2.UnitX, "Brickyard entrance spawn invalid");
+Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 3, "Map player speeds not loaded");
+Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(35, 31), "Outside map is walkable");
+RenderCell BrickyardCell(int x, int y) => map.RendererMap.Cells[y * map.RendererMap.Width + x];
+Check(map.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Brickyard sky missing");
+Check(BrickyardCell(12, 20).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Brickyard courtyard is not open air");
+Check(!BrickyardCell(15, 26).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
+    map.RendererMap.Textures.Layers[BrickyardCell(15, 26).CeilingTextureLayer] == "textures/wolf/mesh.png", "Loading canopy mesh ceiling missing");
+Check(!BrickyardCell(10, 26).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
+    map.RendererMap.Textures.Layers[BrickyardCell(10, 26).CeilingTextureLayer] == "textures/wolf/greystone.png", "Entrance doorway indoor ceiling missing");
+foreach (var (x, y, dx, dy, firstTexture, secondTexture) in new[]
 {
-    Check(map.NavigationMap.IsWalkable(x, y) == (originalGrid[x][y] == 0), $"Walkability changed at {x},{y}");
-    Check(map.RendererMap.Cells[y * 24 + x].Flags.HasFlag(RenderCellFlags.Wall) == (originalGrid[x][y] > 0), "Wall layout changed");
-    var cell = map.RendererMap.Cells[y * 24 + x];
-    if (originalGrid[x][y] > 0)
-    {
-        var faces = map.RendererMap.Materials[(int)cell.MaterialIndex];
-        var texture = "textures/wolf/" + originalWallTextures[originalGrid[x][y] - 1] + ".png";
-        Check(new[] { faces.North, faces.East, faces.South, faces.West }.All(layer => map.RendererMap.Textures.Layers[layer] == texture), "Migrated wall texture changed");
-    }
-    else
-        Check(map.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/wolf/mossy.png" &&
-              map.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wolf/wood.png", "Migrated passage surfaces changed");
+    (25, 16, 1, 0, "greystone", "redbrick"), // Canopy / workshop.
+    (18, 6, 1, 0, "redbrick", "greystone"), // Workshop / arcade.
+    (14, 8, 0, 1, "redbrick", "greystone"), // Workshop / loading canopy.
+    (3, 22, 0, 1, "mossy", "greystone") // Service route / gatehouse.
+})
+{
+    var partition = BrickyardCell(x, y);
+    var material = map.RendererMap.Materials[(int)partition.MaterialIndex];
+    uint firstFace = dx == 1 ? material.West : material.North;
+    uint secondFace = dx == 1 ? material.East : material.South;
+    Check(map.RendererMap.Textures.Layers[firstFace] == $"textures/wolf/{firstTexture}.png" &&
+        map.RendererMap.Textures.Layers[secondFace] == $"textures/wolf/{secondTexture}.png",
+        $"Brickyard partition at {x},{y} has incorrect textures on its exposed faces");
+    Check(partition.Flags.HasFlag(RenderCellFlags.Wall | RenderCellFlags.StopsRay) &&
+        !map.NavigationMap.IsWalkable(x, y), $"Brickyard partition at {x},{y} does not form a solid wall");
+    Check(map.NavigationMap.IsWalkable(x - dx, y - dy) && map.NavigationMap.IsWalkable(x + dx, y + dy),
+        $"Brickyard partition at {x},{y} still has a second wall layer or blocks its adjoining floor");
 }
-var expectedSprites = original.RootElement.GetProperty("sprites").EnumerateArray().Select(value =>
-    (new Vector2(value.GetProperty("x").GetSingle(), value.GetProperty("y").GetSingle()), value.GetProperty("textureLayer").GetUInt32())).ToList();
-Check(map.RendererMap.Sprites.Count == 19, "Sprite count changed");
+Check(map.Doors.Any(door => door.Definition.RaycastTransparent) && map.Doors.Any(door => !door.Definition.RaycastTransparent),
+    "Brickyard glass/steel doors missing");
+foreach (var door in map.Doors)
+{
+    Check(!map.NavigationMap.IsWalkable(door.X, door.Y), "Brickyard door starts open");
+    var normal = door.Definition.Axis == "x" ? (X: 1, Y: 0) : (X: 0, Y: 1);
+    Check(map.NavigationMap.IsWalkable(door.X - normal.X, door.Y - normal.Y) &&
+        map.NavigationMap.IsWalkable(door.X + normal.X, door.Y + normal.Y), $"Brickyard door at {door.X},{door.Y} lacks a usable approach on both sides");
+}
+Check(!map.NavigationMap.IsWalkable(6, 17) && map.NavigationMap.IsWalkable(6, 17, inAir: true), "Service jump obstacle missing");
+Check(!map.NavigationMap.IsWalkable(3, 11) && map.NavigationMap.IsWalkable(3, 11, crouching: true), "Maintenance crawl obstacle missing");
+var yardCar = map.RendererMap.Sprites.Single(sprite => sprite.Atlas != null);
+Check(yardCar.Position == new Vector2(29.5f, 5.5f) && !map.NavigationMap.IsWalkable(29, 5), "Motor court car placement/collision invalid");
 foreach (var sprite in map.RendererMap.Sprites)
 {
-    int match = expectedSprites.FindIndex(expected => expected.Item2 == sprite.TextureLayer && Vector2.Distance(expected.Item1, sprite.Position) < 0.0001);
-    Check(match >= 0, "Sprite position/texture changed");
-    expectedSprites.RemoveAt(match);
-    Check(sprite.OwnerCell > 0 && sprite.OwnerCell <= 576, "Sprite owner cell invalid");
+    Check(sprite.OwnerCell > 0 && sprite.OwnerCell <= map.RendererMap.Cells.Count, "Sprite owner cell invalid");
+    Check(map.RendererMap.Textures.Layers.ContainsKey(sprite.TextureLayer), "Sprite texture absent from scene catalog");
 }
-Check(map.PlayerStartPosition == new Vector2(22, 11.5f) && map.PlayerStartDirection == new Vector2(-1, 0), "Spawn changed");
-Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 3, "Map player speeds not loaded");
-Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(24, 24), "Outside map is walkable");
-var material = map.RendererMap.Materials[(int)map.RendererMap.Cells[0].MaterialIndex];
-Check(map.RendererMap.Textures.Layers[material.North] == "textures/wolf/colorstone.png", "Wall material changed");
-Check(material.North == material.East && material.East == material.South && material.South == material.West, "Wall faces changed");
+var yardReachable = new HashSet<(int X, int Y)> { ((int)map.PlayerStartPosition.X, (int)map.PlayerStartPosition.Y) };
+var yardFrontier = new Queue<(int X, int Y)>(yardReachable);
+var yardDoorCells = map.Doors.Select(door => (door.X, door.Y)).ToHashSet();
+while (yardFrontier.TryDequeue(out var point))
+    foreach (var step in new[] { (X: -1, Y: 0), (X: 1, Y: 0), (X: 0, Y: -1), (X: 0, Y: 1) })
+    {
+        var next = (X: point.X + step.X, Y: point.Y + step.Y);
+        if ((map.NavigationMap.IsWalkable(next.X, next.Y, inAir: true) ||
+            map.NavigationMap.IsWalkable(next.X, next.Y, crouching: true) || yardDoorCells.Contains(next)) && yardReachable.Add(next))
+            yardFrontier.Enqueue(next);
+    }
+for (int x = 0; x < map.RendererMap.Width; x++)
+for (int y = 0; y < map.RendererMap.Height; y++)
+    Check(!map.NavigationMap.IsWalkable(x, y) || yardReachable.Contains((x, y)), $"Unreachable Brickyard floor at {x},{y}");
+foreach (var landmark in new[] { (12, 20), (17, 18), (27, 26), (27, 15), (29, 7), (6, 16), (3, 10) })
+    Check(yardReachable.Contains(landmark), $"Brickyard route does not reach {landmark}");
 
-Check(fileHandler.Requests.All(path => !path.Contains("showcase") && !path.EndsWith("index.json")), "Loaded another map or global index");
+Check(fileHandler.Requests.All(path => path != "maps/showcase.json" && !path.EndsWith("index.json")), "Loaded another map or global index");
 Check(fileHandler.Requests.Count == map.Objects.Count + 1, "An object was loaded more than once");
 Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("showcase-missing")), "Unrelated map textures leaked");
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
@@ -771,6 +800,41 @@ foreach(float invalid in new[]{-1f,65f,float.NaN,float.PositiveInfinity})
 foreach(float invalid in new[]{-1f,0f,float.NaN,float.PositiveInfinity})
     Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpSpeedMultiplier=invalid}}), "Invalid jump multiplier accepted");
 
+// The Brickyard shortcut must work with the actual controller and collision circle,
+// including the return trip; tile reachability alone cannot establish a safe landing.
+foreach (var direction in new[] { Vector2.UnitY, -Vector2.UnitY })
+{
+    var center = new Vector2(6.5f, 17.5f);
+    var player = new TestObject { Transform = new Transform { Position = center - direction, Rotation = direction } };
+    var keys = new FakeKeyboard { KeyState = new() { Jump = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y, -direction.X) * .66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new FakeMouse(), map.NavigationMap, camera, map.PlayerStart, player);
+    controller.Update(0);
+    Check(Vector2.Distance(controller.JumpDestination, center + direction) < .0001f, "Brickyard shortcut has no safe jump landing");
+    controller.Update(160);
+    Check(controller.InAir && Vector2.Distance(player.Transform.Position, center) < .0001f, "Brickyard jump did not pass above its obstacle");
+    controller.Update(160);
+    Check(!controller.InAir && Vector2.Distance(player.Transform.Position, center + direction) < .0001f, "Brickyard shortcut jump did not land");
+}
+foreach (var direction in new[] { Vector2.UnitY, -Vector2.UnitY })
+{
+    var center = new Vector2(3.5f, 11.5f);
+    var player = new TestObject { Transform = new Transform { Position = center - direction, Rotation = direction } };
+    var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y, -direction.X) * .66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new FakeMouse(), map.NavigationMap, camera, map.PlayerStart, player);
+    controller.Update(200);
+    Check(Vector2.Distance(player.Transform.Position, center) > .64f, "Brickyard overhead obstacle allows standing passage");
+    keys.KeyState = new() { Forward = true, Crouch = true };
+    controller.Update(400);
+    Check(controller.Crouching && Vector2.Dot(player.Transform.Position - center, direction) > .3f, "Brickyard overhead obstacle cannot be crossed while crouched");
+    controller.Update(400);
+    keys.KeyState = new();
+    controller.Update(120);
+    Check(!controller.Crouching && camera.Elevation == 0 && Vector2.Dot(player.Transform.Position - center, direction) > .8f,
+        "Brickyard maintenance route cannot be exited upright");
+}
+
 var editorSource = new WolfNET.Editor.MapWorkspace(webRoot);
 foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, -Vector2.UnitY })
 {
@@ -881,7 +945,7 @@ try
 }
 finally { Directory.Delete(editorRoot, true); }
 assertions += await EngineChecks.RunAsync(http);
-Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
+Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler
 {

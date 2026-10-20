@@ -1,17 +1,46 @@
 // Launch the app and a Chromium browser with a remote-debugging port first.
 // node Tests/browser-check.mjs 9243 http://127.0.0.1:5194
 import fs from "node:fs";
+import path from "node:path";
 import {checkGpu} from "./gpu-check.mjs";
 
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
 const missingTextures = process.argv.includes("--missing-textures");
-const manifest = Object.values(JSON.parse(fs.readFileSync("WolfNET.Game/wwwroot/maps/level1.json", "utf8")).objects);
-const expectedImages = new Set(manifest.flatMap(file => {
-    const object = JSON.parse(fs.readFileSync(`WolfNET.Game/wwwroot/maps/${file}`, "utf8"));
-    return [object.texture, object.floorTexture, object.ceilingTexture, ...Object.values(object.textures ?? {})].filter(Boolean);
-}));
+const levelPath = path.resolve("WolfNET.Game/wwwroot/maps/level1.json");
+const level = JSON.parse(fs.readFileSync(levelPath, "utf8"));
+const definitions = new Map();
+function loadDefinition(id) {
+    if (definitions.has(id)) return;
+    const object = JSON.parse(fs.readFileSync(path.resolve(path.dirname(levelPath), level.objects[id]), "utf8"));
+    definitions.set(id, object);
+    if (object.passageId !== undefined) loadDefinition(object.passageId);
+    for (const member of object.sprites ?? []) loadDefinition(member.spriteId);
+}
+level.worldMap.flat().forEach(loadDefinition);
+const manifest = [...definitions.keys()].map(id => level.objects[id]);
+const heldObjectUrl = new URL(manifest.at(-1), appUrl + "/maps/level1.json").href;
+const expectedImages = new Set();
+let expectedSpriteCount = 0;
+for (const id of level.worldMap.flat()) {
+    const object = definitions.get(id);
+    const passage = object.type === "passage" ? object : definitions.get(object.passageId);
+    if (passage.floorTexture) expectedImages.add(passage.floorTexture);
+    if (passage.ceilingMode !== "sky" && passage.ceilingTexture) expectedImages.add(passage.ceilingTexture);
+    for (const texture of Object.values(object.textures ?? {})) if (texture) expectedImages.add(texture);
+    if (object.texture) expectedImages.add(object.texture);
+    for (const member of object.sprites ?? []) {
+        const texture = definitions.get(member.spriteId).texture;
+        if (texture) expectedImages.add(texture);
+    }
+    expectedSpriteCount += object.type === "spriteGroup" ? object.sprites.length : ["sprite", "door"].includes(object.type) ? 1 : 0;
+}
+if (level.sky?.texture) expectedImages.add(level.sky.texture);
 expectedImages.add(JSON.parse(fs.readFileSync("WolfNET.Game/wwwroot/player-character.json", "utf8")).texture);
+const expectedSpawn = [level.playerStart.x, level.playerStart.y];
+const directionLength = Math.hypot(level.playerStart.directionX, level.playerStart.directionY);
+const expectedDirection = [level.playerStart.directionX / directionLength, level.playerStart.directionY / directionLength];
+const mainMapLabel = "The Brickyard";
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:"PUT"})).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
@@ -44,7 +73,7 @@ socket.onmessage=event=>{
             void send("Fetch.fulfillRequest",{requestId,responseCode:404,body:""});
         } else {
             objectRequests.add(request.url);
-            if(request.url.endsWith("/sprite-groups/group-barrels-north-room.json")) heldObjectRequest=requestId;
+            if(request.url === heldObjectUrl) heldObjectRequest=requestId;
             else void send("Fetch.continueRequest",{requestId});
         }
     } else if(message.method==="Runtime.consoleAPICalled") {
@@ -135,11 +164,11 @@ try {
         console.log(`PASS: all ${failedTextures} unavailable textures use pink and the game still starts.`);
     }
     await send("Fetch.disable");
-    assert(logs.some(line=>line.includes("revision=1, cells=576")),"Initial compiled revision missing");
-    assert(logs.some(line=>line.includes("19 sprites")),"Migrated sprites missing");
+    assert(logs.some(line=>line.includes(`revision=1, cells=${level.worldMap.length * level.worldMap[0].length}`)),"Initial compiled revision missing");
+    assert(logs.some(line=>line.includes(`${expectedSpriteCount} sprites`)),"Level sprites missing");
     assert(await evaluate("document.querySelectorAll('canvas').length")===1,"Unexpected extra canvas");
     const start=await evaluate("window.__camera");
-    assert(start[0]===22&&start[1]===11.5&&start[2]===-1&&start[3]===0,"Migrated spawn incorrect");
+    assert(start.slice(0,4).every((value,i)=>Math.abs(value-[...expectedSpawn,...expectedDirection][i])<.0001),"Level spawn incorrect");
     async function key(type,code) {
         await send("Input.dispatchKeyEvent",{type,code,key:code==="Space"?" ":code.startsWith("Key")?code.slice(3).toLowerCase():code,
             windowsVirtualKeyCode:code==="Escape"?27:code==="Space"?32:code.charCodeAt(3)});
@@ -169,18 +198,21 @@ try {
     }
     await assertKeyboardInactive("Keyboard moved the player before capture");
     await captureMouse();
+    const leftAxis = [-start[3],start[2]];
+    const projectLeft = camera => camera[0] * leftAxis[0] + camera[1] * leftAxis[1];
+    const projectForward = camera => camera[0] * start[2] + camera[1] * start[3];
     await key("keyDown","KeyA");
-    await waitFor(`window.__camera[1]<${start[1]}`);
+    await waitFor(`window.__camera[0]*${leftAxis[0]}+window.__camera[1]*${leftAxis[1]}>${projectLeft(start)}`);
     await key("keyUp","KeyA"); await delay(50);
     const left=await evaluate("window.__camera");
-    assert(left[1]<start[1]&&left[0]===start[0]&&left[2]===start[2],"Navigation-map strafing failed");
+    assert(projectLeft(left)>projectLeft(start)&&Math.abs(projectForward(left)-projectForward(start))<.0001&&left[2]===start[2],"Navigation-map strafing failed");
     await delay(100);
-    assert((await evaluate("window.__camera"))[1]===left[1],"Movement continued after key release");
+    assert((await evaluate("window.__camera")).slice(0,2).every((value,i)=>value===left[i]),"Movement continued after key release");
     await key("keyDown","KeyD");
-    await waitFor(`window.__camera[1]>${left[1]}`);
+    await waitFor(`window.__camera[0]*${leftAxis[0]}+window.__camera[1]*${leftAxis[1]}<${projectLeft(left)}`);
     await key("keyUp","KeyD"); await delay(50);
     const right=await evaluate("window.__camera");
-    assert(right[1]>left[1]&&right[0]===left[0],"D did not strafe right");
+    assert(projectLeft(right)<projectLeft(left)&&Math.abs(projectForward(right)-projectForward(left))<.0001,"D did not strafe right");
     assert(right.slice(2,6).every((value,i)=>value===left[i+2]),"A/D strafing changed the viewing direction");
     await send("Input.dispatchMouseEvent",{type:"mousePressed",x:960,y:540,button:"left",clickCount:1});
     await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:960,y:540,button:"left",clickCount:1});
@@ -365,9 +397,9 @@ try {
         const screenshot=await send("Page.captureScreenshot",{format:"png"});
         fs.writeFileSync(process.env.WOLFNET_SCREENSHOT,Buffer.from(screenshot.data,"base64"));
     }
-    await selectMap("Original",[22,11.5],true);
+    await selectMap(mainMapLabel,expectedSpawn,true);
     await selectMap("Showcase",[18.5,22.5]);
-    await selectMap("Original",[22,11.5]);
+    await selectMap(mainMapLabel,expectedSpawn);
     await delay(150);
     assert(await evaluate("window.__duplicateFrames")===0,"Repeated switches duplicated animation loops");
     // A failed request must leave the controls available for retrying the old map.
@@ -377,7 +409,7 @@ try {
     await waitFor("!!document.querySelector('.game-error')&&!Array.from(document.querySelectorAll('.map-switcher button')).some(button=>button.disabled)");
     assert(await evaluate("window.__sceneTextures.size===0&&window.__sceneBuffers.size===0"),"Failed switch retained scene resources");
     await send("Fetch.disable");
-    await selectMap("Original",[22,11.5]);
+    await selectMap(mainMapLabel,expectedSpawn);
     assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");
     console.log("PASS: map buttons, keyboard activation, repeated switches, frame cleanup, and failed-load recovery.");
     // Input/frame checks are complete. Stop submitting game frames while the
@@ -386,7 +418,7 @@ try {
     const sources=Object.fromEntries(["raycast","walls","sprites"].map(name=>
         [name,fs.readFileSync(`WolfNET.Game/wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
     console.log("GPU CHECK",await evaluate(`(${checkGpu.toString()})(${JSON.stringify(sources)})`));
-    console.log("PASS: browser startup, migrated scene, navigation movement, mouse capture, and Esc release.");
+    console.log("PASS: browser startup, Brickyard scene, navigation movement, mouse capture, and Esc release.");
 } finally {
     socket.close();
 }

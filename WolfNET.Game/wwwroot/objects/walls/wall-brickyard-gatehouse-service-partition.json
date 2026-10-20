@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 84,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 53,
+  "textures": {
+    "north": "textures/wolf/mossy.png",
+    "east": "textures/wolf/greystone.png",
+    "south": "textures/wolf/greystone.png",
+    "west": "textures/wolf/greystone.png"
+  }
+}

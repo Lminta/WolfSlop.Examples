@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 69,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 53,
+  "textures": {
+    "north": "textures/wolf/redbrick.png",
+    "east": "textures/wolf/mossy.png",
+    "south": "textures/wolf/redbrick.png",
+    "west": "textures/wolf/redbrick.png"
+  }
+}

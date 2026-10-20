@@ -92,7 +92,7 @@ try {
 
     // A preparation failure must leave the renderer usable for another scene.
     await evaluate(`window.__failSky = false;
-        Array.from(document.querySelectorAll('.map-switcher button')).find(b => b.textContent === 'Original').click()`);
+        Array.from(document.querySelectorAll('.map-switcher button')).find(b => b.textContent === 'The Brickyard').click()`);
     await waitFor('window.__frames > 0 && !document.querySelector(".loading-overlay")');
     assert.equal(await evaluate('document.querySelector(".game-error")'), null);
 

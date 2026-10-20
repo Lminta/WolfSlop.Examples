@@ -1,0 +1,10 @@
+{
+  "type": "passage",
+  "id": 50,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "floorTexture": "textures/wolf/wood.png",
+  "ceilingTexture": "textures/wolf/greystone.png"
+}

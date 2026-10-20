@@ -10,6 +10,13 @@ The solution contains sibling projects:
 
 Build both applications with `dotnet build WolfNET.slnx`.
 
+The default level is **The Brickyard**, an abandoned motor depot with a gatehouse,
+an open courtyard, covered arcades, and interconnected storage bays. Find the car
+in the northern motor yard via the loading hall or the damaged service passage.
+Doors, jumpable debris, and low overhead obstacles shape the routes. See the
+[level notes](WolfNET.Game/wwwroot/maps/level1.md) for the layout. The separate
+Showcase map remains available from the map selector.
+
 Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filtering
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.
@@ -98,9 +105,9 @@ Player movement is configured in each map's `playerStart` object alongside the s
 
 ```json
 "playerStart": {
-  "x": 22,
-  "y": 11.5,
-  "directionX": -1,
+  "x": 6.5,
+  "y": 26.5,
+  "directionX": 1,
   "directionY": 0,
   "moveSpeed": 5,
   "rotSpeed": 2,

@@ -35,7 +35,7 @@
 <aside class="map-switcher" aria-label="Map selection">
     <nav aria-label="Maps">
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
-                aria-pressed="@(_selectedMap == OriginalMap ? "true" : "false")" @onclick="() => SelectMapAsync(OriginalMap)">Original</button>
+                aria-pressed="@(_selectedMap == OriginalMap ? "true" : "false")" @onclick="() => SelectMapAsync(OriginalMap)">The Brickyard</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
@@ -52,6 +52,10 @@
             <li><strong>Doors:</strong> face the steel door at (18,12) or glass door at (24,18) from a neighboring tile and press F to open or close.</li>
             <li><strong>Far left annex:</strong> enter from the materials gallery to compare a mesh ceiling with open sky. Walk around the enlarged car at (30,18) to see its eight directional views.</li>
         </ul>
+    }
+    @if (_selectedMap == OriginalMap)
+    {
+        <p>Explore the old motor depot. Beyond the gatehouse, the covered arcade leads to the courtyard and loading bays. The service passage offers a shorter way to the motor yard.</p>
     }
     <p class="controls-hint">W/S forward/back &middot; A/D strafe &middot; Mouse look &middot; Space jump &middot; Alt crouch &middot; V camera &middot; F interact &middot; Esc release</p>
 </aside>

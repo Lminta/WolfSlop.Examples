@@ -1,0 +1,107 @@
+{
+  "type": "spriteGroup",
+  "id": 223,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": true,
+  "passageId": 53,
+  "sprites": [
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": -0.375,
+        "y": -0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": -0.125,
+        "y": -0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": 0.125,
+        "y": -0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": 0.375,
+        "y": -0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": -0.375,
+        "y": 0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": -0.125,
+        "y": 0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": 0.125,
+        "y": 0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    },
+    {
+      "spriteId": 101,
+      "offset": {
+        "x": 0.375,
+        "y": 0.2,
+        "z": 0.2
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      }
+    }
+  ]
+}
