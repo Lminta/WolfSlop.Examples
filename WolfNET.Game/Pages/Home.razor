@@ -41,7 +41,10 @@
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
-    <p role="status">@(_loading ? _loadingMessage : _observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
+    @if (_loading)
+    {
+        <p role="status">@_loadingMessage</p>
+    }
     @if (_selectedMap == GlassworksMap)
     {
         <p>Explore an abandoned botanical station. Circle the central glasshouse through the potting room and pump room, or discover the maintenance shortcut.</p>
@@ -52,10 +55,10 @@
             <li><strong>Top right:</strong> a compact missing-texture room just north of spawn. Pink is intentional.</li>
             <li><strong>Top left:</strong> lanes from left: clear path, invisible barrier, walk-through wall, solid wall. All have textured floors and ceilings.</li>
             <li><strong>Bottom right:</strong> props and a barrel pyramid are grouped on the west side. The clear east side has two jumpable rows of four columns at 0.4 scale near (9,20), with room to approach and land.</li>
-            <li><strong>Obstacle corridor:</strong> enter through (24,11) from the independent-flags gallery. Follow the loop, alternating Space to jump and Alt to crouch.</li>
-            <li><strong>Crouch test:</strong> hold Alt to pass under the ceiling-mounted columns at (9,16). Release after clearing them to stand.</li>
+            <li><strong>Obstacle corridor:</strong> enter through (24,11) from the independent-flags gallery. The loop alternates jumping and crouching obstacles.</li>
+            <li><strong>Crouch test:</strong> ceiling-mounted columns at (9,16) leave room to pass underneath.</li>
             <li><strong>Bottom left:</strong> floor and ceiling checkerboards and four wall faces around the pillar at (18,17).</li>
-            <li><strong>Doors:</strong> face the steel door at (18,12) or glass door at (24,18) from a neighboring tile and press F to open or close.</li>
+            <li><strong>Doors:</strong> an opaque steel door at (18,12) and a glass door at (24,18).</li>
             <li><strong>Far left annex:</strong> enter from the materials gallery to compare a mesh ceiling with open sky. Walk around the enlarged car at (30,18) to see its eight directional views.</li>
         </ul>
     }
@@ -63,7 +66,13 @@
     {
         <p>Explore the old motor depot. Beyond the gatehouse, the covered arcade leads to the courtyard and loading bays. The service passage offers a shorter way to the motor yard.</p>
     }
-    <p class="controls-hint">W/S forward/back &middot; A/D strafe &middot; Mouse look &middot; Space jump &middot; Alt crouch &middot; V camera &middot; F interact &middot; Esc release</p>
+</aside>
+
+<aside class="controls-hint" aria-label="Game controls">
+    <strong>Controls</strong>
+    <p>W/S forward/back &middot; A/D strafe &middot; Mouse look</p>
+    <p>Space jump &middot; Alt crouch &middot; V camera &middot; F interact</p>
+    <p role="status">@(_observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
 </aside>
 
 @if (_error != null)

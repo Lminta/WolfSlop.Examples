@@ -79,7 +79,22 @@ canvas {
 }
 
 .map-switcher p { margin: 10px 0 0; }
-.map-switcher .controls-hint { color: #adbeca; }
+.controls-hint {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: min(400px, calc(100vw - 32px));
+    padding: 12px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923ee;
+    color: #adbeca;
+    font: 13px/1.45 system-ui, sans-serif;
+    pointer-events: none;
+    z-index: 20;
+}
+.controls-hint strong { color: #e0e8ee; }
+.controls-hint p { margin: 6px 0 0; }
 .showcase-guide { margin: 10px 0 0; padding-left: 18px; }
 .showcase-guide li + li { margin-top: 5px; }
 
