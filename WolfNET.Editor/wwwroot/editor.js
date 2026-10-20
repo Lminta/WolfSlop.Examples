@@ -554,8 +554,8 @@ $("add-object").onclick = act(() => {
         if (layer > 255) throw Error("All 256 sprite texture layers are already in use.");
         Object.assign(d, { texture: "textures/wolf/barrel.png", textureLayer: layer });
     }
-    if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8 });
-    if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8 });
+    if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8, autoCloseSeconds: 10 });
+    if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8, autoCloseSeconds: 10 });
     if (type === "spriteGroup") d.sprites = [];
     change(() => { doc.objects[id] = d; doc.map.objects[id] = `../objects/editor/${doc.name}/${id}.json`; });
     select(id, true); toast(`Created ${type} #${id}. Edit its definition, then paint it onto the map.`);

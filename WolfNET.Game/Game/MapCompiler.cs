@@ -97,6 +97,8 @@ public sealed class MapCompiler
                         Resolve(wall.Textures?.South), Resolve(wall.Textures?.West)));
                     break;
                 case DoorDefinition door:
+                    if (!float.IsFinite(door.AutoCloseSeconds))
+                        throw new InvalidDataException($"Door {id} autoCloseSeconds must be finite.");
                     if (door.Axis is not ("x" or "y") || !float.IsFinite(door.OpenSeconds) || door.OpenSeconds <= 0)
                         throw new InvalidDataException($"Door {id} needs axis x/y and a positive finite openSeconds.");
                     passage = Passage(id, door.PassageId);

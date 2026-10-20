@@ -137,3 +137,10 @@ alpha, including cutouts and partially transparent glass, over the scene. Both
 modes block walking when `collides: true`. Door geometry stays aligned to the world
 and participates in the sprite pass's depth/alpha handling. Runtime openness is
 per placed door, resets on map reload, and is not saved into map JSON.
+
+`autoCloseSeconds` sets the delay after a door finishes opening. Positive values
+enable automatic closing; zero, negative values, or an omitted field disable it.
+Existing doors use `10`. If the timer expires while the player's collision circle
+overlaps the doorway, closing waits until the player clears it. A collidable door
+reopens if the player enters while it is closing. Manual reopening restarts the
+delay; each placed door keeps its own timer.

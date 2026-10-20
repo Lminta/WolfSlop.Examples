@@ -14,6 +14,8 @@ const door={type:"door",id:4,passageId:0,collides:true,raycastTransparent:true,t
 assert.equal(checkDefinition(door,{0:passage}),door);
 assert.throws(()=>checkDefinition({...door,axis:"z"},{0:passage}));
 for(const openSeconds of [0,-1,NaN,Infinity])assert.throws(()=>checkDefinition({...door,openSeconds},{0:passage}));
+for(const autoCloseSeconds of [0,-1,10])assert.equal(checkDefinition({...door,autoCloseSeconds},{0:passage}).autoCloseSeconds,autoCloseSeconds);
+for(const autoCloseSeconds of [NaN,Infinity,-Infinity,"10"])assert.throws(()=>checkDefinition({...door,autoCloseSeconds},{0:passage}));
 assert.throws(()=>checkDefinition({...door,texture:42},{0:passage}));
 const group = { type: "spriteGroup", id: 3, passageId: 0, sprites: [{ spriteId: 2, offset: { x: -.25, y: .5 } }], collides: false, raycastTransparent: true };
 const objects = { 0: passage, 1: wall, 2: sprite, 3: group };

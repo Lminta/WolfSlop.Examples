@@ -37,6 +37,8 @@ public sealed record DoorDefinition : MapObjectDefinition
     // Normal axis: x separates east/west, y separates north/south.
     public string Axis { get; init; } = "y";
     public float OpenSeconds { get; init; } = .8f;
+    // Delay after fully opening; nonpositive values disable automatic closing.
+    public float AutoCloseSeconds { get; init; }
 }
 
 public sealed record WallTextures

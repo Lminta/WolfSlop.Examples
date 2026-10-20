@@ -8,5 +8,6 @@
   "passageId": 50,
   "texture": "textures/doors/steel-door.png",
   "axis": "y",
-  "openSeconds": 0.8
+  "openSeconds": 0.8,
+  "autoCloseSeconds": 10
 }

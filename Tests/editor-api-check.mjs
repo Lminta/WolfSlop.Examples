@@ -68,6 +68,8 @@ try {
     document.name = "api-roundtrip";
     document.deletedObjectIds = [26];
     document.objects[11].floorTexture = texturePath;
+    assert.equal(document.objects[41].autoCloseSeconds, 10);
+    document.objects[41].autoCloseSeconds = 2.5;
     const groupMember = document.objects[121].sprites[0];
     groupMember.scale = { x: .75, y: 1.5 };
     groupMember.offset.z = .25;
@@ -82,6 +84,7 @@ try {
     assert.equal((await saved.json()).path, "maps/api-roundtrip.json");
     const reopened = await get("/api/maps/api-roundtrip");
     assert.equal(reopened.objects[11].floorTexture, texturePath);
+    assert.equal(reopened.objects[41].autoCloseSeconds, 2.5, "Door auto-close delay must survive saving and reopening");
     assert.deepEqual(reopened.objects[121].sprites[0].scale, { x: .75, y: 1.5 });
     assert.equal(reopened.objects[121].sprites[0].offset.z, .25);
     assert.deepEqual(reopened.deletedObjectIds, [26], "Deleted library objects must stay deleted after reopening");

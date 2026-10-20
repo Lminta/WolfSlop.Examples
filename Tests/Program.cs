@@ -433,6 +433,47 @@ doorMap.UpdateDoors(100,new(2.5f,3.1f),.15f);Check(movingDoor.Openness==0,"Touch
 doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(200,doorActor,.15f);
 doorMap.SetCell(3,3,4);Check(doorMap.Doors.Count==2 && doorMap.Doors.Single(d=>d.X==2).Openness==.25f && doorMap.Doors.Single(d=>d.X==3).Openness==0,"Map edit reset an existing door or shared its state");
 doorMap.SetCell(2,2,0);Check(doorMap.Doors.Count==1 && doorMap.NavigationMap.IsWalkable(2,2),"Deleted door left collision behind");
+// Auto-close waits until fully open, respects the collision circle, and survives map edits.
+var timedDoorMap = Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = 1 } });
+timedDoorMap.Interact(doorActor, -Vector2.UnitY, .15f);
+timedDoorMap.UpdateDoors(800, doorActor, .15f);
+var timedDoor = timedDoorMap.Doors.Single();
+var openRevision = timedDoorMap.Revision;
+timedDoorMap.UpdateDoors(999, doorActor, .15f);
+Check(timedDoor.TargetOpen && timedDoor.Openness == 1 && timedDoorMap.Revision == openRevision,
+    "Auto-close included opening animation in its delay or rebuilt an idle door");
+timedDoorMap.UpdateDoors(201, doorActor, .15f);
+Check(!timedDoor.TargetOpen && Math.Abs(timedDoor.Openness - .75f) < .0001f && !timedDoorMap.NavigationMap.IsWalkable(2,2),
+    "Auto-close did not animate and restore collision after its delay");
+var overlappingPlayer = new Vector2(2.5f, 3.05f);
+timedDoorMap.UpdateDoors(200, overlappingPlayer, .15f);
+Check(timedDoor.TargetOpen && timedDoor.Openness == 1, "Auto-closing door failed to reopen for the player's collision circle");
+timedDoorMap.UpdateDoors(1500, overlappingPlayer, .15f);
+Check(timedDoor.TargetOpen && timedDoor.Openness == 1, "Expired auto-close timer closed an occupied doorway");
+timedDoorMap.UpdateDoors(200, doorActor, .15f);
+Check(!timedDoor.TargetOpen && Math.Abs(timedDoor.Openness - .75f) < .0001f, "Expired auto-close did not resume after the player cleared the doorway");
+timedDoorMap.Interact(doorActor, -Vector2.UnitY, .15f);
+timedDoorMap.UpdateDoors(200, doorActor, .15f);
+timedDoorMap.UpdateDoors(500, doorActor, .15f);
+timedDoorMap.SetCell(3,1,1);
+timedDoorMap.UpdateDoors(499, doorActor, .15f);
+Check(timedDoor.TargetOpen && timedDoor.Openness == 1, "Manual reopening did not restart the delay");
+timedDoorMap.UpdateDoors(401, doorActor, .15f);
+Check(!timedDoor.TargetOpen && Math.Abs(timedDoor.Openness - .5f) < .0001f, "Map edit reset the auto-close timer");
+foreach (var disabledDelay in new[] { 0f, -1f })
+{
+    var untimed = Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = disabledDelay } });
+    untimed.Interact(doorActor, -Vector2.UnitY, .15f);
+    untimed.UpdateDoors(30000, doorActor, .15f);
+    Check(untimed.Doors.Single().Openness == 1 && untimed.Doors.Single().TargetOpen, "Nonpositive auto-close delay did not disable closing");
+}
+var longStepDoor = Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = 1 } });
+longStepDoor.Interact(doorActor, -Vector2.UnitY, .15f);
+longStepDoor.UpdateDoors(2601, doorActor, .15f);
+Check(longStepDoor.Doors.Single().Openness == 0, "Auto-close timing depends on update size");
+Check(map.Doors.Concat(showcase.Doors).All(door => door.Definition.AutoCloseSeconds == 10), "Existing doors do not auto-close after ten seconds");
+foreach (var invalidDelay in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+    Reject(() => Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = invalidDelay } }), "Nonfinite auto-close delay accepted");
 {
     var flightLevel=SmallMap(4) with {PlayerStart=SmallMap().PlayerStart with {X=2.5f,Y=3.5f,DirectionX=0,DirectionY=-1,JumpLength=2}};
     var flightDoors=Compile(flightLevel,doorObjects);

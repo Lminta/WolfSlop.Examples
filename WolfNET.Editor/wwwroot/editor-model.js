@@ -20,6 +20,8 @@ export function checkDefinition(definition, objects) {
     if (d.type === "door" && (!["x", "y"].includes(d.axis ?? "y") ||
         !Number.isFinite(d.openSeconds ?? .8) || (d.openSeconds ?? .8) <= 0))
         throw Error("Door axis must be x/y and openSeconds must be positive and finite.");
+    if (d.type === "door" && !Number.isFinite(d.autoCloseSeconds ?? 0))
+        throw Error("Door autoCloseSeconds must be finite; zero or a negative value disables automatic closing.");
     if (d.type === "sprite" && (!Number.isInteger(d.textureLayer) || d.textureLayer < 0 || d.textureLayer > 255))
         throw Error("A sprite textureLayer must be an integer from 0 to 255.");
     if (d.type === "sprite") {

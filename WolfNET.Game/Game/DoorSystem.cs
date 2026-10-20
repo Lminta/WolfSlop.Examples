@@ -11,6 +11,7 @@ public sealed class DoorState(int x, int y, DoorDefinition definition)
     public DoorDefinition Definition { get; } = definition;
     public float Openness { get; internal set; }
     public bool TargetOpen { get; internal set; }
+    internal float OpenElapsedSeconds { get; set; }
 }
 
 public sealed class DoorSystem
@@ -44,6 +45,7 @@ public sealed class DoorSystem
             if (distance < 0 || across < 0 || across > 1) continue;
             if (door.TargetOpen && door.Definition.Collides && Occupied(door, position, radius)) return false;
             door.TargetOpen = !door.TargetOpen;
+            door.OpenElapsedSeconds = 0;
             return true;
         }
         return false;
@@ -54,12 +56,38 @@ public sealed class DoorSystem
         bool changed = false;
         foreach (var door in _doors.Values)
         {
-            if (!door.TargetOpen && door.Openness > 0 && door.Definition.Collides && Occupied(door, position, radius)) door.TargetOpen = true;
-            var next = Math.Clamp(door.Openness + (door.TargetOpen ? 1 : -1) * Math.Max(0, milliseconds) /
-                1000 / door.Definition.OpenSeconds, 0, 1);
-            if (next == door.Openness) continue;
-            door.Openness = next;
-            changed = true;
+            var previous = door.Openness;
+            var seconds = Math.Max(0, milliseconds) / 1000;
+            var occupied = Occupied(door, position, radius);
+            if (!door.TargetOpen && door.Openness > 0 && door.Definition.Collides && occupied)
+            {
+                door.TargetOpen = true;
+                door.OpenElapsedSeconds = 0;
+            }
+            if (door.TargetOpen)
+            {
+                // Only time spent fully open counts toward the closing delay.
+                var openingTime = (1 - door.Openness) * door.Definition.OpenSeconds;
+                var openingStep = Math.Min(seconds, openingTime);
+                door.Openness = openingStep >= openingTime ? 1 : door.Openness + openingStep / door.Definition.OpenSeconds;
+                seconds -= openingStep;
+                if (door.Openness == 1 && door.Definition.AutoCloseSeconds > 0)
+                {
+                    var waitingTime = Math.Max(0, door.Definition.AutoCloseSeconds - door.OpenElapsedSeconds);
+                    var waitingStep = Math.Min(seconds, waitingTime);
+                    door.OpenElapsedSeconds += waitingStep;
+                    seconds -= waitingStep;
+                    // An expired timer waits for the entire player circle to clear.
+                    if (door.OpenElapsedSeconds >= door.Definition.AutoCloseSeconds && !occupied)
+                        door.TargetOpen = false;
+                }
+            }
+            if (!door.TargetOpen)
+            {
+                door.Openness = Math.Max(0, door.Openness - seconds / door.Definition.OpenSeconds);
+                if (door.Openness == 0) door.OpenElapsedSeconds = 0;
+            }
+            changed |= door.Openness != previous;
         }
         return changed;
     }
