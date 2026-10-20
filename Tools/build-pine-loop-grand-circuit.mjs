@@ -47,13 +47,13 @@ object('group-service-barrels', 608, 'spriteGroup', { collides: true, passageId:
 
 const signDefinitions = [
     [598, 'paddock', 'PINE LOOP', 'PADDOCK', '#284a45'],
-    [599, 'esses', 'TECHNICAL', 'ESSES', '#a57b36'],
+    [599, 'esses', 'MEADOW', 'LOOP', '#a57b36'],
     [600, 'quarry', 'STONE CUT', 'QUARRY TUNNEL', '#596866'],
     [601, 'village', 'MARSHAL', 'VILLAGE', '#76553a'],
     [602, 'plaza', 'SPECTATOR', 'PLAZA', '#425c72'],
     [603, 'yard', 'MAINTENANCE', 'YARD', '#536f73'],
-    [604, 'ridge', 'NORTH RIDGE', 'FOREST RUN', '#365543'],
-    [605, 'hairpins', 'WOODLAND', 'HAIRPINS', '#506343'],
+    [604, 'ridge', 'EASTERN', 'FOREST STRAIGHT', '#365543'],
+    [605, 'hairpins', 'WOODLAND', 'LOOP', '#506343'],
     [606, 'south-loop', 'SOUTH LOOP', 'RETURN TO GRID', '#8b613c'],
     [616, 'control', 'RACE', 'CONTROL', '#234742'],
 ];
@@ -72,32 +72,48 @@ for (const [id, color, name] of [[612, '#a4553e', 'red'], [613, '#375c70', 'blue
 for (let x = 0; x < width; x++) grid[x][0] = grid[x][height - 1] = 510;
 for (let y = 0; y < height; y++) grid[0][y] = grid[width - 1][y] = 510;
 
-// The 54 deliberate major bends form a simple polygon with no crossings.
-// Concave excursions distinguish the circuit's technical and scenic regions.
-const corners = [[24, 454], [24, 358], [54, 358], [54, 330], [34, 330], [34, 300],
-    [66, 300], [66, 266], [24, 266], [24, 218], [72, 218], [72, 188], [40, 188],
-    [40, 154], [84, 154], [84, 120], [34, 120], [34, 80], [62, 80], [62, 44],
-    [124, 44], [124, 72], [98, 72], [98, 108], [142, 108], [142, 26], [220, 26],
-    [220, 94], [188, 94], [188, 130], [226, 130], [226, 176], [182, 176],
-    [182, 212], [222, 212], [222, 250], [166, 250], [166, 290], [224, 290],
-    [224, 330], [186, 330], [186, 366], [226, 366], [226, 414], [172, 414],
-    [172, 452], [216, 452], [216, 480], [146, 480], [146, 430], [100, 430],
-    [100, 474], [48, 474], [48, 454]];
+// Large interlocking infield loops, a northern bowl, and one uninterrupted
+// eastern straight. This simple polygon has no crossings or repeated chicanes.
+// The western straight keeps the existing three-wide grid and pit facilities.
+const corners = [[24, 478], [24, 280], [100, 280], [100, 360],
+    [64, 360], [64, 408], [140, 408], [140, 248], [64, 248],
+    [64, 184], [176, 184], [176, 344], [208, 344], [208, 116],
+    [24, 116], [24, 44], [232, 44], [232, 478]];
 const direction = (a, b) => [Math.sign(b[0] - a[0]), Math.sign(b[1] - a[1])];
 const anchors = [];
-for (let i = 0; i < corners.length; i++) {
-    const previous = corners[(i + corners.length - 1) % corners.length], corner = corners[i], next = corners[(i + 1) % corners.length];
-    const incoming = direction(previous, corner), outgoing = direction(corner, next), radius = 5;
-    if (incoming[0] * outgoing[0] + incoming[1] * outgoing[1] !== 0) throw new Error('Expected a deliberate right-angle major bend');
-    const entry = [corner[0] - incoming[0] * radius, corner[1] - incoming[1] * radius];
-    anchors.push(entry);
-    let position = entry;
-    for (let step = 0; step < radius; step++) {
-        position = [position[0] + incoming[0], position[1] + incoming[1]]; anchors.push(position);
-        position = [position[0] + outgoing[0], position[1] + outgoing[1]]; anchors.push(position);
+const bendRadii = [];
+const bendEntries = [], bendMidpoints = [];
+function appendRoundedPoint(point) {
+    const target = point.map(Math.round);
+    if (!anchors.length) { anchors.push(target); return; }
+    // Connected tile steps retain two clear lanes even on the round arcs.
+    const previous = anchors.at(-1);
+    let [x, y] = previous;
+    while (x !== target[0] || y !== target[1]) {
+        if (x !== target[0]) { x += Math.sign(target[0] - x); anchors.push([x, y]); }
+        if (y !== target[1]) { y += Math.sign(target[1] - y); anchors.push([x, y]); }
     }
 }
-anchors.push(anchors[0]);
+for (let i = 0; i < corners.length; i++) {
+    const previous = corners[(i + corners.length - 1) % corners.length], corner = corners[i], next = corners[(i + 1) % corners.length];
+    const incoming = direction(previous, corner), outgoing = direction(corner, next);
+    const radius = Math.min(i >= 14 || i === 0 ? 30 : 24,
+        Math.floor(Math.hypot(corner[0] - previous[0], corner[1] - previous[1]) * .44),
+        Math.floor(Math.hypot(next[0] - corner[0], next[1] - corner[1]) * .44));
+    bendRadii.push(radius);
+    if (incoming[0] * outgoing[0] + incoming[1] * outgoing[1] !== 0) throw new Error('Expected a deliberate right-angle major bend');
+    const entry = [corner[0] - incoming[0] * radius, corner[1] - incoming[1] * radius];
+    bendEntries.push(entry);
+    appendRoundedPoint(entry);
+    const center = [entry[0] + outgoing[0] * radius, entry[1] + outgoing[1] * radius];
+    for (let step = 1; step <= radius * 8; step++) {
+        const angle = step / (radius * 8) * Math.PI / 2;
+        appendRoundedPoint([center[0] - outgoing[0] * radius * Math.cos(angle) + incoming[0] * radius * Math.sin(angle),
+            center[1] - outgoing[1] * radius * Math.cos(angle) + incoming[1] * radius * Math.sin(angle)]);
+        if (step === radius * 4) bendMidpoints.push(anchors.at(-1));
+    }
+}
+appendRoundedPoint(anchors[0]);
 for (let i = 1; i < anchors.length; i++) {
     const [ax, ay] = anchors[i - 1], [bx, by] = anchors[i];
     if (ax !== bx && ay !== by) throw new Error('Road stamps must join orthogonally');
@@ -157,37 +173,40 @@ function house(left, top, right, bottom, alternate = false) {
     grid[left][top + 3] = grid[left][top + 4] = 595;
 }
 // Marshal Village: two accessible wooden huts and a small spectator row.
-rect(184, 181, 214, 210, 593, true); house(190, 184, 196, 190); house(205, 196, 211, 202, true);
+rect(184, 181, 205, 210, 593, true); house(190, 184, 196, 190); house(198, 196, 204, 202, true);
 rect(184, 186, 190, 188, 593, true); place(601, [[187, 183]]);
 for (const x of [192, 201]) { rect(x - 3, 206, x + 3, 209, 507); grid[x][207] = 592; }
 
 // Spectator Plaza: tiled forecourt and three inline grandstand modules.
-rect(174, 261, 200, 279, 593, true); rect(168, 268, 174, 270, 593, true);
-for (const x of [178, 187, 196]) { rect(x - 3, 257, x + 3, 260, 507); grid[x][258] = 592; }
-place(602, [[171, 265]]); place(547, lineX(174, 200, 253));
+rect(179, 261, 205, 279, 593, true); rect(178, 268, 184, 270, 593, true);
+for (const x of [185, 194, 203]) { rect(x - 3, 257, x + 3, 260, 507); grid[x][258] = 592; }
+place(602, [[182, 265]]); place(547, lineX(181, 204, 253));
 
 // Maintenance Yard: colored ribbed container blocks, a clear center aisle,
 // workshop floors, and grouped service barrels.
-rect(192, 336, 218, 360, 615, true); rect(188, 347, 192, 349, 615, true);
-for (const [x, y, id] of [[198, 338, 612], [208, 338, 613], [198, 352, 613], [208, 352, 612]]) rect(x, y, x + 4, y + 6, id);
-for (const point of [[195, 340], [216, 341], [194, 357], [216, 356]]) grid[point[0]][point[1]] = 608;
-place(603, [[192, 344]]);
-place(599, [[57, 345]]); place(604, [[209, 31]]); place(605, [[75, 204]]); place(606, [[152, 477]]);
+rect(192, 372, 218, 396, 615, true); rect(219, 383, 231, 385, 615, true);
+for (const [x, y, id] of [[198, 374, 612], [208, 374, 613], [198, 388, 613], [208, 388, 612]]) rect(x, y, x + 4, y + 6, id);
+for (const point of [[195, 376], [216, 377], [194, 393], [216, 392]]) grid[point[0]][point[1]] = 608;
+place(603, [[222, 380]]);
+place(599, [[105, 319]]); place(604, [[237, 224]]); place(605, [[69, 213]]); place(606, [[152, 472]]);
 
 // Tires protect each major apex; additional runoffs and buffer approach
 // markers distinguish the many corner complexes without narrowing asphalt.
 for (let i = 0; i < corners.length; i++) {
     const [x, y] = corners[i];
-    rect(x - 2, y - 2, x + 2, y + 2, 502, true);
-    place(i % 3 === 0 ? 585 : 581, [[x, y]]);
+    const [mx, my] = bendMidpoints[i];
+    const apex = [mx + Math.sign(x - mx) * 3, my + Math.sign(y - my) * 3];
+    rect(apex[0] - 2, apex[1] - 2, apex[0] + 2, apex[1] + 2, 502, true);
+    place(i % 3 === 0 ? 585 : 581, [apex]);
     const previous = corners[(i + corners.length - 1) % corners.length], incoming = direction(previous, corners[i]);
+    const [entryX, entryY] = bendEntries[i];
     const normal = [-incoming[1], incoming[0]];
     for (const side of [-1, 1]) {
-        const offset = [x - incoming[0] * 13 + normal[0] * side * 3, y - incoming[1] * 13 + normal[1] * side * 3];
+        const offset = [entryX - incoming[0] * 13 + normal[0] * side * 3, entryY - incoming[1] * 13 + normal[1] * side * 3];
         place(incoming[0] ? 543 : 580, [offset]);
     }
     if (i % 2 === 0) place(incoming[0] ? 545 : 544,
-        [[x - incoming[0] * 19 + normal[0] * 3, y - incoming[1] * 19 + normal[1] * 3]]);
+        [[entryX - incoming[0] * 19 + normal[0] * 3, entryY - incoming[1] * 19 + normal[1] * 3]]);
 }
 // Isolated stack samples remain useful editor presets and mark the paddock exit.
 place(583, [[28, 451]]); place(584, [[28, 452]]); place(582, [[43, 449]]);
@@ -242,35 +261,36 @@ fs.writeFileSync(path.join(web, 'maps/pine-loop.json'), pretty.slice(0, before) 
 
 const zones = [
     { name: 'Paddock and spectator straight', checkpoint: [25, 426], bounds: [12, 385, 44, 456] },
-    { name: 'Technical esses', checkpoint: [55, 345], bounds: [24, 266, 66, 358] },
-    { name: 'Woodland hairpins', checkpoint: [73, 204], bounds: [24, 120, 84, 218] },
+    { name: 'Meadow loop', checkpoint: [101, 320], bounds: [24, 280, 100, 408] },
+    { name: 'Woodland loop', checkpoint: [65, 215], bounds: [64, 184, 176, 248] },
     { name: 'Stone Cut quarry and tunnel', checkpoint: [92, 45], bounds: [62, 33, 124, 80] },
-    { name: 'North ridge', checkpoint: [200, 27], bounds: [142, 26, 220, 108] },
-    { name: 'Marshal Village', checkpoint: [183, 194], bounds: [182, 176, 226, 212] },
-    { name: 'Spectator Plaza', checkpoint: [167, 270], bounds: [166, 250, 222, 290] },
-    { name: 'Maintenance Yard', checkpoint: [187, 348], bounds: [186, 330, 226, 366] },
-    { name: 'South loop hairpins', checkpoint: [147, 455], bounds: [100, 414, 226, 480] },
+    { name: 'Northern bowl', checkpoint: [150, 45], bounds: [24, 44, 232, 116] },
+    { name: 'Marshal Village', checkpoint: [209, 194], bounds: [184, 181, 214, 212] },
+    { name: 'Spectator Plaza / central loop', checkpoint: [177, 270], bounds: [140, 248, 208, 344] },
+    { name: 'Eastern straight / service yard', checkpoint: [233, 384], bounds: [192, 116, 234, 448] },
+    { name: 'Southern sweep', checkpoint: [147, 479], bounds: [24, 448, 232, 480] },
 ];
 const fixture = { dimensions: [width, height], lap: anchors.map(([x, y]) => [x + 1, y + 1]),
-    majorCorners: corners, zones, tunnel: { left: 82, right: 103, top: 44, bottom: 45 },
+    majorCorners: corners, bendRadii, zones, tunnel: { left: 82, right: 103, top: 44, bottom: 45 },
     pitEntrances: [[34, 412], [34, 416], [34, 420]], bufferCoordinate: [28, 404], bufferSpriteId: 525,
     poiApproaches: [
         { name: 'Covered pit box', from: [31.5, 416.5], to: [35.5, 416.5] },
         { name: 'Marshal Village hut', from: [183.5, 187.5], to: [191.5, 187.5] },
-        { name: 'Spectator Plaza', from: [167.5, 269.5], to: [175.5, 269.5] },
-        { name: 'Maintenance Yard aisle', from: [187.5, 348.5], to: [194.5, 348.5] },
+        { name: 'Spectator Plaza', from: [177.5, 269.5], to: [185.5, 269.5] },
+        { name: 'Maintenance Yard aisle', from: [233.5, 384.5], to: [215.5, 384.5] },
     ] };
 fs.mkdirSync(path.join(repository, 'Tests/Fixtures'), { recursive: true });
 fs.mkdirSync(path.join(repository, 'artifacts'), { recursive: true });
 const views = [['start', [25.5, 445.5, 0, -1]], ['narrowing', [25.5, 399.5, 0, -1]],
     ['grandstand-row', [25.5, 438.5, -.8, -.6]], ['grandstand-front', [25.5, 418.5, -1, 0]],
     ['pits', [31.5, 416.5, 1, 0]], ['race-control', [25.5, 391.5, 1, 0]],
-    ['technical-esses', [55, 345, 0, -1]], ['woodland-hairpins', [73, 204, 0, -1]],
+    ['meadow-loop', [101, 320, 0, 1]], ['woodland-loop', [65, 215, 0, -1]],
     ['quarry', [76.5, 45, 0, 1]], ['tunnel-entry', [79.5, 45, 1, 0]], ['tunnel-interior', [92.5, 45, 1, 0]],
-    ['north-ridge', [200, 27, 1, 0]], ['village', [183.5, 187.5, 1, 0]],
-    ['village-stand', [201.5, 213, 0, -1]], ['spectator-plaza', [187.5, 251, 0, 1]],
-    ['plaza-courtyard', [175.5, 269.5, .8, -.6]], ['maintenance-yard', [187.5, 348.5, 1, 0]],
-    ['south-loop', [147, 455, 0, 1]], ['tires', [54.5, 333.5, -.7, -.7]],
+    ['northern-bowl', [150, 45, 1, 0]], ['village', [183.5, 187.5, 1, 0]],
+    ['village-stand', [201.5, 213, 0, -1]], ['spectator-plaza', [177, 270, 1, 0]],
+    ['plaza-courtyard', [185.5, 269.5, .8, -.6]], ['maintenance-yard', [233.5, 384.5, -1, 0]],
+    ['eastern-straight', [233, 150, 0, 1]], ['central-loop', [141, 320, 0, -1]],
+    ['south-loop', [147, 479, -1, 0]], ['tires', [100.5, 365.5, -.7, -.7]],
     ['buffer-front', [30.5, 404.5, -1, 0]], ['buffer-side', [28.5, 406.5, 0, -1]]];
 fixture.views = views;
 fs.writeFileSync(path.join(repository, 'Tests/Fixtures/pine-loop-lap.json'), JSON.stringify(fixture, null, 2) + '\n');

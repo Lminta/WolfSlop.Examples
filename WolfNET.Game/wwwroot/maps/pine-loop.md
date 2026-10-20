@@ -1,9 +1,10 @@
 # Pine Loop
 
-`pine-loop.json` is a **256 × 512** outdoor racing circuit with a **2,296-unit
-closed lap**, **54 major bends**, and nine distinct regions. Its long straights,
-chamfered corners, technical esses, forest hairpins, quarry, village, spectator
-areas, and service yard create a much longer route through the landscape.
+`pine-loop.json` is a **256 × 512** outdoor racing circuit with a **2,452-unit
+closed lap**, **18 broad bends**, and nine distinct regions. Large interlocking
+loops occupy the infield instead of repeating small switchbacks. Rounded bends
+have radii of 14–30 blocks, and the eastern side has a **384-block uninterrupted
+straight** between its corner arcs. Distances follow the tile centerline.
 
 Open `/?map=pine-loop` or choose **Pine Loop** in the existing map selector.
 The player starts at **(25.5,445.5)** facing north, behind the checkerboard.
@@ -16,21 +17,23 @@ The third lane tapers diagonally across **(26,395)**, leaving two lanes at
 racing surface remains two tiles wide throughout the larger course, with extra
 space at the tiled corner joins and mud shoulders beside the asphalt.
 
-The route travels north through the western technical sections, crosses the
-quarry and northern ridge, descends the eastern village and spectator sectors,
-then returns through the southern double hairpins to the starting grid.
+From the grid, the route heads north into the meadow loop, curls through the
+woodland and central loops, passes the village on the inner eastern return,
+and rounds the northern bowl through the quarry tunnel. The long outer eastern
+straight leads to a wide southern sweep and back to the grid. There are no
+crossings or shared road sections.
 
 | Region | Layout and scenery |
 | --- | --- |
 | Paddock and spectator straight | Seven larger grandstand modules line the west side of the start at X 17, Y 402–450. The fenced pit apron, three roofed garages, and race control building sit opposite them. |
-| Technical esses | Successive west-side direction changes between Y 266 and 358, with mud runoff, separate tire stacks, approach buffers, and dedicated signage. |
-| Woodland hairpins | Forest corners wind between X 24–84 and Y 120–218, alternating short straights and long direction changes. |
+| Meadow loop | A large lower infield loop winds between X 24–140 and Y 280–408, with rounded turns, tire stacks, approach buffers, and meadow scenery. |
+| Woodland loop | Broad curves between X 64–176 and Y 184–248 turn through the central forest. |
 | Stone Cut quarry | Pale stone ground, rock piles, portal stripes, and a 22-tile covered tunnel at X 82–103, Y 44–45. Both tunnel lanes stay clear. |
-| North ridge | The northern straight at Y 26 runs east before a sequence of eastern switchbacks descends toward the village. |
-| Marshal Village | Two accessible timber and plaster huts, tiled approaches, a village sign, and two additional grandstand modules beside the Y 212 section. |
-| Spectator Plaza | A tiled forecourt at X 174–200, Y 261–279 connects to the track. Three larger stands line its north side. |
-| Maintenance Yard | Red and blue ribbed container blocks, service barrels, and an open center aisle occupy X 192–218, Y 336–360. |
-| South loop | Two large returning hairpin complexes between Y 414 and 480 reconnect with the spectator straight. |
+| Northern bowl | A broad loop between Y 44 and 116 crosses the quarry and feeds the long eastern straight. |
+| Marshal Village | Two accessible timber and plaster huts, tiled approaches, a village sign, and two additional grandstand modules beside the inner return at X 208. |
+| Spectator Plaza / central loop | A tiled forecourt at X 179–205, Y 261–279 opens onto the central loop at X 176. Three larger stands line its north side. |
+| Eastern straight / Maintenance Yard | The outer straight follows X 232. Red and blue container blocks, service barrels, and an open aisle occupy X 192–218, Y 372–396, with access from the straight. |
+| Southern sweep | Large 30-block-radius corners and a long southern straight at Y 478 reconnect with the starting grid. |
 
 The pit apron occupies **X 29–33, Y 396–450**, with a southern connection to
 the main circuit. The garage entrances are at **(34,412), (34,416), (34,420)**;
@@ -38,12 +41,12 @@ static car displays sit inside. The race control building is at X 34–40,
 Y 388–394. Seven stand modules face the starting straight, two face the village
 section, and three face the plaza section: **12 larger stand modules** in total.
 
-The forest uses **2,113 individually placed tree sprites** across three species:
+The forest uses **2,236 individually placed tree sprites** across three species:
 pines, oaks, and birches. Most trees occupy scenic corridors beside the racing
 surface or two perimeter belts. Sparse groves fill the deeper infield. A dedicated
 opaque forest texture closes the distant map boundary. Trees and undergrowth
 keep clear setbacks around the course, pit entrances, huts, and public areas.
-The complete map contains **3,325 scenery sprites**.
+The complete map contains **3,095 scenery sprites**.
 
 Tire barriers use separate, symmetric black and white single-stack sprites.
 Reusable groups place individual stacks at different world positions in rows,

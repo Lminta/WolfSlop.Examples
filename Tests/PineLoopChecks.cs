@@ -50,8 +50,23 @@ internal static class PineLoopChecks
                 $"Pine Loop circuit is blocked between {lap[i - 1]} and {lap[i]}");
         }
         Check(lapLength >= 1500, "Expanded Pine Loop lost its much longer route");
-        Check(fixture.RootElement.GetProperty("majorCorners").GetArrayLength() >= 25,
-            "Pine Loop lost its distinct corner complexes");
+        Check(fixture.RootElement.GetProperty("majorCorners").GetArrayLength() is >= 12 and <= 22,
+            "Pine Loop must use a few large loops instead of repeated small corners");
+        Check(fixture.RootElement.GetProperty("bendRadii").EnumerateArray().All(radius => radius.GetInt32() >= 14),
+            "Pine Loop broad bends became tight chamfered corners");
+        Check(lap[..^1].Distinct().Count() == lap.Length - 1,
+            "Pine Loop crosses itself or retraces a section of road");
+        float longestStraight = 0, straightLength = 0;
+        var lastDirection = Vector2.Zero;
+        for (var i = 1; i < lap.Length; i++)
+        {
+            var delta = lap[i] - lap[i - 1];
+            var direction = Vector2.Normalize(delta);
+            straightLength = direction == lastDirection ? straightLength + delta.Length() : delta.Length();
+            longestStraight = Math.Max(longestStraight, straightLength);
+            lastDirection = direction;
+        }
+        Check(longestStraight >= 350, "Pine Loop lost its long uninterrupted straight");
         var zones = fixture.RootElement.GetProperty("zones").EnumerateArray().ToArray();
         Check(zones.Length >= 8, "Pine Loop is missing its distinct places of interest");
         foreach (var zone in zones)
