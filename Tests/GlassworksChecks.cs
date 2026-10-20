@@ -95,14 +95,24 @@ internal static class GlassworksChecks
         foreach (var sprite in render.Sprites.Where(sprite =>
             render.Textures.Layers[sprite.TextureLayer]?.Contains("lantern-sprite") == true))
         {
-            Check(sprite.Kind.HasFlag(SpriteKind.FixedPlane), "Glassworks lantern still faces the camera");
-            var normalX = (sprite.Kind & (SpriteKind)3) == SpriteKind.PlaneNormalX;
+            Check(sprite.Kind.HasFlag(SpriteKind.FixedPlane), "Glassworks lantern rotates with the camera");
+            // The side-profile card spans the wall normal, so the bracket projects
+            // into the room instead of lying flat along the wall as a decal.
+            var normalX = (sprite.Kind & (SpriteKind)3) == SpriteKind.PlaneNormalY;
             var coordinate = normalX ? sprite.Position.X : sprite.Position.Y;
             var surface = MathF.Round(coordinate);
-            Check(Math.Abs(Math.Abs(coordinate - surface) - .02f) < .0001f,
-                "Glassworks lantern is suspended away from its mounting wall");
+            var mirrored = render.Textures.Layers[sprite.TextureLayer]!.Contains("mirrored");
+            var inward = mirrored ? -1 : 1;
+            var mountU = mirrored ? 377f / 512 : 135f / 512;
+            var mount = coordinate + sprite.Scale.X * (mountU - .5f);
+            Check(Math.Abs(mount - surface - inward * .003f) < .0001f,
+                "Glassworks lantern mounting plate is detached from its wall");
+            var bodyU = mirrored ? 202f / 512 : 310f / 512;
+            var body = coordinate + sprite.Scale.X * (bodyU - .5f);
+            Check((body - mount) * inward > .06f,
+                "Glassworks lantern body does not project from its wall bracket");
             var wallPosition = sprite.Position + (normalX ? Vector2.UnitX : Vector2.UnitY) *
-                (coordinate < surface ? .04f : -.04f);
+                (surface - coordinate - inward * .02f);
             var wall = Cell((int)wallPosition.X, (int)wallPosition.Y);
             Check(wall.Flags.HasFlag(RenderCellFlags.StopsRay) && !wall.Flags.HasFlag(RenderCellFlags.Door),
                 "Glassworks lantern is not supported by stationary masonry");

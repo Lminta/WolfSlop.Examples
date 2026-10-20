@@ -1,6 +1,15 @@
 Glassworks sprite atlas generation
 =================================
 
+Ground-contact correction: fern-grounded-v2.png is a non-destructive revision of
+fern-sprite.png. Rows 469..511 are cleared, removing an isolated generated patch
+at row 485 below the actual connected pot silhouette (which ends at row 468).
+Fern groups ground against baseline 469/512. The source atlas remains preserved.
+Lanterns use the original sprite on a fixed plane perpendicular to each wall.
+lantern-sprite-mirrored.png is a lossless horizontal flip for east/south walls.
+The original mounting edge x=135/512 (mirrored edge x=377/512) sits 0.003 map units
+inside the room from the wall surface, so the bracket projects into open space.
+
 Tool: built-in image_gen.imagegen (no fallback CLI)
 Date: 2026-10-20
 Mode: new asset; transparent_background=true
@@ -37,4 +46,3 @@ Style/medium: cohesive detailed painterly retro FPS pixel art, intentionally vis
 Composition/framing: all four individual objects are shown near-front with a very slight elevated view; each single object is centered inside its own equal square cell; each is fully contained within its cell with at least 5 percent transparent margin on every side. Objects occupy most of each cell; align their bottoms to a consistent internal margin. Keep empty transparent separation between the four objects.
 Lighting/mood: soft neutral light from upper left with crisp readable shading painted on the objects. Lantern may contain a small warm yellow light confined to its glass.
 Constraints: genuine transparent alpha background, not a checkerboard. Exactly four isolated objects, precisely one per quadrant. No environment, scene, ground, floor, backdrop, cast shadows, detached extra objects, text, lettering, labels, numbers, grids, outlines around cells, watermarks, or logos. Keep every leaf and all parts fully inside their quadrant.
-

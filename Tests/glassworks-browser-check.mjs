@@ -103,7 +103,7 @@ try {
     assert.equal(await evaluate(`document.querySelector('button[aria-pressed="true"]').textContent`), 'The Glassworks');
     assert.equal(failedRequests.length, 0, 'Missing asset responses: ' + failedRequests.join(', '));
     const images = await evaluate('[...window.__images]');
-    for (const name of ['fern-sprite.png', 'bench-directional-atlas.png', 'pump-directional-atlas.png', 'lantern-sprite.png', 'glass-roof.svg'])
+    for (const name of ['fern-grounded-v2.png', 'bench-directional-atlas.png', 'pump-directional-atlas.png', 'lantern-sprite.png', 'glass-roof.svg'])
         assert(images.some(url => url.endsWith(name)), `${name} was not uploaded to the GPU`);
     const floating = await evaluate(`(async()=>{
         const props=${JSON.stringify(floorProps)}, images=new Map(), bounds=new Map(), failures=[];
@@ -118,7 +118,22 @@ try {
                     const canvas=new OffscreenCanvas(f.width,f.height),ctx=canvas.getContext('2d');
                     ctx.drawImage(image,f.x,f.y,f.width,f.height,0,0,f.width,f.height);
                     const pixels=ctx.getImageData(0,0,f.width,f.height).data;bottom=-1;
-                    for(let y=f.height-1;y>=0&&bottom<0;y--)for(let x=0;x<f.width;x++)if(pixels[(y*f.width+x)*4+3]>=64){bottom=y;break;}
+                    // Ground the largest connected silhouette, not detached generated specks.
+                    const seen=new Uint8Array(f.width*f.height);
+                    let largest=0;
+                    for(let seed=0;seed<seen.length;seed++){
+                        if(seen[seed]||pixels[seed*4+3]<64)continue;
+                        const queue=[seed];seen[seed]=1;let componentBottom=0;
+                        for(let cursor=0;cursor<queue.length;cursor++){
+                            const p=queue[cursor],x=p%f.width,y=Math.floor(p/f.width);
+                            componentBottom=Math.max(componentBottom,y);
+                            for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
+                                const nx=x+ox,ny=y+oy,n=ny*f.width+nx;
+                                if(nx>=0&&nx<f.width&&ny>=0&&ny<f.height&&!seen[n]&&pixels[n*4+3]>=64){seen[n]=1;queue.push(n);}
+                            }
+                        }
+                        if(queue.length>largest){largest=queue.length;bottom=componentBottom;}
+                    }
                     bounds.set(key,bottom);
                 }
                 const foot=.5+member.offset.z+member.scale.y*(.5-(bottom+1)/f.height);
@@ -144,6 +159,12 @@ try {
         ['potting-room', [3.5, 13.5, 0, -1]],
         ['pump-room', [12.5, 5.2, 0, -1]],
         ['herbarium', [21.5, 13, 0, -1]],
+        ['pot-contact', [13.8, 13.3, -.492057, -.870562]],
+        ['lantern-oblique', [8.3, 11.7, -.6, -.8]],
+        ['lantern-reverse', [8.3, 9.3, -.6, .8]],
+        ['lantern-east-wall', [16.7, 11.7, .6, -.8]],
+        ['lantern-north-wall', [13, 2, -.8, -.6]],
+        ['lantern-south-wall', [6.5, 20.5, -.707107, .707107]],
     ]) {
         await evaluate(`window.__view=${JSON.stringify(view)}`); await delay(300); await screenshot(name);
     }
@@ -157,7 +178,7 @@ try {
     await waitFor('window.__camera[0] === 12.5 && window.__camera[1] === 20.5');
     assert.equal(errors.length, 0, errors.join('\n'));
     assert.equal(failedRequests.length, 0, failedRequests.join('\n'));
-    console.log('PASS: Glassworks startup, directional atlas uploads, visible ground contact in every frame, entrance crossing, map round-trip, no missing assets or GPU errors. Five screenshots: artifacts/glassworks/.');
+    console.log('PASS: Glassworks startup, directional atlas uploads, connected-silhouette ground contact in every frame, entrance crossing, map round-trip, no missing assets or GPU errors. Eleven screenshots: artifacts/glassworks/.');
 } finally {
     await evaluate('document.exitPointerLock?.()').catch(() => {});
     socket.close();

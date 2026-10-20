@@ -4,6 +4,6 @@
   "raycastTransparent": true,
   "collides": false,
   "passageId": 301,
-  "texture": "textures/glassworks/fern-sprite.png",
+  "texture": "textures/glassworks/fern-grounded-v2.png",
   "textureLayer": 16
 }

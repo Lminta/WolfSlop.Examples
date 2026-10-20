@@ -6,9 +6,9 @@
   "passageId": 300,
   "sprites": [
     {
-      "spriteId": 365,
+      "spriteId": 363,
       "offset": {
-        "x": -0.48,
+        "x": -0.43082813,
         "y": 0,
         "z": 0.3
       },

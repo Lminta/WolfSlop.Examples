@@ -54,8 +54,10 @@ Texture paths are relative to the application base, e.g. `textures/wolf/wood.png
 Sprites may set `planeAxis: "x"` or `"y"` to draw a fixed world-aligned quad
 instead of a billboard. The axis is the quad's normal, matching door axes: X
 spans north/south, Y spans east/west. Groups inherit their child sprite's plane.
-Use group offsets to put a wall fixture just in front of masonry; the Glassworks
-lanterns sit 0.02 squares from their supporting wall. Fixed planes display the
+Use group offsets to put a fixed wall fixture just in front of masonry.
+The Glassworks lantern side profiles use fixed planes perpendicular to the wall:
+their mounting plates touch the wall and their brackets project into the room.
+Fixed planes display the
 whole image at any scale and cannot use multiple directional views.
 
 For padded sprites, ground the visible artwork using

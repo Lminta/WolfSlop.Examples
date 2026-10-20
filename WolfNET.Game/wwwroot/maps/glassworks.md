@@ -75,10 +75,15 @@ remain consistent as the player circles them. Their new reference-based turntabl
 atlases and exact prompts are documented in
 [`directional.prompt.txt`](../textures/glassworks/directional.prompt.txt).
 All floor props compensate for transparent artwork padding in their group Z offsets;
-the directional frames share the same visible contact baseline. Lanterns use fixed
-world-aligned planes against stationary walls, and the low service pipe also keeps
-its world orientation. See the [object format](../objects/README.md) for `planeAxis`
-and the visible-baseline grounding formula.
+the directional frames share the same visible contact baseline. The fern uses
+`fern-grounded-v2.png`: detached pixels below the actual pot base were removed,
+and its visible baseline is row 469 of 512. Lanterns use fixed side-profile planes
+perpendicular to their supporting walls. The mounting plate touches the masonry,
+while the bracket and lantern project into the room. A mirrored copy of the
+original image handles the opposite wall directions. The low service pipe also
+keeps its world orientation.
+See the [object format](../objects/README.md) for `planeAxis` and the
+visible-baseline grounding formula.
 
 The glass roof, plaster ceiling, service pipe, and room signs are hand-authored
 SVG assets. Sign typography is editable SVG text for exact room names and
@@ -89,4 +94,4 @@ Run the production compiler, connectivity, doorway, and asset checks with
 WebGPU-capable Chromium instance exposing debugging port 9252, run
 `node Tests/glassworks-browser-check.mjs 9252 http://127.0.0.1:5195` to check default
 startup, texture uploads, entry interaction, crossing, and switching maps. The
-browser check also saves five views to `artifacts/glassworks/` for visual review.
+browser check also saves eleven views to `artifacts/glassworks/` for visual review.

@@ -1,0 +1,10 @@
+{
+  "type": "sprite",
+  "id": 365,
+  "raycastTransparent": true,
+  "collides": false,
+  "passageId": 301,
+  "texture": "textures/glassworks/lantern-sprite-mirrored.png",
+  "textureLayer": 21,
+  "planeAxis": "y"
+}

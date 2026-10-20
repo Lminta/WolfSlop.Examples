@@ -6,10 +6,10 @@
   "passageId": 303,
   "sprites": [
     {
-      "spriteId": 363,
+      "spriteId": 366,
       "offset": {
         "x": 0,
-        "y": -0.48,
+        "y": -0.43082813,
         "z": 0.3
       },
       "scale": {
