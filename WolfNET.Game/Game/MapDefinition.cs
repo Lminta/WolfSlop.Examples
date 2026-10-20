@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace WolfNET.Game;
 
 public sealed record MapDefinition
@@ -32,4 +34,31 @@ public sealed record PlayerStartDefinition
     public float JumpSpeedMultiplier { get; init; } = 1.25f;
     public float CrouchDrop { get; init; } = 0.25f;
     public float CrouchSpeedMultiplier { get; init; } = 0.5f;
+
+    public void Validate()
+    {
+        var direction = new Vector2(DirectionX, DirectionY);
+        if (!float.IsFinite(CrouchDrop) || CrouchDrop <= 0 || CrouchDrop >= 0.5f ||
+            !float.IsFinite(CrouchSpeedMultiplier) || CrouchSpeedMultiplier <= 0 ||
+            !float.IsFinite(MoveSpeed * CrouchSpeedMultiplier))
+            throw new InvalidDataException("crouchDrop must be greater than 0 and less than 0.5; crouchSpeedMultiplier must be positive and produce a finite speed.");
+        if (!float.IsFinite(JumpRise) || JumpRise < 0 || JumpRise >= 0.5f ||
+            !float.IsFinite(JumpLength) || JumpLength < 0 || JumpLength > 64 ||
+            !float.IsFinite(JumpSpeedMultiplier) || JumpSpeedMultiplier <= 0 ||
+            !float.IsFinite(MoveSpeed * JumpSpeedMultiplier))
+            throw new InvalidDataException("jumpRise must be in [0, 0.5), jumpLength in [0, 64], and jumpSpeedMultiplier positive; all jump settings and airborne speed must be finite.");
+        if (JumpLength > 0 && MoveSpeed > 0)
+        {
+            var flightTime = JumpLength / (MoveSpeed * JumpSpeedMultiplier);
+            if (!float.IsFinite(flightTime) || flightTime <= 0)
+                throw new InvalidDataException("Jump settings must produce a positive, finite flight time.");
+        }
+        if (!float.IsFinite(CollisionRadius) || CollisionRadius <= 0 || CollisionRadius >= 0.5f)
+            throw new InvalidDataException("Player collisionRadius must be finite, greater than zero, and less than 0.5.");
+        if (!float.IsFinite(MoveSpeed) || MoveSpeed < 0 ||
+            !float.IsFinite(RotSpeed) || RotSpeed < 0)
+            throw new InvalidDataException("Player speeds must be finite and nonnegative.");
+        if (!float.IsFinite(direction.LengthSquared()) || direction.LengthSquared() <= 0)
+            throw new InvalidDataException("Player start direction must be finite and nonzero.");
+    }
 }

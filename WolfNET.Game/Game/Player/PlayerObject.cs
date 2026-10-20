@@ -1,10 +1,13 @@
 ﻿using WolfNET.Game.Core;
+using WolfNET.Game.InputEvents;
 using WolfNET.Game.Player.Components;
 
 namespace WolfNET.Game.Player;
 
 public class PlayerObject : ObjectBase
 {
+    private readonly IKeyboardInput _input;
+
     public CameraComponent Camera { get; }
     public PlayerController Controller { get; }
     public PlayerAnimation Animation { get; } = new();
@@ -14,14 +17,15 @@ public class PlayerObject : ObjectBase
     {
         var previous = Transform.Position;
         base.Update(deltaTime);
-        Animation.Update(deltaTime, Transform.Position - previous, Game.KeyTracker.KeyState, InAir, Crouching);
+        Animation.Update(deltaTime, Transform.Position - previous, _input.KeyState, InAir, Crouching);
     }
 
-    public PlayerObject(Wolf game) : base(game)
+    public PlayerObject(IKeyboardInput input, IMouseInput mouse, INavigationMap map, PlayerStartDefinition settings)
     {
+        _input = input;
         Camera = new CameraComponent(this);
         base.AddComponent(Camera);
-        Controller = new PlayerController(game.KeyTracker, game.MouseTracker, game.Map.NavigationMap, Camera, game.Map.PlayerStart, this);
+        Controller = new PlayerController(input, mouse, map, Camera, settings, this);
         base.AddComponent(Controller);
     }
 }

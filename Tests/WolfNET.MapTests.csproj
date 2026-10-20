@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="../WolfNET.Game/Game/MapDefinition.cs" Link="Game/MapDefinition.cs" />
     <Compile Include="../WolfNET.Game/Game/MapObjects.cs" Link="Game/MapObjects.cs" />
+    <Compile Include="../WolfNET.Game/Game/MapObjectLoader.cs" Link="Game/MapObjectLoader.cs" />
     <Compile Include="../WolfNET.Game/Game/MapCompiler.cs" Link="Game/MapCompiler.cs" />
     <Compile Include="../WolfNET.Game/Game/DoorSystem.cs" Link="Game/DoorSystem.cs" />
     <Compile Include="../WolfNET.Game/Game/GameMap.cs" Link="Game/GameMap.cs" />
@@ -22,5 +23,21 @@
     <Compile Include="../WolfNET.Game/Game/Core/ComponentBase.cs" Link="Game/ComponentBase.cs" />
     <Compile Include="../WolfNET.Game/Game/Transform.cs" Link="Game/Transform.cs" />
     <Compile Include="../WolfNET.Editor/MapWorkspace.cs" Link="Editor/MapWorkspace.cs" />
+    <Compile Include="../WolfNET.Game/Game/Core/ObjectBase.cs" Link="Game/Core/ObjectBase.cs" />
+    <Compile Include="../WolfNET.Game/Game/Core/ObjectCollection.cs" Link="Game/Core/ObjectCollection.cs" />
+    <Compile Include="../WolfNET.Game/Game/Core/FrameTiming.cs" Link="Game/Core/FrameTiming.cs" />
+    <Compile Include="../WolfNET.Game/Game/InputEvents/IKeyboardInput.cs" Link="Game/InputEvents/IKeyboardInput.cs" />
+    <Compile Include="../WolfNET.Game/Game/InputEvents/IMouseInput.cs" Link="Game/InputEvents/IMouseInput.cs" />
+    <Compile Include="../WolfNET.Game/Game/InputEvents/KeyboardState.cs" Link="Game/InputEvents/KeyboardState.cs" />
+    <Compile Include="../WolfNET.Game/Game/InputEvents/KeyState.cs" Link="Game/InputEvents/KeyState.cs" />
+    <Compile Include="../WolfNET.Game/Game/Physics/CircleCollider.cs" Link="Game/Physics/CircleCollider.cs" />
+    <Compile Include="../WolfNET.Game/Game/Physics/CircleGeometry.cs" Link="Game/Physics/CircleGeometry.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/Components/CameraComponent.cs" Link="Game/Player/Components/CameraComponent.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/PlayerObject.cs" Link="Game/Player/PlayerObject.cs" />
+    <Compile Include="../WolfNET.Game/Game/ICamera.cs" Link="Game/ICamera.cs" />
+    <Compile Include="../WolfNET.Game/Game/GameScene.cs" Link="Game/GameScene.cs" />
+    <Compile Include="../WolfNET.Game/Game/GameSceneLoader.cs" Link="Game/GameSceneLoader.cs" />
+    <Compile Include="../WolfNET.Game/Graphics/RendererSettings.cs" Link="Graphics/RendererSettings.cs" />
+    <Compile Include="../WolfNET.Game/Graphics/RenderFrame.cs" Link="Graphics/RenderFrame.cs" />
   </ItemGroup>
 </Project>

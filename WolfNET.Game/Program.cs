@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using SpawnDev.BlazorJS;
 using WolfNET;
 using WolfNET.Game;
-using WolfNET.Game.InputEvents;
 using WolfNET.Graphics;
 
 Console.WriteLine("[C#] Creating Blazor host");
@@ -26,9 +25,11 @@ var graphicsSettings = await http.GetFromJsonAsync<RendererSettings>("graphics-s
     ?? throw new InvalidDataException("Graphics settings must contain a JSON object.");
 
 
-builder.Services.AddSingleton<InputEventSystem>();
 builder.Services.AddSingleton(graphicsSettings);
+graphicsSettings.Validate();
 builder.Services.AddSingleton<WebGpuRenderer>();
+builder.Services.AddSingleton<ISceneRenderer>(services => services.GetRequiredService<WebGpuRenderer>());
+builder.Services.AddSingleton<GameSceneLoader>();
 builder.Services.AddSingleton<Wolf>();
 
 Console.WriteLine("[C#] Starting BlazorJS runtime");

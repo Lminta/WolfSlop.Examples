@@ -406,10 +406,10 @@ doorMap.SetCell(2,2,0);Check(doorMap.Doors.Count==1 && doorMap.NavigationMap.IsW
     var flightLevel=SmallMap(4) with {PlayerStart=SmallMap().PlayerStart with {X=2.5f,Y=3.5f,DirectionX=0,DirectionY=-1,JumpLength=2}};
     var flightDoors=Compile(flightLevel,doorObjects);
     flightDoors.Interact(new(2.5f,3.5f),-Vector2.UnitY,.15f);flightDoors.UpdateDoors(1000,new(2.5f,3.5f),.15f);
-    var flyer=new WolfNET.Game.Core.ObjectBase {Transform=new(){Position=new(2.5f,3.5f),Rotation=-Vector2.UnitY}};
-    var flightInput=new WolfNET.Game.InputEvents.KeyTracker {KeyState=new(){Jump=true}};
-    var flightCamera=new WolfNET.Game.Player.Components.CameraComponent {Plane=new(-.66f,0)};
-    var flightController=new WolfNET.Game.Player.Components.PlayerController(flightInput,new(),flightDoors.NavigationMap,flightCamera,flightLevel.PlayerStart,flyer);
+    var flyer=new TestObject {Transform=new(){Position=new(2.5f,3.5f),Rotation=-Vector2.UnitY}};
+    var flightInput=new FakeKeyboard {KeyState=new(){Jump=true}};
+    var flightCamera=new WolfNET.Game.Player.Components.CameraComponent(flyer) {Plane=new(-.66f,0)};
+    var flightController=new WolfNET.Game.Player.Components.PlayerController(flightInput,new FakeMouse(),flightDoors.NavigationMap,flightCamera,flightLevel.PlayerStart,flyer);
     flightController.Update(25);
     flightDoors.Interact(flyer.Transform.Position,-Vector2.UnitY,.15f);flightDoors.UpdateDoors(50,flyer.Transform.Position,.15f);
     for(int i=0;i<20;i++)flightController.Update(25);
@@ -486,10 +486,10 @@ anim.Update(1000,Vector2.Zero,new(),false,true); Check(anim.Frame==10,"Stationar
 anim.Update(160,Vector2.UnitY,new(),false,true); Check(anim.Frame==11,"Moving crouch did not alternate legs");
 anim.Update(0,Vector2.Zero,new(),true,true); Check(anim.Frame==12,"Jump did not take priority over crouch");
 anim.Update(160,Vector2.Zero,new(),true,false); Check(anim.Frame==13,"Jump did not animate while horizontal motion was blocked");
-var toggleObject=new WolfNET.Game.Core.ObjectBase {Transform=orbitPlayer};
-var toggleKeys=new WolfNET.Game.InputEvents.KeyTracker {ViewToggleRequested=true};
-var toggleCamera=new WolfNET.Game.Player.Components.CameraComponent {Plane=new(.66f,0)};
-var toggleController=new WolfNET.Game.Player.Components.PlayerController(toggleKeys,new(),orbitMap.NavigationMap,toggleCamera,orbitMap.PlayerStart,toggleObject);
+var toggleObject=new TestObject {Transform=orbitPlayer};
+var toggleKeys=new FakeKeyboard {ViewToggleRequested=true};
+var toggleCamera=new WolfNET.Game.Player.Components.CameraComponent(toggleObject) {Plane=new(.66f,0)};
+var toggleController=new WolfNET.Game.Player.Components.PlayerController(toggleKeys,new FakeMouse(),orbitMap.NavigationMap,toggleCamera,orbitMap.PlayerStart,toggleObject);
 toggleController.Update(16); Check(toggleCamera.ThirdPerson && toggleObject.Transform.Position==orbitPlayer.Position,"V toggle changed player position");
 toggleController.Update(16); Check(toggleCamera.ThirdPerson,"Camera toggle repeated without another press");
 toggleKeys.ViewToggleRequested=true; toggleController.Update(16); Check(!toggleCamera.ThirdPerson,"Camera did not return to first person");
@@ -499,10 +499,10 @@ foreach (var steeringKeys in new WolfNET.Game.InputEvents.KeyState[] {
     new(){Forward=true},new(){Backward=true},new(){StrafeLeft=true},new(){StrafeRight=true},
     new(){Forward=true,StrafeLeft=true},new(){Forward=true,StrafeRight=true} })
 {
-    var actor=new WolfNET.Game.Core.ObjectBase {Transform=orbitPlayer};
-    var steeringCamera=new WolfNET.Game.Player.Components.CameraComponent {ThirdPerson=true,Plane=new(-.66f,0)};
-    var steeringMouse=new WolfNET.Game.InputEvents.MouseTracker {HorizontalMovement=80};
-    var steeringInput=new WolfNET.Game.InputEvents.KeyTracker {KeyState=steeringKeys};
+    var actor=new TestObject {Transform=orbitPlayer};
+    var steeringCamera=new WolfNET.Game.Player.Components.CameraComponent(actor) {ThirdPerson=true,Plane=new(-.66f,0)};
+    var steeringMouse=new FakeMouse {HorizontalMovement=80};
+    var steeringInput=new FakeKeyboard {KeyState=steeringKeys};
     var steeringController=new WolfNET.Game.Player.Components.PlayerController(steeringInput,steeringMouse,orbitMap.NavigationMap,steeringCamera,orbitMap.PlayerStart,actor);
     steeringController.Update(50);
     var heading=actor.Transform.Rotation;
@@ -515,10 +515,10 @@ foreach (var steeringKeys in new WolfNET.Game.InputEvents.KeyState[] {
     Check(Vector2.Distance(actor.Transform.Position,orbitPlayer.Position+expectedDirection*.5f)<.00001f,"Third-person travel did not stay on one straight line after steering stopped");
 }
 {
-    var actor=new WolfNET.Game.Core.ObjectBase {Transform=orbitPlayer};
-    var camera=new WolfNET.Game.Player.Components.CameraComponent {ThirdPerson=true,Plane=new(-.66f,0)};
-    var keys=new WolfNET.Game.InputEvents.KeyTracker {KeyState=new(){Jump=true}};
-    var mouse=new WolfNET.Game.InputEvents.MouseTracker {HorizontalMovement=80};
+    var actor=new TestObject {Transform=orbitPlayer};
+    var camera=new WolfNET.Game.Player.Components.CameraComponent(actor) {ThirdPerson=true,Plane=new(-.66f,0)};
+    var keys=new FakeKeyboard {KeyState=new(){Jump=true}};
+    var mouse=new FakeMouse {HorizontalMovement=80};
     var controller=new WolfNET.Game.Player.Components.PlayerController(keys,mouse,orbitMap.NavigationMap,camera,orbitMap.PlayerStart,actor);
     controller.Update(50);
     Check(Vector2.Distance(controller.JumpDestination,orbitPlayer.Position+actor.Transform.Rotation*orbitMap.PlayerStart.JumpLength)<.00001f,"Third-person jump used the old camera heading");
@@ -537,14 +537,14 @@ for (int keys = 0; keys < 16; keys++)
     var navigation = Compile(level).NavigationMap;
     var start = wallsPresent ? new Vector2(2.79f, 2.5f) : new Vector2(2.5f, 2.5f);
     var direction = new Vector2(MathF.Cos(heading * MathF.PI / 6), MathF.Sin(heading * MathF.PI / 6)) * 1.001f;
-    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = start, Rotation = direction } };
-    var tracker = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new()
+    var player = new TestObject { Transform = new Transform { Position = start, Rotation = direction } };
+    var tracker = new FakeKeyboard { KeyState = new()
     {
         Forward = (keys & 1) != 0, Backward = (keys & 2) != 0,
         StrafeLeft = (keys & 4) != 0, StrafeRight = (keys & 8) != 0
     } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(direction.Y, -direction.X) * 0.66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, new(), navigation, camera, level.PlayerStart, player);
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y, -direction.X) * 0.66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, new FakeMouse(), navigation, camera, level.PlayerStart, player);
     controller.Update(milliseconds);
     var speed = Vector2.Distance(start, player.Transform.Position) / (milliseconds / 1000);
     Check(speed <= configuredSpeed + 0.0001f, "Movement exceeded the configured speed cap");
@@ -557,13 +557,13 @@ for (int keys = 0; keys < 16; keys++)
 }
 Vector2 MovePlayer(GameMap level, Vector2 position, Vector2 direction, float milliseconds, float speed = 5)
 {
-    var player = new WolfNET.Game.Core.ObjectBase
+    var player = new TestObject
     {
         Transform = new Transform { Position = position, Rotation = Vector2.Normalize(direction) }
     };
-    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Forward = true } };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new(), level.NavigationMap,
-        new(), level.PlayerStart with { MoveSpeed = speed }, player);
+    var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new FakeMouse(), level.NavigationMap,
+        new WolfNET.Game.Player.Components.CameraComponent(player), level.PlayerStart with { MoveSpeed = speed }, player);
     controller.Update(milliseconds);
     return player.Transform.Position;
 }
@@ -634,16 +634,16 @@ foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })
 foreach (int keyboard in new[] { -1, 0, 1 })
 {
     var level = Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { RotSpeed = configuredSpeed } });
-    var player = new WolfNET.Game.Core.ObjectBase
+    var player = new TestObject
     {
         Transform = new Transform { Position = new Vector2(2.5f), Rotation = Vector2.UnitX }
     };
-    var tracker = new WolfNET.Game.InputEvents.KeyTracker
+    var tracker = new FakeKeyboard
     {
         KeyState = new() { Left = keyboard > 0, Right = keyboard < 0 }
     };
-    var mouse = new WolfNET.Game.InputEvents.MouseTracker { HorizontalMovement = pixels };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(0, -0.66f) };
+    var mouse = new FakeMouse { HorizontalMovement = pixels };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(0, -0.66f) };
     var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, mouse, level.NavigationMap, camera, level.PlayerStart, player);
     controller.Update(milliseconds);
     var limit = configuredSpeed * milliseconds / 1000f;
@@ -662,11 +662,11 @@ foreach (float milliseconds in new[] { 0f, 16f, 100f })
 foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })
 foreach (float initialPitch in new[] { -MathF.PI / 6, 0f, MathF.PI / 6 })
 {
-    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = new(2.5f), Rotation = Vector2.UnitX } };
-    var mouse = new WolfNET.Game.InputEvents.MouseTracker { VerticalMovement = pixels };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new(0, -0.66f), Pitch = initialPitch };
+    var player = new TestObject { Transform = new Transform { Position = new(2.5f), Rotation = Vector2.UnitX } };
+    var mouse = new FakeMouse { VerticalMovement = pixels };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new(0, -0.66f), Pitch = initialPitch };
     var level = Compile();
-    var controller = new WolfNET.Game.Player.Components.PlayerController(new(), mouse, level.NavigationMap, camera,
+    var controller = new WolfNET.Game.Player.Components.PlayerController(new FakeKeyboard(), mouse, level.NavigationMap, camera,
         level.PlayerStart with { RotSpeed = configuredSpeed }, player);
     controller.Update(milliseconds);
     var limit = configuredSpeed * milliseconds / 1000;
@@ -686,14 +686,14 @@ MapDefinition JumpMap(float length = 4, float multiplier = 2, float rise = 0.25f
 };
 GameMap JumpLevel(MapDefinition? definition = null, bool jumpable = true) => Compile(definition ?? JumpMap(),
     new(definitions) { [10] = Passage(10, collides: true) with { Jumpable = jumpable } });
-(WolfNET.Game.Core.ObjectBase Player, WolfNET.Game.InputEvents.KeyTracker Keys,
+(TestObject Player, FakeKeyboard Keys,
     WolfNET.Game.Player.Components.CameraComponent Camera, WolfNET.Game.Player.Components.PlayerController Controller,
-    WolfNET.Game.InputEvents.MouseTracker Mouse) JumpPlayer(GameMap level)
+    FakeMouse Mouse) JumpPlayer(GameMap level)
 {
-    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = level.PlayerStartPosition, Rotation = Vector2.UnitX } };
-    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Jump = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new(0,-0.66f) };
-    var mouse = new WolfNET.Game.InputEvents.MouseTracker();
+    var player = new TestObject { Transform = new Transform { Position = level.PlayerStartPosition, Rotation = Vector2.UnitX } };
+    var keys = new FakeKeyboard { KeyState = new() { Jump = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new(0,-0.66f) };
+    var mouse = new FakeMouse();
     return (player, keys, camera, new(keys, mouse, level.NavigationMap, camera, level.PlayerStart, player), mouse);
 }
 {
@@ -775,10 +775,10 @@ foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, 
     var center = new Vector2(9.5f,20.5f);
     var start = center - direction;
     var destination = center + direction;
-    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = start, Rotation = direction } };
-    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Jump = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(direction.Y,-direction.X) * .66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
+    var player = new TestObject { Transform = new Transform { Position = start, Rotation = direction } };
+    var keys = new FakeKeyboard { KeyState = new() { Jump = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y,-direction.X) * .66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new FakeMouse(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
     controller.Update(0);
     Check(Vector2.Distance(controller.JumpDestination,destination)<.0001f,$"Showcase column jump destination is blocked in direction {direction}");
     controller.Update(160);
@@ -791,10 +791,10 @@ var editorDocument = editorSource.Load("showcase") with { Name = "editor-roundtr
 foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, -Vector2.UnitY })
 {
     var center = new Vector2(9.5f,16.5f);
-    var player = new WolfNET.Game.Core.ObjectBase { Transform = new Transform { Position = center-direction, Rotation = direction } };
-    var keys = new WolfNET.Game.InputEvents.KeyTracker { KeyState = new() { Forward = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent { Plane = new Vector2(direction.Y,-direction.X)*.66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
+    var player = new TestObject { Transform = new Transform { Position = center-direction, Rotation = direction } };
+    var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
+    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y,-direction.X)*.66f };
+    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new FakeMouse(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
     controller.Update(200);
     Check(Vector2.Distance(player.Transform.Position,center)>.64f && !controller.Crouching,"Standing player entered ceiling columns");
     keys.KeyState = new() { Forward = true, Crouch = true }; controller.Update(200);
@@ -878,6 +878,7 @@ try
     Reject(() => store.Load("unsafe"), "Editor followed a path outside engine assets");
 }
 finally { Directory.Delete(editorRoot, true); }
+assertions += await EngineChecks.RunAsync(http);
 Console.WriteLine($"PASS: {assertions} assertions (migration, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler

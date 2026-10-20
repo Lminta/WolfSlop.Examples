@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Include="../WolfNET.Game/Game/MapDefinition.cs" Link="Engine/MapDefinition.cs" />
     <Compile Include="../WolfNET.Game/Game/MapObjects.cs" Link="Engine/MapObjects.cs" />
+    <Compile Include="../WolfNET.Game/Game/MapObjectLoader.cs" Link="Engine/MapObjectLoader.cs" />
     <Compile Include="../WolfNET.Game/Game/MapCompiler.cs" Link="Engine/MapCompiler.cs" />
     <Compile Include="../WolfNET.Game/Game/Sprite.cs" Link="Engine/Sprite.cs" />
     <Compile Include="../WolfNET.Game/Graphics/RenderMap.cs" Link="Engine/RenderMap.cs" />

@@ -1,5 +1,6 @@
 using System.Numerics;
 using WolfNET.Graphics;
+using WolfNET.Game.Physics;
 
 namespace WolfNET.Game;
 
@@ -64,7 +65,7 @@ public sealed class DoorSystem
     }
 
     private static bool Occupied(DoorState door, Vector2 point, float radius) =>
-        Vector2.DistanceSquared(point, Vector2.Clamp(point, new(door.X, door.Y), new(door.X + 1, door.Y + 1))) < radius * radius;
+        CircleGeometry.OverlapsCell(point, radius, door.X, door.Y);
 
     public RenderMap Apply(RenderMap map, NavigationMap navigation)
     {

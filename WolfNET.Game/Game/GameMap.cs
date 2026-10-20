@@ -58,8 +58,7 @@ public sealed class GameMap : IMap
         _definition = next;
         NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
         _doors.Rebuild(_definition.WorldMap, Objects);
-        RendererMap = _doors.Apply(RendererMap, NavigationMap);
-        RendererMap = compiled.Renderer;
+        RendererMap = _doors.Apply(compiled.Renderer, NavigationMap);
     }
 
     public bool Interact(Vector2 position, Vector2 direction, float radius) => _doors.Interact(position, direction, radius);

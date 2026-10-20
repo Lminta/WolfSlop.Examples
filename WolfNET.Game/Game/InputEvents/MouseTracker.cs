@@ -4,7 +4,7 @@ using SpawnDev.BlazorJS.JSObjects;
 
 namespace WolfNET.Game.InputEvents;
 
-public sealed class MouseTracker : IDisposable
+public sealed class MouseTracker : IMouseInput, IDisposable
 {
     private readonly HTMLCanvasElement _canvas;
     private readonly Document _document;

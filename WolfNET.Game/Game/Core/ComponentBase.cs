@@ -1,15 +1,10 @@
-﻿namespace WolfNET.Game.Core;
+namespace WolfNET.Game.Core;
 
-public abstract class ComponentBase
+public abstract class ComponentBase(ObjectBase parent)
 {
-    public Guid Id = Guid.NewGuid();
-    public ObjectBase Parent { get; }
-    
-    public ComponentBase(ObjectBase parent)
-    {
-        Parent = parent;
-    }
-    
-    public virtual void Update(float deltaTime)
-    {}
+    public Guid Id { get; } = Guid.NewGuid();
+    public ObjectBase Parent { get; } = parent ?? throw new ArgumentNullException(nameof(parent));
+
+    /// <param name="deltaTime">Elapsed simulation time in milliseconds.</param>
+    public virtual void Update(float deltaTime) { }
 }

@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Numerics;
-using System.Net.Http.Json;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Game.Core;
@@ -10,234 +8,175 @@ using WolfNET.Graphics;
 
 namespace WolfNET.Game;
 
+/// <summary>Coordinates browser frames, scene loading, and renderer lifetime.</summary>
 public sealed class Wolf : IDisposable
 {
-    private readonly WebGpuRenderer _renderer;
+    private readonly ISceneRenderer _renderer;
+    private readonly GameSceneLoader _loader;
     private readonly Window _window;
-    private readonly InputEventSystem _inputEvents;
     private readonly BlazorJSRuntime _js;
-    private readonly HttpClient _http;
-    
-    private ObjectCollection _objectCollection;
-    private PlayerObject _player;
-    public PlayerObject? Player => _running ? _player : null;
-    public KeyTracker KeyTracker { get; private set;}
-    public MouseTracker MouseTracker { get; private set; } = null!;
-    public IMap Map { get; private set;}
-    public RendererSettings RendererSettings { get; private set;}
-
     private readonly Stopwatch _clock = new();
-    
-
-    private double _lastFrameTime;
-    private double _nextFrameTime;
-    private bool _running;
+    private readonly FrameTiming _timing;
+    private readonly SemaphoreSlim _mapSwitchLock = new(1, 1);
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _pendingLoad;
+    private GameScene? _scene;
+    private BrowserInput? _input;
+    private TextureCatalog? _sceneTextures;
     private bool _disposed;
     private int _frameGeneration;
-    private readonly SemaphoreSlim _mapSwitchLock = new(1, 1);
-    private TextureCatalog? _sceneTextures;
-    private CharacterAppearance? _characterAppearance;
+
+    public PlayerObject? Player => _scene?.Player;
+    public KeyTracker KeyTracker => _input?.Keyboard ?? throw new InvalidOperationException("No scene is running.");
+    public MouseTracker MouseTracker => _input?.Mouse ?? throw new InvalidOperationException("No scene is running.");
+    public IMap Map => _scene?.Map ?? throw new InvalidOperationException("No scene is running.");
+    public RendererSettings RendererSettings { get; }
     public string? CurrentMapPath { get; private set; }
 
-    public Wolf(
-        RendererSettings settings,
-        WebGpuRenderer renderer,
-        InputEventSystem inputEvents,
-        HttpClient http,
-        BlazorJSRuntime js)
+    public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js)
     {
+        settings.Validate();
         RendererSettings = settings;
         _renderer = renderer;
-        _inputEvents = inputEvents;
+        _loader = loader;
         _js = js;
-        _http = http;
-
+        _timing = new FrameTiming(settings.TargetFPS);
         _window = js.Get<Window>("window");
     }
 
     public Task StartAsync(HTMLCanvasElement canvas, CancellationToken cancellationToken = default) =>
-        _running ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/level1.json", cancellationToken);
+        _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/level1.json", cancellationToken);
 
     public async Task SwitchMapAsync(HTMLCanvasElement canvas, string mapPath, CancellationToken cancellationToken = default,
         Func<string, Task>? reportProgress = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        await _mapSwitchLock.WaitAsync(cancellationToken);
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
+        var token = operation.Token;
+        await _mapSwitchLock.WaitAsync(token);
+        BrowserInput? input = null;
+        GameScene? scene = null;
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             Stop();
-            // Input and old frames stay stopped until the selected scene is ready.
-            if (reportProgress != null) await reportProgress("Loading map and objects…");
-            var map = await GameMap.LoadAsync(_http, mapPath,
-                RendererSettings.MaxMapWidth, RendererSettings.MaxMapHeight, cancellationToken);
-            var characterDefinition = await _http.GetFromJsonAsync<SpriteDefinition>(
-                "player-character.json", cancellationToken)
-                ?? throw new InvalidDataException("Player character definition is empty.");
-            _characterAppearance = new CharacterAppearance(characterDefinition);
-            await _renderer.PrepareSceneAsync(map.RendererMap, cancellationToken, reportProgress, _characterAppearance);
-            cancellationToken.ThrowIfCancellationRequested();
+            _pendingLoad = operation;
+            if (reportProgress != null) await reportProgress("Loading map and objects...");
+            var loaded = await _loader.LoadAsync(mapPath, token);
+            await _renderer.PrepareSceneAsync(loaded.Map.RendererMap, token, reportProgress, loaded.Character);
+            if (reportProgress != null) await reportProgress("Entering scene...");
+            token.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
 
-            if (reportProgress != null) await reportProgress("Entering scene…");
-            _objectCollection = new ObjectCollection();
-            MouseTracker = new MouseTracker(canvas, _js);
-            KeyTracker = new KeyTracker(_inputEvents, _js, () => MouseTracker.IsLocked);
-            KeyTracker.EscapePressed += MouseTracker.Release;
-            MouseTracker.PointerLockReleased += KeyTracker.Reset;
-            Map = map;
-
-            _player = new PlayerObject(this)
-            {
-                Transform = new Transform
-                {
-                    Position = map.PlayerStartPosition,
-                    Rotation = map.PlayerStartDirection,
-                }
-            };
-            _player.Camera.Plane = new Vector2(map.PlayerStartDirection.Y, -map.PlayerStartDirection.X) *
-                                   MathF.Tan(RendererSettings.FovDegrees * MathF.PI / 360f);
-
-            _objectCollection.Add(_player);
-
-            _running = true;
-
-            _clock.Restart();
-            _lastFrameTime = 0;
-            _nextFrameTime = 0;
+            input = new BrowserInput(canvas, _js);
+            scene = new GameScene(loaded.Map, loaded.Character, input.Keyboard, input.Mouse, RendererSettings);
+            _input = input;
+            _scene = scene;
+            input = null;
+            scene = null;
+            _sceneTextures = loaded.Map.RendererMap.Textures;
             CurrentMapPath = mapPath;
-            _sceneTextures = map.RendererMap.Textures;
+            _clock.Restart();
+            _timing.Reset();
             int generation = ++_frameGeneration;
-
-            Console.WriteLine(
-                $"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
-
-            _window.RequestAnimationFrame(() => Frame(generation));
+            Console.WriteLine($"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
+            ScheduleFrame(generation);
         }
         catch
         {
-            _renderer.ReleaseScene();
+            scene?.Dispose();
+            input?.Dispose();
+            Stop();
             throw;
         }
         finally
         {
+            _pendingLoad = null;
             _mapSwitchLock.Release();
         }
     }
 
+    private void ScheduleFrame(int generation) => _window.RequestAnimationFrame(() => Frame(generation));
+    private bool IsCurrent(int generation) => !_disposed && _scene != null && generation == _frameGeneration;
+
     private void Frame(int generation)
     {
-        if (!_running || generation != _frameGeneration)
-            return;
-
+        if (!IsCurrent(generation)) return;
         try
         {
-            var frameStartTime = _clock.Elapsed.TotalMilliseconds;
-            // Yield to the browser between frames so mouse events and painting can run.
-            // Never sleep on the browser thread to enforce the FPS limit.
-            if (frameStartTime + 0.5 < _nextFrameTime)
+            // Return to the browser between frames so input and painting can run.
+            if (!_timing.TryAdvance(_clock.Elapsed.TotalMilliseconds, out var deltaTime))
             {
-                _window.RequestAnimationFrame(() => Frame(generation));
+                ScheduleFrame(generation);
                 return;
             }
-
-            var deltaTime = Math.Min(frameStartTime - _lastFrameTime, 100);
-            _lastFrameTime = frameStartTime;
-            var interval = RendererSettings.TargetFrameInterval;
-            // Skip missed deadlines rather than rendering a burst of catch-up frames.
-            _nextFrameTime += Math.Max(1, Math.Floor((frameStartTime - _nextFrameTime) / interval) + 1) * interval;
-            _objectCollection.Update((float)deltaTime);
-            if (KeyTracker.ConsumeAction()) Map.Interact(_player.Transform.Position, _player.Transform.Rotation, Map.PlayerStart.CollisionRadius);
-            Map.UpdateDoors((float)deltaTime, _player.Transform.Position, Map.PlayerStart.CollisionRadius);
-            if (!ReferenceEquals(_sceneTextures, Map.RendererMap.Textures))
+            _scene!.Update(deltaTime);
+            if (!ReferenceEquals(_sceneTextures, _scene.Map.RendererMap.Textures))
             {
                 _ = RefreshSceneAsync(generation);
                 return;
             }
-            var view = _player.Camera.View(Map.RendererMap);
-            Sprite? character = _player.Camera.ThirdPerson && view.Distance > .35f
-                ? _characterAppearance!.Sprite(_player.Animation.Frame, _player.Transform.Position,
-                    _player.InAir ? _player.Camera.Elevation : 0)
-                : null;
-            _renderer.Render(
-                view.Position,
-                _player.Camera.Transform.Rotation,
-                _player.Camera.Plane,
-                Map.RendererMap,
-                _player.Camera.Pitch,
-                view.Elevation, character);
-            _window.RequestAnimationFrame(() => Frame(generation));
+            _renderer.Render(_scene.CaptureFrame());
+            ScheduleFrame(generation);
         }
         catch (Exception ex)
         {
             Stop();
-
-            Console.Error.WriteLine(
-                $"[GAME] Frame failed: {ex}");
+            Console.Error.WriteLine($"[GAME] Frame failed: {ex}");
         }
     }
 
-    // Edits can introduce a previously unused texture. Serialize that upload with map switches.
+    // Edited maps can add textures. Serialize uploads with map switches.
     private async Task RefreshSceneAsync(int generation)
     {
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         await _mapSwitchLock.WaitAsync();
         try
         {
-            if (!_running || generation != _frameGeneration) return;
-            var map = Map.RendererMap;
-            await _renderer.PrepareSceneAsync(map, character: _characterAppearance);
-            if (!_running || generation != _frameGeneration)
-            {
-                _renderer.ReleaseScene();
-                return;
-            }
+            if (!IsCurrent(generation)) return;
+            _pendingLoad = operation;
+            var map = _scene!.Map.RendererMap;
+            await _renderer.PrepareSceneAsync(map, operation.Token, character: _scene.Character);
+            if (!IsCurrent(generation)) return;
             _sceneTextures = map.Textures;
-            _lastFrameTime = _clock.Elapsed.TotalMilliseconds;
-            _nextFrameTime = _lastFrameTime;
-            _window.RequestAnimationFrame(() => Frame(generation));
+            _timing.Reset(_clock.Elapsed.TotalMilliseconds);
+            ScheduleFrame(generation);
         }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            if (generation == _frameGeneration) Stop();
+            if (IsCurrent(generation)) Stop();
             Console.Error.WriteLine($"[GAME] Scene update failed: {ex}");
         }
         finally
         {
+            _pendingLoad = null;
             _mapSwitchLock.Release();
         }
     }
 
     public void Stop()
     {
-        if (!_running)
-            return;
-
-        _running = false;
+        _pendingLoad?.Cancel();
         _frameGeneration++;
         _clock.Stop();
-        KeyTracker.Dispose();
-        MouseTracker.Dispose();
-        _objectCollection.Dispose();
-        _objectCollection = null!;
-        _player = null!;
-        KeyTracker = null!;
-        MouseTracker = null!;
-        Map = null!;
-        CurrentMapPath = null;
+        _input?.Dispose();
+        _scene?.Dispose();
+        _input = null;
+        _scene = null;
         _sceneTextures = null;
+        CurrentMapPath = null;
         _renderer.ReleaseScene();
-
-        Console.WriteLine("[GAME] Stopped");
     }
-    
+
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        Stop();
+        if (_disposed) return;
         _disposed = true;
-        
+        _lifetime.Cancel();
+        Stop();
         _window.Dispose();
+        // Pending operations still own linked tokens and release the semaphore in finally.
+        _lifetime.Dispose();
     }
 }

@@ -1,5 +1,6 @@
 using System.Numerics;
 using WolfNET.Graphics;
+using WolfNET.Game.Physics;
 
 namespace WolfNET.Game.Player;
 
@@ -41,8 +42,7 @@ public static class ThirdPersonCamera
             if (x < 0 || y < 0 || x >= map.Width || y >= map.Height) return false;
             var cell = map.Cells[y * map.Width + x];
             if ((cell.Flags & (RenderCellFlags.Wall | RenderCellFlags.StopsRay)) == 0) continue;
-            var nearest = Vector2.Clamp(point, new(x, y), new(x + 1, y + 1));
-            if (Vector2.DistanceSquared(point, nearest) < Radius * Radius) return false;
+            if (CircleGeometry.OverlapsCell(point, Radius, x, y)) return false;
         }
         return true;
     }

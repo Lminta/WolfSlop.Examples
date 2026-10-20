@@ -195,29 +195,7 @@ public sealed class MapCompiler
         if (start == null || !float.IsFinite(start.X) || !float.IsFinite(start.Y) ||
             start.X < 0 || start.Y < 0 || start.X >= width || start.Y >= height || !walkable[(int)start.X][(int)start.Y])
             throw new InvalidDataException("Player start must be in a walkable map cell.");
-        var direction = new Vector2(start.DirectionX, start.DirectionY);
-        if (!float.IsFinite(start.CrouchDrop) || start.CrouchDrop <= 0 || start.CrouchDrop >= 0.5f ||
-            !float.IsFinite(start.CrouchSpeedMultiplier) || start.CrouchSpeedMultiplier <= 0 ||
-            !float.IsFinite(start.MoveSpeed * start.CrouchSpeedMultiplier))
-            throw new InvalidDataException("crouchDrop must be greater than 0 and less than 0.5; crouchSpeedMultiplier must be positive and produce a finite speed.");
-        if (!float.IsFinite(start.JumpRise) || start.JumpRise < 0 || start.JumpRise >= 0.5f ||
-            !float.IsFinite(start.JumpLength) || start.JumpLength < 0 || start.JumpLength > 64 ||
-            !float.IsFinite(start.JumpSpeedMultiplier) || start.JumpSpeedMultiplier <= 0 ||
-            !float.IsFinite(start.MoveSpeed * start.JumpSpeedMultiplier))
-            throw new InvalidDataException("jumpRise must be in [0, 0.5), jumpLength in [0, 64], and jumpSpeedMultiplier positive; all jump settings and airborne speed must be finite.");
-        if (start.JumpLength > 0 && start.MoveSpeed > 0)
-        {
-            var flightTime = start.JumpLength / (start.MoveSpeed * start.JumpSpeedMultiplier);
-            if (!float.IsFinite(flightTime) || flightTime <= 0)
-                throw new InvalidDataException("Jump settings must produce a positive, finite flight time.");
-        }
-        if (!float.IsFinite(start.CollisionRadius) || start.CollisionRadius <= 0 || start.CollisionRadius >= 0.5f)
-            throw new InvalidDataException("Player collisionRadius must be finite, greater than zero, and less than 0.5.");
-        if (!float.IsFinite(start.MoveSpeed) || start.MoveSpeed < 0 ||
-            !float.IsFinite(start.RotSpeed) || start.RotSpeed < 0)
-            throw new InvalidDataException("Player speeds must be finite and nonnegative.");
-        if (!float.IsFinite(direction.LengthSquared()) || direction.LengthSquared() <= 0)
-            throw new InvalidDataException("Player start direction must be finite and nonzero.");
+        start.Validate();
 
         var usedLayers = cells.SelectMany(cell => new[] { cell.FloorTextureLayer, cell.CeilingTextureLayer }
             .Concat(cell.Flags.HasFlag(RenderCellFlags.Wall)

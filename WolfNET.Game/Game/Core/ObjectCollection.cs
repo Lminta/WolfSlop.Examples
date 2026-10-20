@@ -1,12 +1,14 @@
 ﻿namespace WolfNET.Game.Core;
 
-public class ObjectCollection : IDisposable
+public sealed class ObjectCollection : IDisposable
 {
-    Dictionary<Guid, ObjectBase> objects = new ();
+    private readonly Dictionary<Guid, ObjectBase> _objects = [];
+    private bool _disposed;
 
     public void Update(float deltaTime)
     {
-        foreach (var (_, obj) in objects)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        foreach (var (_, obj) in _objects)
         {
             obj.Update(deltaTime);
         }
@@ -14,12 +16,16 @@ public class ObjectCollection : IDisposable
 
     public void Dispose()
     {
-        foreach (var obj in objects.Values) obj.Dispose();
-        objects.Clear();
+        if (_disposed) return;
+        _disposed = true;
+        foreach (var obj in _objects.Values) obj.Dispose();
+        _objects.Clear();
     }
 
     public void Add(ObjectBase obj)
     {
-        objects.TryAdd(obj.Id, obj);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(obj);
+        _objects.TryAdd(obj.Id, obj);
     }
 }
