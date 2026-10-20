@@ -5,7 +5,7 @@
   "collides": true,
   "jumpable": false,
   "crouchable": false,
-  "passageId": 17,
+  "passageId": 10,
   "texture": "textures/doors/glass-door.png",
   "axis": "x",
   "openSeconds": 0.8

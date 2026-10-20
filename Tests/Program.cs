@@ -73,6 +73,8 @@ Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && s
 Check(showcase.PlayerStartPosition == new Vector2(18.5f, 22.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
 Check(showcase.RendererMap.Sprites.Count == 78, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
+Check(!ShowcaseCell(24, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
+    showcase.RendererMap.Textures.Layers[ShowcaseCell(24, 18).CeilingTextureLayer] == "textures/wolf/greystone.png", "Glass doorway indoor ceiling missing");
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
 Check(!ShowcaseCell(26, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
