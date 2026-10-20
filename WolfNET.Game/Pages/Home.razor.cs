@@ -16,6 +16,7 @@ public partial class Home
     private const string GlassworksMap = "maps/glassworks.json";
     private const string OriginalMap = "maps/level1.json";
     private const string ShowcaseMap = "maps/showcase.json";
+    private const string PineLoopMap = "maps/pine-loop.json";
     private string? _selectedMap;
     private bool _loading = true;
     private string _loadingMessage = "Loading shaders…";

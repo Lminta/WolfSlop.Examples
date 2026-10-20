@@ -208,7 +208,7 @@ var atlasDefinition = spriteDef with { TextureLayer = 32, Atlas = car.Atlas, Rot
 var atlasObjects = new Dictionary<int, MapObjectDefinition>(definitions) { [2] = atlasDefinition };
 var atlasGroup = Compile(SmallMap() with { WorldMap = [[1,1,1,1,1],[1,0,0,0,1],[1,0,3,0,1],[1,0,0,0,1],[1,1,1,1,1]] }, atlasObjects);
 Check(atlasGroup.RendererMap.Sprites.All(sprite => sprite.Atlas == car.Atlas && sprite.RotationDegrees == -90), "Group member lost atlas/facing");
-Check(atlasDefinition.FacingCamera && car.FacingCamera && atlasGroup.RendererMap.Sprites.All(sprite => sprite.FacingCamera),
+Check(atlasDefinition.FacingCamera && new Sprite(Vector2.Zero, 0, 0).FacingCamera && atlasGroup.RendererMap.Sprites.All(sprite => sprite.FacingCamera),
     "Directional sprites no longer default to camera-facing behavior");
 var anchoredObjects = new Dictionary<int, MapObjectDefinition>(atlasObjects)
 { [2] = atlasDefinition with { FacingCamera = false } };
@@ -1031,6 +1031,7 @@ try
 }
 finally { Directory.Delete(editorRoot, true); }
 assertions += await EngineChecks.RunAsync(http);
+assertions += await PineLoopChecks.RunAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler

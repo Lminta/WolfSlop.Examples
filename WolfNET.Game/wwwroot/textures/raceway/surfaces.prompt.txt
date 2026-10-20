@@ -1,0 +1,22 @@
+Generated with the built-in imagegen tool. Final game surfaces are downsampled to 512 x 512 PNG for the raycaster.
+
+asphalt.png
+Use case: stylized-concept
+Asset type: seamless square asphalt floor texture for a 1990s PC raycast racing game, tile covers one metre of ground.
+Primary request: orthographic straight-down view of dark charcoal asphalt race track surface; fine irregular grey aggregate, subtly weathered, compact tar. Fine low-contrast natural variation with no major cracks. Moderately detailed painted realism, sharp and readable at 256–512 pixels.
+Composition: entire image filled edge to edge by one uniform flat material, seamless repeating edges, perfectly even ambient daylight, no direction-dependent light. NO road lines, markings, scenery, plants, curbs, horizon, perspective, text, logo, gradient or vignette. Opaque square tile. No objects or diagrams. Material only.
+
+grass.png
+Use case: stylized-concept
+Asset type: seamless square grass ground texture for a retro 1990s PC raycast racing game, tile covers one square metre.
+Primary request: natural cut meadow turf, medium muted green grass with individual fine blades and slight mossy olive tonal variation, dense even coverage, believable painted realism, clearly readable at 256–512 pixels.
+Composition: completely flat orthographic top-down material swatch, entire square filled edge to edge with grass, perfectly even daylight, seamless repeating edges, very low contrast variation so repeated tiles blend together.
+Constraints: opaque image. No bare earth patches, no flowers, no pebbles, no big clumps, no objects, no horizon, no perspective, no lighting direction, no vignette, no frame, no words or logo. One uniform material only.
+
+mud.png
+Use case: stylized-concept
+Asset type: seamless square mud ground texture for the runoff of a retro 1990s PC raycast racing game, tile covers one square metre.
+Primary request: damp earthy medium brown compacted mud and fine dirt, slightly granular soil with occasional tiny gravel and shallow irregular small scuffs, matte, no puddles. Believable textured painted realism, clearly readable at 256–512 pixels.
+Composition: flat orthographic straight-down square material, entirely filled edge to edge by one uniform mud surface, seamless repeat, even ambient daylight, subtle low contrast variation.
+Constraints: opaque image. No plants, grass, roots, leaves, large stones, tire tracks, stripes, road markings, horizon, perspective, directional shadow, vignette, border, text or logo. Material only.
+

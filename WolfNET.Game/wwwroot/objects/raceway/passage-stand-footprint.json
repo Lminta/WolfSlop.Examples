@@ -1,0 +1,10 @@
+{
+  "type": "passage",
+  "id": 507,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "floorTexture": "textures/raceway/grass.png",
+  "ceilingMode": "sky"
+}

@@ -34,6 +34,8 @@
 
 <aside class="map-switcher" aria-label="Map selection">
     <nav aria-label="Maps">
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == PineLoopMap))"
+                aria-pressed="@(_selectedMap == PineLoopMap ? "true" : "false")" @onclick="() => SelectMapAsync(PineLoopMap)">Pine Loop</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == GlassworksMap))"
                 aria-pressed="@(_selectedMap == GlassworksMap ? "true" : "false")" @onclick="() => SelectMapAsync(GlassworksMap)">The Glassworks</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
@@ -48,6 +50,10 @@
     @if (_selectedMap == GlassworksMap)
     {
         <p>Explore an abandoned botanical station. Circle the central glasshouse through the potting room and pump room, or discover the maintenance shortcut.</p>
+    }
+    @if (_selectedMap == PineLoopMap)
+    {
+        <p>Follow the outdoor circuit from the three-wide starting grid into the two-wide forest loop. Pass the northern tunnel, tire-lined bends, grandstand, and three pit boxes.</p>
     }
     @if (_selectedMap == ShowcaseMap)
     {

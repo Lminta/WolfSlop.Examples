@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 512,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/tunnel-portal.svg",
+    "east": "textures/raceway/tunnel-portal.svg",
+    "south": "textures/raceway/tunnel-portal.svg",
+    "west": "textures/raceway/tunnel-portal.svg"
+  }
+}

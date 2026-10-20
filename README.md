@@ -18,6 +18,11 @@ find the maintenance shortcut that links the rooms. See the
 from the map selector. Open `?map=level1` to load The Brickyard directly; its
 [level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
 
+**Pine Loop** is an outdoor racing circuit with a three-tile starting grid that
+narrows to two tiles, a covered tunnel, pit boxes, a grandstand, and forest scenery.
+Choose it in the map selector or open `?map=pine-loop`. Its
+[map notes](WolfNET.Game/wwwroot/maps/pine-loop.md) describe the route and assets.
+
 Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filtering
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.

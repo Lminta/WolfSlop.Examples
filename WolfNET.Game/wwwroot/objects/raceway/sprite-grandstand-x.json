@@ -1,0 +1,12 @@
+{
+  "type": "sprite",
+  "id": 527,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/grandstand.png",
+  "textureLayer": 105,
+  "planeAxis": "x"
+}

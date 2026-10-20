@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 510,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/grass.png",
+    "east": "textures/raceway/grass.png",
+    "south": "textures/raceway/grass.png",
+    "west": "textures/raceway/grass.png"
+  }
+}

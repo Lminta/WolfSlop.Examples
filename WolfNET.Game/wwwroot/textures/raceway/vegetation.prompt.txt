@@ -1,0 +1,40 @@
+# Pine Loop vegetation and grandstand sprites
+
+Generated with the built-in image_gen tool. Transparent alpha preserved; transparent padding cropped and art proportionally downsampled onto a grounded 512 x 512 canvas.
+
+## tree.png
+
+Use case: stylized-concept
+Asset type: transparent billboard sprite for a classic PC raycast racing game, square 1024 by 1024 PNG
+Primary request: One tall mature pine tree, whole tree from crown tip to trunk base. Dense irregular layered dark green foliage, warm gray brown bark, convincingly natural asymmetric silhouette.
+Scene/backdrop: Fully transparent alpha, isolated object. No background and no ground surface.
+Style/medium: Grounded 1990s PC racing game painted realism, crisp tactile detail that stays readable downsampled to 256 pixels, natural realistic proportions, no chunky pixelation.
+Composition/framing: Straight frontal eye-level view, no tilted camera. Entire tree centered. Trunk base at 97 percent image height. Crown almost fills height, foliage fills 70 percent width. Little empty padding. Trunk ends cleanly on baseline.
+Lighting/mood: Soft clear outdoor daylight, neutral balanced lighting.
+Materials/textures: Individual clustered needles and irregular branches, solid trunk.
+Constraints: Actual transparent background. One single tree. No lettering, no logos, no watermark, no landscape, no ground patch, no external shadow, no checkerboard pixels.
+
+## bush.png
+
+Use case: stylized-concept
+Asset type: transparent billboard sprite for a classic PC raycast racing game, square 1024 by 1024 PNG
+Primary request: One dense rounded leafy roadside shrub with irregular natural silhouette and deep green small leaves. Whole bush, no flower pot.
+Scene/backdrop: Fully transparent alpha, isolated object. No background and no ground surface.
+Style/medium: Grounded 1990s PC racing game painted realism, crisp tactile detail readable at 256 pixels, natural realistic proportions, no chunky pixelation.
+Composition/framing: Straight frontal eye-level view. Whole shrub centered, rounded bush spans 90 percent image width and approximately 65 percent image height, at bottom of square with lower leaf edge at 97 percent height, transparent space above. Natural grounded flat lower silhouette. Little side padding.
+Lighting/mood: Soft clear outdoor daylight, neutral balanced lighting.
+Materials/textures: Dense leaf clusters, layered olive and forest greens, dark interior twig detail.
+Constraints: Actual transparent background. One shrub. No lettering, no logos, no watermark, no landscape, no ground patch, no external shadow, no checkerboard pixels.
+
+## grandstand.png
+
+Use case: stylized-concept
+Asset type: transparent fixed-plane prop sprite for classic PC raycast racing game, square 1024 by 1024 PNG
+Primary request: Front elevation of one compact motorsport spectator grandstand, a small roofed galvanized metal bleacher with four rows of simple blue seats, slim vertical posts holding a shallow corrugated metal canopy, safety railing and sparse tiny spectators seated among empty chairs.
+Scene/backdrop: Fully transparent alpha, isolated entire building, no ground plane.
+Style/medium: Grounded 1990s PC racing game painted realism, crisp textured detailed silhouette that remains readable downsampled to 256 pixels. Natural realistic construction, simple structural forms.
+Composition/framing: Strictly straight-on front orthographic elevation suitable for a fixed vertical billboard sprite. Entire grandstand visible, widest at canopy, fills 94 percent width, structure about 60 percent of square height, feet at 97 percent image height. Transparent padding above. No visible perspective ground. All support legs end along one horizontal baseline.
+Lighting/mood: Soft clear outdoor daylight, neutral balanced lighting.
+Materials/textures: Galvanized gray steel frame, mildly weathered corrugated metal roof, blue plastic seats, restrained clothing colors.
+Constraints: Actual transparent alpha. No text, signs, logos, watermark, landscape, roadway, concrete ground pad, or external cast shadow. No checkerboard pixels.
+

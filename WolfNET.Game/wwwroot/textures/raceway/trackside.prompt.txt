@@ -1,0 +1,33 @@
+Generation mode: built-in image_gen.imagegen; transparent_background: true.
+
+Files: tires.png, fence.png, buffer.png
+Post-processing: trim outer padding to the alpha >= 8 silhouette (generated images include invisible low-alpha specks far outside each object); preserve alpha within the crop; fit native proportions at 512px width into a 512x512 transparent canvas; align the object baseline to row 511.
+
+TIRES
+Use case: stylized-concept
+Asset type: transparent PNG game sprite for an outdoor retro raycasting racing game.
+Primary request: one low wide motorsport safety tire wall consisting of six vertical stacks of old car tires, three tires per stack, touching side by side. Alternate black rubber stacks and weathered white painted tire stacks.
+Style/medium: grounded 1990s PC racing game painted realism, richly textured but crisp readable silhouette, neutral bright outdoor daylight from upper left.
+Composition/framing: square image; front elevation, camera level nearly orthographic, minimal visible top. Tire wall spans almost full canvas width from x 3% to 97%, height approximately 35% of image, bottom contact at y 95%. This is a wide low barrier, not a tall object.
+Scene/backdrop: actual transparent alpha around the isolated tire wall and through genuine gaps; no background at all.
+Materials/textures: dark worn rubber, tread detail, rubbed white paint, believable dark openings between tire layers.
+Constraints: all tire stacks grounded at a single level baseline. Entire subject inside frame. No ground patch, floor plane, grass, cast shadow outside the object, text, numbers, logos, watermark, checkerboard pattern, border or additional props.
+
+FENCE
+Use case: stylized-concept
+Asset type: transparent PNG fixed-plane fence sprite for an outdoor retro raycasting racing game.
+Primary request: one single repeating chain-link motorsport safety fence panel, front elevation, straight galvanized metal vertical post on each side and one horizontal top rail, diamond chain-link mesh between posts. A complete rectangular fence panel approximately twice as wide as it is high, suitable for adjoining copies edge to edge.
+Style/medium: grounded 1990s PC racing game painted realism, crisp fine readable metallic mesh, neutral bright outdoor daylight from upper left.
+Composition/framing: square image, orthographic front view without perspective or side depth; panel spans x 2% to 98%, top rail at y 37%, post bottoms at y 95%, mesh reaches near bottom, every rail and post fully inside image. No feet sticking sideways.
+Scene/backdrop: genuine fully transparent alpha outside metal and in EVERY diamond opening of the chain-link mesh; see-through mesh is critical.
+Materials/textures: weathered dull galvanized steel with subtle dark edges, thin evenly spaced medium-size diamond wire cells that remain legible as a game sprite.
+Constraints: flat seamless repeatable front panel, posts share ground baseline. No scene or colored fill behind mesh, no ground patch, cast shadow outside object, barbed wire, text, signs, logos, watermark, checkerboard artwork, other props.
+
+BUFFER
+Use case: stylized-concept
+Asset type: transparent PNG game sprite for an outdoor retro raycasting racing game.
+Primary request: one low wide portable interlocking impact buffer safety barricade for a motorsport circuit, three joined molded plastic barricade sections alternating red then white then red; squat solid road barrier with sloped shoulders, broad stable base, understated grooves and handle recesses, no wheels.
+Style/medium: grounded 1990s PC racing game painted realism, detailed slightly scuffed utilitarian plastic, crisp readable silhouette, neutral outdoor daylight from upper left.
+Composition/framing: square image, front elevation, nearly orthographic with minimal top visible. The joined buffer spans x 3% to 97%, total height approximately 32% of canvas, entire stable base at y 95%. Designed as a low wide track boundary barrier.
+Scene/backdrop: genuinely transparent alpha around the entire object and any open handle holes; no background.
+Constraints: entire object inside frame, all sections share baseline, no ground patch, floor plane, cast shadow outside object, reflective street signs, text, numbers, logos, watermark, checkerboard artwork or extra props.

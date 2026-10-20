@@ -1,0 +1,11 @@
+{
+  "type": "sprite",
+  "id": 522,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/bush.png",
+  "textureLayer": 102
+}
