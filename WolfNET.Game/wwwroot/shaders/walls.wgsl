@@ -241,9 +241,13 @@ fn fragmentMain(
     }
 
     let cell = worldMap[hit.hitCell - 1u];
-    if ((cell.flags & 2u) == 0u || (cell.flags & 8u) != 0u) {
+    if ((cell.flags & 2u) == 0u) {
         return floorCeilingColor(input.position.xy);
     }
+    // An opaque door already stopped this exact pixel-center ray. Draw its
+    // panel here as well as in the sprite pass so subpixel triangle edge
+    // rounding cannot expose the floor behind a ray-blocking door.
+    let isDoor = (cell.flags & 8u) != 0u;
     let screenHeight = camera.screenSize.y;
     // Use the same focal length as horizontal ray projection so unit tiles stay square.
     let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
@@ -270,7 +274,7 @@ fn fragmentMain(
     // Use the full projected wall, even when its top is above the screen.
     let wallV = (y - wallCenter) / lineHeight + 0.5;
     // Side 0 crosses an X face; side 1 crosses a Y face.
-    let cameraX = 2.0 * f32(x) / camera.screenSize.x - 1.0;
+    let cameraX = 2.0 * input.position.x / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
     let material = materials[cell.materialIndex];
     var layer = select(material.east, material.west, rayDir.x > 0.0);
@@ -286,13 +290,15 @@ fn fragmentMain(
     let stepAlong = select(rayStep.x, rayStep.y, hit.side == 0u);
     let distanceStep = -hit.distance * stepNormal / rayNormal;
     var wallUStep = hit.distance * stepAlong + distanceStep * rayAlong;
-    if ((hit.side == 0u && rayDir.x > 0.0) || (hit.side == 1u && rayDir.y < 0.0)) {
+    if (!isDoor && ((hit.side == 0u && rayDir.x > 0.0) || (hit.side == 1u && rayDir.y < 0.0))) {
         wallUStep = -wallUStep;
     }
     let gradientX = vec2f(wallUStep, (y - horizon) * distanceStep / focalLength);
     let gradientY = vec2f(0.0, 1.0 / lineHeight);
-    var color = sampleTexture(layer, vec2f(hit.wallU, wallV), gradientX, gradientY, false).rgb;
-    if (hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {
+    let texel = sampleTexture(layer, vec2f(hit.wallU, wallV), gradientX, gradientY, false);
+    var color = texel.rgb;
+    if (isDoor) { color /= max(texel.a, 0.0001); }
+    if (!isDoor && hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {
         color *= 0.5;
     }
     return vec4f(color, 1.0);

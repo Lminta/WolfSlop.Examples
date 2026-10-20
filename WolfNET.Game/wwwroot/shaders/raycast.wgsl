@@ -48,8 +48,9 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
         return;
     }
 
+    // Match fragment/rasterizer pixel centers, including thin door silhouettes.
     let cameraX =
-        2.0 * f32(x) / camera.screenSize.x - 1.0;
+        2.0 * (f32(x) + 0.5) / camera.screenSize.x - 1.0;
 
     let rayDir =
         camera.direction + camera.plane * cameraX;

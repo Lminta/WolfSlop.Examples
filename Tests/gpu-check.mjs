@@ -126,6 +126,10 @@ export async function checkGpu(sources) {
     assert(result.cell===13&&Math.abs(result.depth-1)<.001,"Closed opaque door did not hit its center plane");
     assert(equal(result.pixel(64,64),colors[2]),"World-aligned door panel did not render");
     assert(equal((await draw(-1,0,1,false,3.5,2.5)).pixel(64,64),colors[2]),"Door is invisible from its back side");
+    result=await draw(Math.cos(.3),Math.sin(.3),1,false,1.5,2.5);
+    const centerRayDepth=1/(Math.cos(.3)+Math.sin(.3)*.66/128);
+    assert(Math.abs(result.depth-centerRayDepth)<.00001,
+        "Door ray depth was sampled at a pixel edge instead of its center");
     map[doorCell*4+3]=doorFlags(.5);
     setSprites([[2.5,2.75,2,13,.5,1,0,5]]);
     result=await draw(1,0,1,false,1.5,2.25);
@@ -141,6 +145,25 @@ export async function checkGpu(sources) {
     setSprites([[2.5,2.5,2,13,1,1,0,6]]);
     assert((await draw(0,1,1,false,2.5,1.5)).cell===13,"Y-normal door uses the wrong plane");
     assert(!equal((await draw(1,0,1,false,1.5,2.75)).pixel(64,64),colors[2]),"Door rotated as a camera-facing billboard");
+    // The ray pass and door triangles must agree at every jamb pixel. A missing
+    // column exposes the far floor fallback (pink) instead of the opaque panel.
+    setMaterial([2,2,2,2]);
+    for (const normalX of [true,false]) for (const side of [-1,1]) for (const opened of [0,.37,.75,1])
+    for (const along of [2.12,2.37,2.78,2.89]) for (const yaw of [-.75,-.2,.35,.8]) {
+        resetMap();
+        map.set([1,4,5,doorFlags(opened,true,normalX)],doorCell*4);
+        for (const tangent of [1,3]) {
+            const index=normalX?tangent*5+2:2*5+tangent;
+            map.set([1,4,5,3],index*4);
+        }
+        setSprites([[2.5+(normalX?0:opened*.5),2.5+(normalX?opened*.5:0),2,13,1-opened,1,0,normalX?5:6]]);
+        const a=(normalX?0:Math.PI/2)+(side===1?Math.PI:0)+yaw;
+        const px=normalX?2.5+side*.7:along,py=normalX?along:2.5+side*.7;
+        const frame=await draw(Math.cos(a),Math.sin(a),1,false,px,py);
+        for(let x=0;x<128;x++)assert(!equal(frame.pixel(x,64),colors[6]),
+            `Opaque door jamb leaked a pixel: axis=${normalX?'x':'y'}, side=${side}, opened=${opened}, along=${along}, yaw=${yaw}, column=${x}`);
+    }
+    setMaterial([0,1,2,3]);
     // Compare near-plane-straddling quads against independent ray/plane intersections.
     // Replacing behind-camera vertices with an offscreen point creates false triangles.
     resetMap();
