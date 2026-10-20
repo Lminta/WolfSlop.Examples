@@ -1,0 +1,13 @@
+{
+  "type": "sprite",
+  "id": 553,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/buffer-side.png",
+  "textureLayer": 109,
+  "planeAxis": "y"
+}
+

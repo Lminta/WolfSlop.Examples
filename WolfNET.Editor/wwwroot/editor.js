@@ -1,4 +1,4 @@
-import { copy, checkDefinition, checkGrid, dependencies, usedObjects, flood, resizeGrid, line, objectUsage, removeObject } from "./editor-model.js";
+import { copy, checkDefinition, checkGrid, dependencies, usedObjects, flood, resizeGrid, line, objectUsage, removeObject, canvasRasterSize } from "./editor-model.js";
 
 const $ = id => document.getElementById(id);
 const canvas = $("map-canvas"), ctx = canvas.getContext("2d");
@@ -209,11 +209,12 @@ function drawTexture(path, x, y, size, alpha = 1) {
 function draw() {
     if (!doc) return;
     const grid = doc.map.worldMap, width = grid.length, height = grid[0].length, s = cellSize, dpr = devicePixelRatio || 1;
+    const raster = canvasRasterSize(width * s, height * s, dpr);
     canvas.style.width = `${width * s}px`; canvas.style.height = `${height * s}px`;
-    if (canvas.width !== Math.round(width * s * dpr) || canvas.height !== Math.round(height * s * dpr)) {
-        canvas.width = Math.round(width * s * dpr); canvas.height = Math.round(height * s * dpr);
+    if (canvas.width !== raster.width || canvas.height !== raster.height) {
+        canvas.width = raster.width; canvas.height = raster.height;
     }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(raster.width / (width * s), 0, 0, raster.height / (height * s), 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, width * s, height * s);
     for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) {

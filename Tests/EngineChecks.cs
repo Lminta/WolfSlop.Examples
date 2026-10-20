@@ -66,6 +66,18 @@ internal static class EngineChecks
         Throws<ArgumentException>(() => new RendererSettings(targetFPS: 0).Validate());
         Throws<ArgumentException>(() => new RendererSettings { FovDegrees = float.NaN }.Validate());
         Throws<ArgumentException>(() => new RendererSettings { MaxAnisotropy = 17 }.Validate());
+        Check(new RendererSettings().RenderDistance == 60 && new RendererSettings().FogStartDistance == 40,
+            "Default fog must start at forty map squares and end at sixty.");
+        var distanceSettings = System.Text.Json.JsonSerializer.Deserialize<RendererSettings>(
+            "{\"renderDistance\":72,\"fogStartDistance\":52}", new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        distanceSettings.Validate();
+        Check(distanceSettings.RenderDistance == 72 && distanceSettings.FogStartDistance == 52,
+            "Graphics JSON did not load renderDistance and fogStartDistance.");
+        foreach (var invalidDistance in new[] { 0f, -1f, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            Throws<ArgumentException>(() => new RendererSettings { RenderDistance = invalidDistance }.Validate());
+        foreach (var invalidStart in new[] { -1f, 60f, 61f, float.NaN, float.PositiveInfinity })
+            Throws<ArgumentException>(() => new RendererSettings { FogStartDistance = invalidStart }.Validate());
+        new RendererSettings { FogStartDistance = 0 }.Validate();
 
         var owner = new TestObject();
         var other = new TestObject();

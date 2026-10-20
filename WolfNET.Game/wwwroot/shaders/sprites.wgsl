@@ -3,7 +3,7 @@ struct Camera {
     direction: vec2f,
     plane: vec2f,
     screenSize: vec2f,
-    look: vec4f,
+    look: vec4f, // pitch, camera elevation, render distance, fog start.
 };
 
 struct RayHit {
@@ -120,6 +120,9 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
     // Evaluate derivatives before the per-column occlusion branch/discard.
     let gradientX = dpdx(input.uv);
     let gradientY = dpdy(input.uv);
+    let ray = camera.direction + camera.plane * (2.0 * input.position.x / camera.screenSize.x - 1.0);
+    let worldDistance = input.depth * length(ray);
+    if (camera.look.z > 0.0 && worldDistance >= camera.look.z) { discard; }
     let hit = rayHits[u32(input.position.x)];
     // The compute ray distances serve as Lode's one-dimensional Z buffer.
     if (hit.hitCell != 0u && hit.hitCell != input.ownerCell && input.depth >= hit.distance) {
@@ -128,12 +131,21 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
 
     // Mips store premultiplied RGBA; blending uses ONE, ONE_MINUS_SRC_ALPHA.
     let color = textureSampleGrad(spriteTextures, spriteSampler, input.uv, i32(input.textureLayer), gradientX, gradientY);
+    var fog = 0.0;
+    var visibility = 1.0;
+    if (camera.look.z > 0.0) {
+        fog = smoothstep(camera.look.w, camera.look.z, worldDistance);
+        // Tall silhouettes also dissolve into sky away from the hazy horizon.
+        visibility = 1.0 - smoothstep(camera.look.z * 0.9, camera.look.z, worldDistance);
+    }
+    let fogColor = vec3f(0.62, 0.67, 0.70);
     if ((input.kind & 4u) != 0u) {
         // Opaque doors seal the plane even when their chosen texture contains alpha.
-        return vec4f(color.rgb / max(color.a, 0.0001), 1.0);
+        let shaded = mix(color.rgb / max(color.a, 0.0001), fogColor, fog);
+        return vec4f(shaded * visibility, visibility);
     }
     if (color.a == 0.0) {
         discard;
     }
-    return color;
+    return vec4f(mix(color.rgb, fogColor * color.a, fog) * visibility, color.a * visibility);
 }

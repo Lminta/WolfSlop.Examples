@@ -7,9 +7,9 @@
   "crouchable": false,
   "passageId": 501,
   "textures": {
-    "north": "textures/raceway/grass.png",
-    "east": "textures/raceway/grass.png",
-    "south": "textures/raceway/grass.png",
-    "west": "textures/raceway/grass.png"
+    "north": "textures/raceway/forest-boundary.png",
+    "east": "textures/raceway/forest-boundary.png",
+    "south": "textures/raceway/forest-boundary.png",
+    "west": "textures/raceway/forest-boundary.png"
   }
 }

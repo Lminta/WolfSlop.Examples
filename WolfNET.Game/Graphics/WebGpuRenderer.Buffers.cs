@@ -26,7 +26,7 @@ public sealed partial class WebGpuRenderer
         // direction  vec2f
         // plane      vec2f
         // screenSize vec2f
-        // look       vec4f (pitch and padding)
+        // look       vec4f (pitch, elevation, render distance, fog start)
         // Total: 48 bytes
 
         _cameraBuffer = _device.CreateBuffer(
@@ -153,7 +153,7 @@ public sealed partial class WebGpuRenderer
         }
 
         // Must match Camera in raycast.wgsl
-        // and walls.wgsl / sprites.wgsl (48 bytes including look padding).
+        // and walls.wgsl / sprites.wgsl (48 bytes including distance/fog settings).
 
         _cameraData[0] = position.X;
         _cameraData[1] = position.Y;
@@ -168,6 +168,8 @@ public sealed partial class WebGpuRenderer
         _cameraData[7] = _settings.Height;
         _cameraData[8] = pitch;
         _cameraData[9] = elevation;
+        _cameraData[10] = _settings.RenderDistance;
+        _cameraData[11] = _settings.FogStartDistance;
 
         using var data = new Float32Array(_cameraData);
 

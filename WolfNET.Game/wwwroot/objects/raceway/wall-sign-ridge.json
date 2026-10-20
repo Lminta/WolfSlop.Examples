@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 604,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/landmark-ridge.svg",
+    "east": "textures/raceway/landmark-ridge.svg",
+    "south": "textures/raceway/landmark-ridge.svg",
+    "west": "textures/raceway/landmark-ridge.svg"
+  }
+}

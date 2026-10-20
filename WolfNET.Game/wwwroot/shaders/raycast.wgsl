@@ -4,7 +4,7 @@ struct Camera {
     direction: vec2f,
     plane: vec2f,
     screenSize: vec2f,
-    look: vec4f, // x: pitch (radians), y: jump elevation (world units), zw: reserved.
+    look: vec4f, // pitch, camera elevation, render distance, fog start.
 };
 
 struct MapInfo {
@@ -54,6 +54,8 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 
     let rayDir =
         camera.direction + camera.plane * cameraX;
+    // DDA stores perpendicular depth; the cutoff is a circle in world space.
+    let rayLimit = select(1e30, camera.look.z / length(rayDir), camera.look.z > 0.0);
 
     var mapX = i32(floor(camera.position.x));
     var mapY = i32(floor(camera.position.y));
@@ -106,6 +108,10 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     let maxSteps = mapInfo.width + mapInfo.height + 1u;
 
     for (var i = 0u; i < maxSteps; i++) {
+        if (min(sideDistX, sideDistY) > rayLimit) {
+            distance = rayLimit;
+            break;
+        }
         if (sideDistX < sideDistY) {
             sideDistX += deltaDistX;
             mapX += stepX;
@@ -139,7 +145,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
                 let along = select(camera.position.x + t * rayDir.x - f32(mapX),
                     camera.position.y + t * rayDir.y - f32(mapY), normalX);
                 let opened = f32(cell.flags >> 16u) / 65535.0;
-                if (t >= 0.0 && t <= min(sideDistX, sideDistY) + 0.00001 && along >= opened && along < 1.0) {
+                if (t >= 0.0 && t <= rayLimit && t <= min(sideDistX, sideDistY) + 0.00001 && along >= opened && along < 1.0) {
                     hitCell = index + 1u;
                     distance = t;
                     side = select(1u, 0u, normalX);

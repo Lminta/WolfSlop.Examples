@@ -1,0 +1,11 @@
+{
+  "type": "sprite",
+  "id": 531,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/tire-stack-white.png",
+  "textureLayer": 108
+}

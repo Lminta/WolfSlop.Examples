@@ -1,0 +1,69 @@
+{
+  "texture": "textures/raceway/buffer-directional-atlas-v1.png",
+  "width": 608,
+  "height": 141,
+  "directions": 4,
+  "frames": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 512,
+      "height": 141
+    },
+    {
+      "x": 512,
+      "y": 0,
+      "width": 96,
+      "height": 141
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "width": 512,
+      "height": 141
+    },
+    {
+      "x": 512,
+      "y": 0,
+      "width": 96,
+      "height": 141
+    }
+  ],
+  "sources": {
+    "front": {
+      "file": "buffer.png",
+      "crop": [
+        0,
+        371,
+        512,
+        141
+      ]
+    },
+    "side": {
+      "file": "buffer-side.png",
+      "crop": [
+        37,
+        2,
+        438,
+        510
+      ]
+    }
+  },
+  "textureLayers": [
+    110,
+    111,
+    112,
+    113
+  ],
+  "facingCamera": false,
+  "rotations": [
+    0,
+    90
+  ],
+  "groupScale": 0.4130859375,
+  "groupElevation": -0.29345703125,
+  "physicalFrontWidth": 1.5,
+  "physicalSideWidth": 0.28125,
+  "physicalHeight": 0.4130859375,
+  "baselineRow": 140
+}

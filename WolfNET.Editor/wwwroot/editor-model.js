@@ -1,6 +1,15 @@
 export const copy = value => structuredClone(value);
 export const kinds = ["passage", "wall", "door", "sprite", "spriteGroup"];
 
+export function canvasRasterSize(width, height, dpr = 1) {
+    const maxSide = 8192, maxPixels = 16_777_216;
+    const requestedWidth = Math.max(1, Math.round(width * dpr)), requestedHeight = Math.max(1, Math.round(height * dpr));
+    if (requestedWidth <= maxSide && requestedHeight <= maxSide && requestedWidth * requestedHeight <= maxPixels)
+        return { width: requestedWidth, height: requestedHeight };
+    const density = Math.min(dpr, maxSide / width, maxSide / height, Math.sqrt(maxPixels / (width * height)));
+    return { width: Math.max(1, Math.floor(width * density)), height: Math.max(1, Math.floor(height * density)) };
+}
+
 export function checkDefinition(definition, objects) {
     const d = definition;
     if (!d || !kinds.includes(d.type) || !Number.isInteger(d.id) || d.id < 0)
@@ -66,9 +75,9 @@ export function checkGrid(map) {
         (typeof map.sky.texture !== "string" || !map.sky.texture.trim() || !Number.isFinite(map.sky.rotationDegrees ?? 0)))
         throw Error("Sky needs a panorama texture and a finite rotationDegrees.");
     const grid = map?.worldMap;
-    if (!Array.isArray(grid) || grid.length < 3 || grid.length > 64 || !Array.isArray(grid[0]) || grid[0].length < 3 || grid[0].length > 64 ||
+    if (!Array.isArray(grid) || grid.length < 3 || grid.length > 512 || !Array.isArray(grid[0]) || grid[0].length < 3 || grid[0].length > 512 ||
         grid.some(column => !Array.isArray(column) || column.length !== grid[0].length || column.some(id => !Number.isInteger(id) || id < 0)))
-        throw Error("The map needs a rectangular worldMap[x][y] grid, 3–64 cells per side, containing nonnegative object IDs.");
+        throw Error("The map needs a rectangular worldMap[x][y] grid, 3–512 cells per side, containing nonnegative object IDs.");
     const p = map.playerStart;
     if (!p || [p.x, p.y, p.directionX, p.directionY, p.moveSpeed, p.rotSpeed].some(value => !Number.isFinite(value)) ||
         p.moveSpeed < 0 || p.rotSpeed < 0 || Math.hypot(p.directionX, p.directionY) === 0)
@@ -150,7 +159,7 @@ export function flood(grid, x, y, replacement) {
 }
 
 export function resizeGrid(grid, width, height, floor, wall) {
-    if (![width, height].every(n => Number.isInteger(n) && n >= 3 && n <= 64)) throw Error("Dimensions must be integers from 3 to 64.");
+    if (![width, height].every(n => Number.isInteger(n) && n >= 3 && n <= 512)) throw Error("Dimensions must be integers from 3 to 512.");
     return Array.from({ length: width }, (_, x) => Array.from({ length: height }, (_, y) => {
         if (x === 0 || y === 0 || x === width - 1 || y === height - 1) return wall;
         // Former boundaries become floor when expanding.

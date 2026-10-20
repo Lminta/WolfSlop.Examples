@@ -44,8 +44,8 @@
       <section id="map-settings" class="settings-panel panel" aria-labelledby="map-settings-heading">
       <div id="map-settings-heading" class="panel-heading">MAP SETTINGS</div>
       <label for="map-name">Map name</label><input id="map-name" maxlength="64" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]*" spellcheck="false">
-      <div class="field-row"><label>Width<input id="map-width" type="number" min="3" max="64"></label><label>Height<input id="map-height" type="number" min="3" max="64"></label><button id="resize">Resize</button></div>
-      <p class="hint">Up to 64 × 64. Outer cells must block movement and rays.</p>
+      <div class="field-row"><label>Width<input id="map-width" type="number" min="3" max="512"></label><label>Height<input id="map-height" type="number" min="3" max="512"></label><button id="resize">Resize</button></div>
+      <p class="hint">Up to 512 × 512. Outer cells must block movement and rays.</p>
       <label for="engine-url">Engine URL</label><input id="engine-url" type="url" value="http://localhost:5025" placeholder="http://localhost:5025">
       <div class="section-heading">PLAYER START</div>
       <div class="field-row"><label>X<input id="spawn-x" type="number" min="0" step="0.1"></label><label>Y<input id="spawn-y" type="number" min="0" step="0.1"></label></div>

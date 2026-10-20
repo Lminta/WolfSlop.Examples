@@ -1,0 +1,33 @@
+Generation mode: built-in image_gen.imagegen, transparent_background:true.
+Mechanical processing: crop alpha>=8 useful silhouette (removes distant invisible low-alpha specks), preserve alpha within crop; fit maximum dimension512 into512x512 transparent canvas, center horizontally and align contact bottom to row511. Original generated images remain under Codex generated_images.
+
+TIRE-STACK (new image)
+Use case: stylized-concept
+Asset type: a single transparent PNG billboard sprite for a retro outdoor racing raycaster.
+Primary request: EXACTLY ONE single vertical cylindrical stack of four neatly aligned identical black car tires, each tire resting horizontally on the one below it. No adjacent stacks. Bilaterally symmetric front silhouette centered precisely, every tire same diameter, straight centered column with no leaning.
+Style/medium: grounded 1990s PC racing game painted realism, crisp black rubber grooves and tread readable from distance, neutral daylight from upper left, slightly worn tires.
+Composition/framing: square image, eye-level straight-on view with only a small visible oval opening at the top of the stack. View of one individual tire column only. Object occupies most image height, approximately 90%, centered horizontally, natural width approximately 55% of image, contact at bottom. Entire object visible inside frame.
+Scene/backdrop: genuine transparent alpha outside the isolated tire stack and through small actual openings, no background.
+Constraints: four tires, exactly one upright stack, centered symmetric silhouette, no ground, no grass, no cast shadow outside object, no numbers, logos, text, watermark, extra props, sideways tires, perspective skew, adjoining stacks, checkerboard artwork.
+
+TIRE-STACK-WHITE (imagegen edit referencing black source)
+Use case: precise-object-edit
+Asset type: transparent PNG racing-game sprite variant.
+Input images: Image1 is the edit target, one symmetric upright stack of black car tires.
+Primary request: change only the exterior tire color to lightly weathered off-white paint used on motorsport safety tires. Keep dark rubber in worn scuffs and grooves, and dark tire opening. Preserve EXACTLY the input's silhouette, tire count, geometry, spacing, position, camera, lighting, tread detail, vertical stack and image framing. This remains exactly one individual tire stack.
+Style/medium: retain the grounded1990s PC racing-game painted realism of the source.
+Constraints: maintain genuine transparent alpha around the whole object, no new ground, cast shadow outside object, props, text or markings. Change only surface paint; preserve shape.
+
+BUFFER-SIDE (imagegen edit referencing existing buffer.png)
+Use case: precise-object-edit
+Asset type: a second transparent PNG sprite view of the red plastic motorsport barrier shown in the input image.
+Input images: Image1 is the reference for material, lighting, red color and exact barrier cross-section.
+Primary request: create the end profile of ONE red end of the existing safety barrier assembly, viewed exactly square-on from its narrow end, so this new image can be applied to the short side of the existing front-view buffer. The narrow end has a broad grounded base, gently sloping shoulders, a narrower flat top, shallow plastic ribbing and small molded interlocking connector detail. It is the red end face only, not the long front and not the whole three-panel assembly.
+Composition/framing: square image with exactly one narrow end profile centered, front orthographic elevation of that short end; whole object occupies most image height and about 55-65% image width. Approximately width-to-height ratio0.6. Bottom level, silhouette centered, small visible top lip consistent with input.
+Style/medium: preserve the input's grounded1990s PC racing painted realism, scuffed utilitarian red molded plastic, neutral outdoor daylight from upper left.
+Scene/backdrop: genuinely transparent alpha around the object, no background or floor.
+Constraints: match reference materials and bright red shade, only a single short red end face, no white center face, no handle window through the end, no ground patch, no cast shadow outside object, no extra objects, no logos, no text or watermark, no checkerboard artwork.
+
+Final alpha>=8 bounds (x,y,width,height), 512x512 pixels: tire-stack.png=87,0,337,512; tire-stack-white.png=87,0,337,512; buffer-side.png=37,2,438,510. Buffer side was shifted downward one pixel after proportional fitting to align its meaningful alpha baseline with row511. The generated single stacks contain three aligned tires each.
+
+Placement: buffer groups544 and545 each contain one directional sprite (525 and526). The atlas buffer-directional-atlas-v1.png packs exactly two source artworks, cropped front512x141 and end96x141. Four directions reuse the same rectangles in order front,end,front,end. Both sprites use base layer110 and facingCamera:false; rotations0 and90. Uniform group scale0.4130859375, elevation-0.29345703125 ground both views at world elevation-0.5. Physical front width1.5, end width0.28125, height0.4130859375. Rebuild with Tools/build-buffer-atlas.ps1; exact layout is next to the atlas.

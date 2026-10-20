@@ -1,0 +1,11 @@
+{
+  "type": "sprite",
+  "id": 530,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/tree-birch.png",
+  "textureLayer": 107
+}

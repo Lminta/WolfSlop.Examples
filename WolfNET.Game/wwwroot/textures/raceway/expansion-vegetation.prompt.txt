@@ -1,0 +1,36 @@
+# Expansion trees
+
+Generated with built-in image_gen. Each transparent image cropped to alpha content and proportionally reduced onto a 512 x 512 canvas, bottom aligned to y=511. Alpha preserved.
+
+## tree-oak.png
+
+Use case: stylized-concept
+Asset type: transparent billboard sprite for a classic PC raycast racing game, square PNG.
+Primary request: One whole mature European oak tree with a broad irregular rounded leafy crown, substantial warm gray-brown trunk and branching structure. Natural asymmetry and rugged oak character.
+Scene/backdrop: Truly transparent alpha background, isolated tree, no surroundings or ground.
+Style/medium: Grounded 1990s PC racing game painted realism with crisp tactile materials and leaf-cluster detail readable at 256 pixels. Match classic detailed natural tree cutouts rather than stylized cartoon trees. Realistic proportions.
+Composition/framing: Straight frontal eye-level view. Entire crown, all branches and trunk base visible, tree nearly fills square while preserving natural broad oak proportions. Trunk base at 97 percent image height, little transparent padding.
+Lighting/mood: Soft clear outdoor daylight, neutral balanced lighting.
+Materials/textures: Dense deep green and olive oak foliage with varied leaf masses, strong gray brown bark, visible upper forks.
+Constraints: Actual transparent background. One tree. No sky, landscape, ground patch, roots extending across ground, flower pot, external shadow, lettering, logo, watermark, checkerboard backdrop, or extra objects.
+
+## tree-birch.png
+
+Use case: stylized-concept
+Asset type: transparent billboard sprite for a classic PC raycast racing game, square PNG.
+Primary request: One whole slender silver birch tree with a tall white trunk marked by dark horizontal bark scars, delicate branching and a lighter airy green leafy canopy. Natural irregular asymmetry and recognizable birch character.
+Scene/backdrop: Truly transparent alpha background, isolated tree, no surroundings or ground.
+Style/medium: Grounded 1990s PC racing game painted realism with crisp tactile materials and leaf-cluster detail readable at 256 pixels. Match classic detailed natural tree cutouts rather than stylized cartoon trees. Realistic proportions.
+Composition/framing: Straight frontal eye-level view. Entire crown, all branches and trunk base visible, tall slim tree nearly fills square height while preserving natural proportions. Trunk base at 97 percent image height, little transparent padding.
+Lighting/mood: Soft clear outdoor daylight, neutral balanced lighting.
+Materials/textures: Pale white and silver birch bark with dark scars, thin brown branches, medium and light green airy small leaves, small natural gaps in crown.
+Constraints: Actual transparent background. One tree. No sky, landscape, ground patch, roots extending across ground, flower pot, external shadow, lettering, logo, watermark, checkerboard backdrop, or extra objects.
+
+## Birch framing correction (selected output)
+
+Use case: precise-object-edit
+Edit target: the attached isolated silver birch tree PNG.
+Primary request: Correct only the framing so the whole tree has a complete naturally rounded crown tip visible and is never cut off by the top edge. Scale tree down a little, reconstruct any missing crown tip above the current cutoff, and leave small transparent margins around every side.
+Preserve: same tree species, white and black birch bark, light green airy leaves, delicate branches, shape and 1990s PC game painted realism, soft daylight. Preserve genuine transparent alpha background.
+Composition: entire tree from complete crown tip to trunk base visible, centered on square canvas, no clipped leaves, trunk base near bottom.
+Constraints: transparent alpha, no sky, ground, shadow, text, logo, checkerboard backdrop, extra objects, or color shift.

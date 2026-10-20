@@ -130,7 +130,7 @@ public sealed partial class MapWorkspace
     {
         Name(document.Name);
         var objects = Used(document);
-        var compiled = new MapCompiler(objects, 64, 64).Compile(document.Map, 1);
+        var compiled = new MapCompiler(objects, 512, 512).Compile(document.Map, 1);
         return new { valid = true, width = compiled.Renderer.Width, height = compiled.Renderer.Height,
             sprites = compiled.Renderer.Sprites.Count, objects = objects.Count };
     }
@@ -167,7 +167,7 @@ public sealed partial class MapWorkspace
                 using var writer = new StreamWriter(archive.CreateEntry(path).Open());
                 writer.Write(json);
             }
-            var textures = new MapCompiler(Used(document), 64, 64).Compile(document.Map, 1).Renderer.Textures;
+            var textures = new MapCompiler(Used(document), 512, 512).Compile(document.Map, 1).Renderer.Textures;
             foreach (var texture in textures.Layers.Values.OfType<string>()
                 .Concat(document.Map.Sky == null ? [] : new[] { document.Map.Sky.Texture })
                 .Select(path => path.Replace('\\', '/')).Distinct())

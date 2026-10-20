@@ -4,7 +4,7 @@ struct Camera {
     direction: vec2f,
     plane: vec2f,
     screenSize: vec2f,
-    look: vec4f,
+    look: vec4f, // pitch, camera elevation, render distance, fog start.
 };
 
 struct RenderCell {
@@ -110,7 +110,8 @@ fn minimapMain(input: VertexOutput) -> @location(0) vec4f {
     let inverseDet = 1.0 / (camera.plane.x * camera.direction.y - camera.direction.x * camera.plane.y);
     let across = inverseDet * (camera.direction.y * relative.x - camera.direction.x * relative.y);
     let depth = inverseDet * (-camera.plane.y * relative.x + camera.plane.x * relative.y);
-    if (depth > 0.0001 && abs(across) <= depth) {
+    let withinRenderDistance = camera.look.z <= 0.0 || dot(relative, relative) <= camera.look.z * camera.look.z;
+    if (depth > 0.0001 && abs(across) <= depth && withinRenderDistance) {
         let column = u32(clamp(
             (across / depth + 1.0) * 0.5 * camera.screenSize.x,
             0.0, camera.screenSize.x - 1.0
@@ -169,6 +170,13 @@ fn sampleTexture(layer: u32, uv: vec2f, gradientX: vec2f, gradientY: vec2f, repe
     return textureSampleGrad(wallTextures, wallSampler, uv, i32(layer), gradientX, gradientY);
 }
 
+const fogColor = vec3f(0.62, 0.67, 0.70);
+
+fn fogAmount(distance: f32) -> f32 {
+    if (camera.look.z <= 0.0) { return 0.0; }
+    return smoothstep(camera.look.w, camera.look.z, distance);
+}
+
 fn skyColor(position: vec2f) -> vec3f {
     if (skySettings.y == 0.0) { return vec3f(0.0); }
     let pi = 3.141592653589793;
@@ -186,7 +194,11 @@ fn skyColor(position: vec2f) -> vec3f {
     let gradientX = vec2f((ray.x * rayStep.y - ray.y * rayStep.x) / (lengthSquared * 2.0 * pi),
         vertical * dot(ray, rayStep) / (horizontalLength * totalSquared * pi));
     let gradientY = vec2f(0.0, horizontalLength / (totalSquared * focalLength * pi));
-    return textureSampleGrad(skyTexture, skySampler, uv, gradientX, gradientY).rgb;
+    let color = textureSampleGrad(skyTexture, skySampler, uv, gradientX, gradientY).rgb;
+    if (camera.look.z <= 0.0) { return color; }
+    // Fade the panorama around the horizon so the distant ground has no seam.
+    let haze = 1.0 - smoothstep(2.0 / camera.look.z, 8.0 / camera.look.z, abs(vertical) / horizontalLength);
+    return mix(color, fogColor, haze);
 }
 
 fn floorCeilingColor(position: vec2f) -> vec4f {
@@ -194,6 +206,7 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     let horizon = camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength;
     let horizonOffset = position.y - horizon;
     if (abs(horizonOffset) < 0.0001) {
+        if (camera.look.z > 0.0) { return vec4f(fogColor, 1.0); }
         return vec4f(skyColor(position), 1.0);
     }
     let cameraHeight = 0.5 + camera.look.y;
@@ -201,6 +214,10 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     let distance = focalLength * planeDistance / abs(horizonOffset);
     let cameraX = 2.0 * position.x / camera.screenSize.x - 1.0;
     let rayDir = camera.direction + camera.plane * cameraX;
+    let worldDistance = distance * length(rayDir);
+    if (camera.look.z > 0.0 && worldDistance >= camera.look.z) {
+        return vec4f(fogColor, 1.0);
+    }
     let worldPosition = camera.position + rayDir * distance;
     // Surface textures belong to the projected cell, not the camera's current tile.
     if (any(worldPosition < vec2f(0.0)) ||
@@ -220,9 +237,10 @@ fn floorCeilingColor(position: vec2f) -> vec4f {
     let surface = sampleTexture(layer, fract(worldPosition), gradientX, gradientY, true);
     if (horizonOffset < 0.0 && surface.a < 1.0) {
         // Tile textures are uploaded with premultiplied alpha.
-        return vec4f(surface.rgb + skyColor(position) * (1.0 - surface.a), 1.0);
+        let color = surface.rgb + skyColor(position) * (1.0 - surface.a);
+        return vec4f(mix(color, fogColor, fogAmount(worldDistance)), 1.0);
     }
-    return vec4f(surface.rgb, 1.0);
+    return vec4f(mix(surface.rgb, fogColor, fogAmount(worldDistance)), 1.0);
 }
 @fragment
 fn fragmentMain(
@@ -301,5 +319,5 @@ fn fragmentMain(
     if (!isDoor && hit.side == 1u && any(color != vec3f(1.0, 0.0, 1.0))) {
         color *= 0.5;
     }
-    return vec4f(color, 1.0);
+    return vec4f(mix(color, fogColor, fogAmount(hit.distance * length(rayDir))), 1.0);
 }

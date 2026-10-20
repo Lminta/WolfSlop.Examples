@@ -97,18 +97,23 @@ public sealed partial class WebGpuRenderer
         _sortedSprites.Clear();
         foreach (var sprite in sprites)
         {
-            _sortedSprites.Add((sprite, Vector2.DistanceSquared(cameraPosition, sprite.Position)));
+            var distanceSquared = Vector2.DistanceSquared(cameraPosition, sprite.Position);
+            // Retain wide quads whose near edge is still inside the visible circle.
+            var maximumDistance = _settings.RenderDistance + sprite.ViewScale(cameraPosition).X * .5f;
+            if (distanceSquared <= maximumDistance * maximumDistance)
+                _sortedSprites.Add((sprite, distanceSquared));
         }
+        var spriteCount = _sortedSprites.Count;
 
         // Painter's algorithm: nearer opaque texels cover farther sprites.
         _sortedSprites.Sort(static (a, b) => b.Distance.CompareTo(a.Distance));
 
-        if (Math.Max(1, sprites.Count) > _spriteCapacity)
+        if (Math.Max(1, spriteCount) > _spriteCapacity)
         {
             _spriteBindGroup?.Dispose();
             _minimapBindGroup?.Dispose();
             DestroyBuffer(_spriteBuffer);
-            _spriteCapacity = Math.Max(sprites.Count, 16);
+            _spriteCapacity = Math.Max(spriteCount, 16);
             _spriteBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
             {
                 Label = "WolfNET Sprites",
@@ -149,14 +154,14 @@ public sealed partial class WebGpuRenderer
 
         // The third u32 of MapInfo counts active sprites, excluding spare buffer capacity.
         using var queue = _device!.Queue;
-        using (var count = new Uint32Array(new uint[] { (uint)sprites.Count }))
+        using (var count = new Uint32Array(new uint[] { (uint)spriteCount }))
             queue.WriteBuffer(_mapInfoBuffer!, 8, count);
 
-        if (sprites.Count == 0)
+        if (spriteCount == 0)
             return;
 
         // Matches the 32-byte Sprite in both WGSL shaders, including the final geometry-kind word.
-        var upload = new uint[checked(sprites.Count * 8)];
+        var upload = new uint[checked(spriteCount * 8)];
         for (int i = 0; i < _sortedSprites.Count; i++)
         {
             var sprite = _sortedSprites[i].Sprite;

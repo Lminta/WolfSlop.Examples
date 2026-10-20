@@ -155,11 +155,11 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
             // Fullscreen triangle.
             pass.Draw(3);
 
-            if (sprites.Count > 0)
+            if (_sortedSprites.Count > 0)
             {
                 pass.SetPipeline(_spritePipeline);
                 pass.SetBindGroup(0, _spriteBindGroup!);
-                pass.Draw(6, (uint)sprites.Count);
+                pass.Draw(6, (uint)_sortedSprites.Count);
             }
 
             // Draw last so world sprites cannot cover the minimap.

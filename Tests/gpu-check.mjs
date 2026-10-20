@@ -73,8 +73,8 @@ export async function checkGpu(sources) {
             [floatBits(x),floatBits(y),layer,owner,floatBits(sx),floatBits(sy),floatBits(z),kind], i * 8));
         device.queue.writeBuffer(sprites, 0, data);
     }
-    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128, pitch = 0, elevation = 0) {
-        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height,pitch,elevation,0,0]));
+    async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128, pitch = 0, elevation = 0, renderDistance = 0) {
+        device.queue.writeBuffer(camera, 0, new Float32Array([px,py,dx,dy,dy*.66,-dx*.66,width,height,pitch,elevation,renderDistance,renderDistance*.6]));
         device.queue.writeBuffer(info, 0, new Uint32Array([5,5,count,0]));
         device.queue.writeBuffer(cells, 0, map);
         const encoder = device.createCommandEncoder();
@@ -91,13 +91,45 @@ export async function checkGpu(sources) {
         device.queue.submit([encoder.finish()]);
         await Promise.all([readback.mapAsync(GPUMapMode.READ),hitReadback.mapAsync(GPUMapMode.READ)]);
         const data = new Uint8Array(readback.getMappedRange()).slice();
-        const hit = new DataView(hitReadback.getMappedRange());
+        const hit = new DataView(hitReadback.getMappedRange().slice(0));
         const center = Math.floor(width / 2) * 16;
-        const result = {pixel:(x,y)=>Array.from(data.slice(y*512+x*4,y*512+x*4+4)), depth:hit.getFloat32(center,true), cell:hit.getUint32(center+8,true)};
+        const result = {pixel:(x,y)=>Array.from(data.slice(y*512+x*4,y*512+x*4+4)), depth:hit.getFloat32(center,true), cell:hit.getUint32(center+8,true),
+            ray:x=>({depth:hit.getFloat32(x*16,true),cell:hit.getUint32(x*16+8,true)})};
         readback.unmap(); hitReadback.unmap(); return result;
     }
     const equal = (actual, expected) => actual.every((value,i)=>Math.abs(value-expected[i]) <= 1);
     const setMaterial = faces => device.queue.writeBuffer(materials,0,new Uint32Array([0xffffffff,0xffffffff,0xffffffff,0xffffffff,...faces]));
+    // Short ranges make near/fogged/clipped surfaces measurable in this small map.
+    resetMap(); setMaterial([0,0,0,0]);
+    const fogColor = [158,171,179,255];
+    const fogDraw = (range, count=0) => draw(-1,0,count,false,2.5,2.5,128,128,0,0,range);
+    assert(equal((await fogDraw(4)).pixel(64,64),colors[0]), "Fog changed a nearby wall before its start distance");
+    const foggedWall = await fogDraw(2);
+    assert(foggedWall.pixel(64,64)[0]>158 && foggedWall.pixel(64,64)[0]<255 && foggedWall.pixel(64,64)[1]>0,
+        "Distant wall did not blend toward fog");
+    const clippedWall = await fogDraw(1);
+    assert(clippedWall.cell===0 && Math.abs(clippedWall.depth-1)<.001, "DDA walked beyond the render distance");
+    assert(equal(clippedWall.pixel(64,64),fogColor) && equal(clippedWall.pixel(64,67),fogColor) && equal(clippedWall.pixel(64,60),fogColor),
+        "Cutoff walls, floors, or ceilings leave a hard edge or missing-texture color");
+    const circularCutoff = await fogDraw(1.6);
+    assert(circularCutoff.ray(64).cell!==0 && circularCutoff.ray(0).cell===0,
+        "Render distance uses perpendicular depth instead of radial world distance at the edge of the view");
+    const shortCone = await draw(-1,0,0,true,2.5,2.5,128,128,0,0,1);
+    const longCone = await draw(-1,0,0,true,2.5,2.5,128,128,0,0,4);
+    const awayCone = await draw(1,0,0,true,2.5,2.5,128,128,0,0,1);
+    assert(equal(shortCone.pixel(47,36),awayCone.pixel(47,36)) && !equal(shortCone.pixel(47,36),longCone.pixel(47,36)),
+        "Minimap visibility extends beyond the render distance");
+    setSprites([[1.75,2.5,4,12]]);
+    const foggedSprite = (await fogDraw(1,1)).pixel(64,64);
+    assert(foggedSprite[0]>158 && foggedSprite[0]<255 && foggedSprite[1]>171,
+        "Sprite did not blend toward the same fog as surfaces");
+    setSprites([[1.25,2.5,4,12]]);
+    assert(equal((await fogDraw(1,1)).pixel(64,64),fogColor), "Sprite beyond the cutoff remained visible");
+    setSprites([[1.75,2.5,4,12],[2,2.5,7,13]]);
+    assert((await fogDraw(1,2)).pixel(126,64)[1]>171, "Fog made a sprite's transparent cutout opaque");
+    resetMap(); map.set([1,4,5,27],12*4); setSprites([[2.5,2.5,2,13,1,1,0,5]]);
+    const clippedDoor = await draw(1,0,1,false,1.5,2.5,128,128,0,0,.75);
+    assert(clippedDoor.cell===0 && equal(clippedDoor.pixel(64,64),fogColor), "Door plane beyond the limit still blocked rays or drew");
     resetMap(); setMaterial([0,1,2,3]);
     for (const [dx,dy,expected] of [[1,0,colors[3]],[-1,0,colors[1]],[0,1,[128,0,0,255]],[0,-1,[0,0,128,255]]]) {
         const result = await draw(dx,dy);

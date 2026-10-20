@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 617,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 595,
+  "textures": {
+    "north": "textures/glassworks/limestone-wall.png",
+    "east": "textures/glassworks/limestone-wall.png",
+    "south": "textures/glassworks/limestone-wall.png",
+    "west": "textures/glassworks/limestone-wall.png"
+  }
+}

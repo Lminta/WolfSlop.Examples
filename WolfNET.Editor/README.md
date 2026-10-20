@@ -24,7 +24,7 @@ dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj -- --EngineRoot="C:\pa
 
 ## Edit
 
-- Open an existing map, or create a new enclosed 24 × 24 map. Resize up to 64 × 64.
+- Open an existing map, or create a new enclosed 24 × 24 map. Resize up to 512 × 512.
 - Choose a library object and paint by clicking or dragging. One stroke is one undo step.
 - Use **Fill** for a connected area, **Pick** or right-click to sample a cell, and
   **Spawn** to place the player in a walkable cell. Set direction and speeds in the inspector.

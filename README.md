@@ -18,8 +18,10 @@ find the maintenance shortcut that links the rooms. See the
 from the map selector. Open `?map=level1` to load The Brickyard directly; its
 [level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
 
-**Pine Loop** is an outdoor racing circuit with a three-tile starting grid that
-narrows to two tiles, a covered tunnel, pit boxes, a grandstand, and forest scenery.
+**Pine Loop** is a 256 × 512 outdoor racing circuit with a three-tile starting grid
+that narrows to two tiles, technical bends, woodland hairpins, tunnels, pit boxes,
+and several spectator stands and landmarks. Separate tire stacks form grouped
+barriers, and directional buffers switch between front and side artwork.
 Choose it in the map selector or open `?map=pine-loop`. Its
 [map notes](WolfNET.Game/wwwroot/maps/pine-loop.md) describe the route and assets.
 
@@ -29,7 +31,12 @@ filtering preserves alpha without adding dark borders.
 
 Edit `WolfNET.Game/wwwroot/graphics-settings.json` to change render width, height,
 target FPS, `maxAnisotropy` (1–16, default 4), and `fovDegrees` (horizontal field of
-view, 1–179°, default 66.85°). Reload the game to apply changes.
+view, 1–179°, default 66.85°). `renderDistance` sets the horizontal viewing radius
+in map blocks (default **60**, positive and finite). `fogStartDistance` sets where
+fog begins (default **40**; nonnegative and below `renderDistance`). Fog reaches
+full strength at the cutoff. Walls, ground,
+ceilings, and sprites use the same circular limit; distant sprites are skipped
+before GPU upload. Reload the game to apply changes.
 
 Shader and pixel regression tests can run independently of the game loop:
 

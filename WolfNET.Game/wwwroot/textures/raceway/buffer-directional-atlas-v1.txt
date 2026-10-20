@@ -1,0 +1,19 @@
+The buffer uses one directional sprite per group and exactly two source artworks.
+
+Rebuild from the repository root:
+  pwsh -File Tools/build-buffer-atlas.ps1
+
+Sources are the preserved imagegen PNGs buffer.png (long front) and buffer-side.png (short red end). The authoring script crops alpha>=8 bounds, keeps front pixels at native resolution, and resizes the end to match frame height141. Result:608x141 transparent PNG. It does not call generation APIs.
+
+Directional frames (x,y,width,height):
+  0 east/front:0,0,512,141
+  1 south/end:512,0,96,141
+  2 west/front:0,0,512,141 (same rectangle as0)
+  3 north/end:512,0,96,141 (same rectangle as1)
+
+Sprites525/526 share layer110 and the same atlas with directions4 and facingCamera:false. Rotation0 faces the long front east/west; rotation90 faces it north/south. No planeAxis is used. The engine's existing directional selection holds each plane at its selected cardinal direction and swaps front/end at the45degree sector boundaries.
+
+Groups544/545 each contain one member at offset(0,0,-0.29345703125), uniform scale0.4130859375. Cropped frames share height141 and baseline row140: both stand at world elevation-0.5. Existing frame aspect handling makes the front1.5world units wide and end0.28125wide, with common height0.4130859375.
+
+Original source images and generation prompts remain available. The unused legacy side object definitions552/553 are retained as source definitions and are not referenced by buffer groups.
+

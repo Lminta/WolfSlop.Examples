@@ -1,0 +1,7 @@
+Generated with the built-in imagegen tool; opaque output downsampled to 512 x 512 PNG.
+
+Use case: stylized-concept
+Asset type: opaque seamless forest edge wall texture for a retro PC raycast racing game.
+Primary request: dense distant forest boundary, a continuous frontal woodland thicket with layered dark green pine boughs, lighter oak leaves, slender pale birch trunks and rugged brown tree trunks peeking between greenery. No individual cutout tree, this is one uninterrupted forest backdrop filling a wall tile. Rich natural depth, shadowed recesses behind leaves; readable textured painted realism matching classic1990s PC racing scenery.
+Composition: flat straight-on elevation, square texture completely filled edge to edge by foliage and trunks. Seamless repeat horizontally with no obvious dominant feature. Leafy branches and shrubs cover upper and lower edges. Muted olive/forest greens with small neutral warm brown and pale bark accents. Even diffuse daylight. Opaque image, no alpha.
+Constraints: no sky, no horizon, no open ground, no grass field, no landscape perspective, no road, no wall/fence, no building, no people, no text/logo, no border, no vignette. No tiled contact sheet, texture only.

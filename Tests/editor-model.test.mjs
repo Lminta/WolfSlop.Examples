@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { checkGrid, checkDefinition, flood, resizeGrid, line, usedObjects, objectUsage, removeObject } from "../WolfNET.Editor/wwwroot/editor-model.js";
+import { checkGrid, checkDefinition, flood, resizeGrid, line, usedObjects, objectUsage, removeObject, canvasRasterSize } from "../WolfNET.Editor/wwwroot/editor-model.js";
 
 const passage = { type: "passage", id: 0, collides: false, raycastTransparent: true };
 const wall = { type: "wall", id: 1, passageId: 0, collides: true, raycastTransparent: false };
@@ -41,7 +41,13 @@ assert.equal(grown[4][2], 0, "Old boundary must become floor when expanding");
 assert.equal(grown[6][4], 1);
 const shrunk = resizeGrid(grown, 3, 3, 0, 1);
 assert.equal(shrunk[2][2], 1);
-assert.throws(() => resizeGrid(grid, 65, 3, 0, 1));
+const expandedCircuit = resizeGrid(grid, 256, 512, 0, 1);
+assert.equal(expandedCircuit.length, 256);
+assert.equal(expandedCircuit[0].length, 512);
+assert.equal(expandedCircuit[2][2], 3);
+assert.equal(expandedCircuit[255][510], 1);
+assert.throws(() => resizeGrid(grid, 513, 3, 0, 1));
+assert.throws(() => resizeGrid(grid, 3, 513, 0, 1));
 assert.equal(flood(grid, 1, 1, 2), true);
 assert.equal(grid[3][3], 2);
 assert.equal(grid[2][2], 3);
@@ -59,6 +65,8 @@ assert.deepEqual(reverse[0], [4, 2]);
 assert.deepEqual(reverse.at(-1), [0, 0]);
 const map = { worldMap: grid, playerStart: { x: 1.5, y: 1.5, directionX: -1, directionY: 0, moveSpeed: 5, rotSpeed: 3 } };
 assert.equal(checkGrid(map), map);
+assert.equal(checkGrid({ ...map, worldMap: expandedCircuit }).worldMap, expandedCircuit);
+assert.throws(() => checkGrid({ ...map, worldMap: Array.from({ length: 513 }, () => [1, 0, 1]) }));
 assert.equal(checkDefinition({ ...wall, jumpable: true }, objects).jumpable, true);
 assert.equal(checkDefinition({ ...wall, crouchable: true }, objects).crouchable, true);
 assert.throws(() => checkDefinition({ ...wall, crouchable: "true" }, objects));
@@ -108,4 +116,14 @@ deletion.objects[9] = { ...passage, id: 9 };
 removeObject(deletion, 9);
 assert.equal(deletion.objects[9], undefined);
 assert.deepEqual(Object.keys(usedObjects(deletion)), ["1", "4", "5"]);
-console.log("PASS: editor grid, fill, strokes, dependencies, schema, and object deletion with cell/passage/group replacements.");
+for (const zoom of [8, 80]) for (const dpr of [1, 2]) {
+    const raster = canvasRasterSize(256 * zoom, 512 * zoom, dpr);
+    assert(raster.width <= 8192 && raster.height <= 8192, "Large maps must keep both canvas sides within the raster limit");
+    assert(raster.width * raster.height <= 16_777_216, "Large maps must keep canvas pixels within the allocation budget");
+    assert.equal(raster.height, raster.width * 2, "Raster limiting must preserve the map's proportions");
+}
+assert.deepEqual(canvasRasterSize(256 * 8, 512 * 8, 1), { width: 2048, height: 4096 });
+assert.deepEqual(canvasRasterSize(24 * 32, 24 * 32, 2), { width: 1536, height: 1536 }, "Small map raster density must stay unchanged");
+assert.deepEqual(canvasRasterSize(99, 75, 1.25), { width: 124, height: 94 }, "Uncapped canvas dimensions must retain their original rounding");
+assert.equal(canvasRasterSize(100, 20_000, 2).height, 8192, "Narrow maps must also respect the side limit");
+console.log("PASS: editor grid, fill, strokes, dependencies, schema, object deletion, and bounded canvas allocation.");
