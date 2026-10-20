@@ -4,7 +4,7 @@
   "raycastTransparent": true,
   "collides": false,
   "passageId": 301,
-  "texture": "textures/glassworks/bench-directional-atlas.png",
+  "texture": "textures/glassworks/bench-directional-atlas-v2.png",
   "textureLayer": 32,
   "rotationDegrees": 90,
   "atlas": {

@@ -103,7 +103,7 @@ try {
     assert.equal(await evaluate(`document.querySelector('button[aria-pressed="true"]').textContent`), 'The Glassworks');
     assert.equal(failedRequests.length, 0, 'Missing asset responses: ' + failedRequests.join(', '));
     const images = await evaluate('[...window.__images]');
-    for (const name of ['fern-grounded-v2.png', 'bench-directional-atlas.png', 'pump-directional-atlas.png', 'lantern-sprite.png', 'glass-roof.svg'])
+    for (const name of ['fern-grounded-v2.png', 'bench-directional-atlas-v2.png', 'pump-directional-atlas-v2.png', 'lantern-sprite.png', 'glass-roof.svg'])
         assert(images.some(url => url.endsWith(name)), `${name} was not uploaded to the GPU`);
     const floating = await evaluate(`(async()=>{
         const props=${JSON.stringify(floorProps)}, images=new Map(), bounds=new Map(), failures=[];
@@ -120,7 +120,7 @@ try {
                     const pixels=ctx.getImageData(0,0,f.width,f.height).data;bottom=-1;
                     // Ground the largest connected silhouette, not detached generated specks.
                     const seen=new Uint8Array(f.width*f.height);
-                    let largest=0;
+                    let largest=0,substantial=0,edge=0;
                     for(let seed=0;seed<seen.length;seed++){
                         if(seen[seed]||pixels[seed*4+3]<64)continue;
                         const queue=[seed];seen[seed]=1;let componentBottom=0;
@@ -132,7 +132,13 @@ try {
                                 if(nx>=0&&nx<f.width&&ny>=0&&ny<f.height&&!seen[n]&&pixels[n*4+3]>=64){seen[n]=1;queue.push(n);}
                             }
                         }
+                        if(queue.length>=32)substantial++;
                         if(queue.length>largest){largest=queue.length;bottom=componentBottom;}
+                    }
+                    if(sprite.atlas?.directions===8){
+                        for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)
+                            if((x===0||y===0||x===f.width-1||y===f.height-1)&&pixels[(y*f.width+x)*4+3]>=64)edge++;
+                        if(substantial!==1||edge!==0)failures.push({sprite:sprite.id,frame:i,substantial,edge});
                     }
                     bounds.set(key,bottom);
                 }

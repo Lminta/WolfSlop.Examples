@@ -1,9 +1,22 @@
 Tool: built-in image_gen.imagegen, referenced local bench-sprite.png/pump-sprite.png;
 transparent_background=true. Two generated turntable atlas assets.
 Sources preserved as bench-directional-source.png and pump-directional-source.png.
-Runtime files: bench-directional-atlas.png and pump-directional-atlas.png, 2048x1024.
+Runtime files: bench-directional-atlas-v2.png and pump-directional-atlas-v2.png, 2048x1024.
 
-Mechanical extraction: 4 columns by 2 rows from each 1774x887 generated sheet.
+Slicing/orientation repair (no regeneration):
+node Tools/rebuild-glassworks-atlases.mjs
+The generated sheet does not respect exact equal-cell boundaries. For example,
+the rear-left bench crosses x=886, contaminating the assumed adjacent side crop.
+The rebuild finds the eight large connected silhouettes across the entire source
+(alpha >=64), then copies only the chosen component and its antialias fringe.
+It does not crop to an assumed grid or keep unrelated fragments inside a box.
+directional-atlas-layout.json records all measured bounds and source indices.
+Bench source order remains [0,1,2,3,4,5,6,7]. Pump source order is corrected to
+[0,7,2,4,3,5,6,1]: the front diagonal pair was exchanged, and the rear-right/rear
+views were assigned by their narrow/broad wheel silhouettes instead of grid labels.
+Original sheets and the previous atlases remain preserved.
+
+Sources: each generated sheet is 1774x887, with roughly 4 columns by 2 rows.
 Each cell's visible bounds (alpha >=64) are scaled uniformly with nearest-neighbor
 interpolation to a maximum 448px height / 488px width, centered on a 512px square.
 The visible contact baseline is aligned at y=500, with 12 transparent rows below.

@@ -74,6 +74,11 @@ Benches and pumps use eight directional views so their asymmetric sides and back
 remain consistent as the player circles them. Their new reference-based turntable
 atlases and exact prompts are documented in
 [`directional.prompt.txt`](../textures/glassworks/directional.prompt.txt).
+The runtime v2 atlases isolate each connected silhouette from the generated
+sheet, avoiding neighboring furniture fragments. The engine views are ordered by
+wheel and gauge orientation. Rebuild them from the preserved sheets with
+`node Tools/rebuild-glassworks-atlases.mjs`; measured extraction bounds and view
+assignments live in `textures/glassworks/directional-atlas-layout.json`.
 All floor props compensate for transparent artwork padding in their group Z offsets;
 the directional frames share the same visible contact baseline. The fern uses
 `fern-grounded-v2.png`: detached pixels below the actual pot base were removed,
