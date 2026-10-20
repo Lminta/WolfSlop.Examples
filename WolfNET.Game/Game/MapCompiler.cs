@@ -5,7 +5,7 @@ namespace WolfNET.Game;
 
 public sealed class MapCompiler
 {
-    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard);
+    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard, bool FacingCamera = true);
     private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
@@ -123,7 +123,7 @@ public sealed class MapCompiler
                     break;
                 case SpriteDefinition sprite:
                     passage = Passage(id, sprite.PassageId);
-                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite))];
+                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera)];
                     break;
                 case SpriteGroupDefinition group:
                     passage = Passage(id, group.PassageId);
@@ -138,7 +138,7 @@ public sealed class MapCompiler
                         if (!objects.TryGetValue(member.SpriteId, out var child) || child is not SpriteDefinition sprite)
                             throw new InvalidDataException($"Sprite group {id} references unknown/non-sprite ID {member.SpriteId}.");
                         return new SpriteTemplate(new Vector3(member.Offset.X, member.Offset.Y, member.Offset.Z),
-                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite));
+                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera);
                     }).ToArray();
                     break;
                 default:
@@ -199,7 +199,7 @@ public sealed class MapCompiler
                         position.X < 0 || position.Y < 0 || position.X >= width || position.Y >= height)
                         throw new InvalidDataException($"Sprite from ({x}, {y}) is outside the map.");
                     sprites.Add(new Sprite(position, sprite.Layer, (uint)index + 1)
-                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind });
+                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind, FacingCamera = sprite.FacingCamera });
                 }
             }
         }

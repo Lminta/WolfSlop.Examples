@@ -208,6 +208,40 @@ var atlasDefinition = spriteDef with { TextureLayer = 32, Atlas = car.Atlas, Rot
 var atlasObjects = new Dictionary<int, MapObjectDefinition>(definitions) { [2] = atlasDefinition };
 var atlasGroup = Compile(SmallMap() with { WorldMap = [[1,1,1,1,1],[1,0,0,0,1],[1,0,3,0,1],[1,0,0,0,1],[1,1,1,1,1]] }, atlasObjects);
 Check(atlasGroup.RendererMap.Sprites.All(sprite => sprite.Atlas == car.Atlas && sprite.RotationDegrees == -90), "Group member lost atlas/facing");
+Check(atlasDefinition.FacingCamera && car.FacingCamera && atlasGroup.RendererMap.Sprites.All(sprite => sprite.FacingCamera),
+    "Directional sprites no longer default to camera-facing behavior");
+var anchoredObjects = new Dictionary<int, MapObjectDefinition>(atlasObjects)
+{ [2] = atlasDefinition with { FacingCamera = false } };
+var anchored = Compile(SmallMap(2), anchoredObjects).RendererMap.Sprites.Single();
+Check(!anchored.FacingCamera && Compile(SmallMap(3), anchoredObjects).RendererMap.Sprites.All(sprite => !sprite.FacingCamera),
+    "facingCamera was lost for standalone sprites or group members");
+var appearanceJson = JsonSerializer.Serialize<MapObjectDefinition>(anchoredObjects[2], new JsonSerializerOptions(JsonSerializerDefaults.Web));
+Check(JsonSerializer.Deserialize<MapObjectDefinition>(appearanceJson, new JsonSerializerOptions(JsonSerializerDefaults.Web)) is SpriteDefinition { FacingCamera: false },
+    "facingCamera did not survive JSON round-trip");
+for (var view = 0; view < 8; view++)
+{
+    Vector2 Observer(float delta)
+    {
+        var radians = (-90 + view * 45 + delta) * MathF.PI / 180;
+        return anchored.Position + new Vector2(MathF.Cos(radians), MathF.Sin(radians)) * 2;
+    }
+    var kind = anchored.ViewKind(Observer(0));
+    Check((kind & 0xffffu) == (uint)(SpriteKind.FixedPlane | SpriteKind.DirectionalPlane), "Anchored atlas is still a billboard");
+    Check(kind == anchored.ViewKind(Observer(-22)) && kind == anchored.ViewKind(Observer(22)),
+        "Anchored atlas rotated within its angular sector");
+    Check(anchored.ViewFrame(Observer(-22)) == view && anchored.ViewFrame(Observer(22)) == view,
+        "Anchored atlas changed texture before reaching the sector boundary");
+    Check(kind != anchored.ViewKind(Observer(23)) && anchored.ViewFrame(Observer(23)) == (view + 1) % 8,
+        "Anchored plane and texture did not switch together at the angular boundary");
+    var expectedAngle = ((-90 + view * 45) % 360 + 360) % 360;
+    Check((kind >> 16) == (uint)(expectedAngle / 360f * 65536), "Anchored plane has an incorrect world orientation");
+    Check((anchored with { FacingCamera = true }).ViewKind(Observer(22)) == (uint)SpriteKind.Billboard,
+        "facingCamera=true did not restore legacy geometry");
+    Check(anchored.ViewLayer(Observer(22)) == anchored.TextureLayer + view,
+        "Anchored geometry changed atlas texture selection");
+}
+Check((anchored with { Atlas = null }).ViewKind(anchored.Position + Vector2.One) == (uint)SpriteKind.Billboard,
+    "Directional flag changed an ordinary non-directional sprite");
 Check(Compile(objects: atlasObjects).RendererMap.Textures.Frames.Count == 0, "Unused atlas layers loaded");
 foreach (var invalidAtlas in new SpriteAtlas[] {
     new() { Frames = [] }, new() { Frames = car.Atlas.Frames, Directions = 9 },

@@ -7,6 +7,7 @@
   "texture": "textures/glassworks/pump-directional-atlas-v2.png",
   "textureLayer": 48,
   "rotationDegrees": 90,
+  "facingCamera": false,
   "atlas": {
     "directions": 8,
     "frames": [

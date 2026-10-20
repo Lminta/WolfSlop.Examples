@@ -7,6 +7,7 @@
   "texture": "textures/glassworks/bench-directional-atlas-v2.png",
   "textureLayer": 32,
   "rotationDegrees": 90,
+  "facingCamera": false,
   "atlas": {
     "directions": 8,
     "frames": [

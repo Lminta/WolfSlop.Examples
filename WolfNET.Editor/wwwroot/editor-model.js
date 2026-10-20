@@ -25,6 +25,8 @@ export function checkDefinition(definition, objects) {
     if (d.type === "sprite" && (!Number.isInteger(d.textureLayer) || d.textureLayer < 0 || d.textureLayer > 255))
         throw Error("A sprite textureLayer must be an integer from 0 to 255.");
     if (d.type === "sprite") {
+        if (d.facingCamera !== undefined && typeof d.facingCamera !== "boolean")
+            throw Error("Sprite facingCamera must be true or false.");
         if (d.planeAxis != null && !["x", "y"].includes(d.planeAxis))
             throw Error("Sprite planeAxis must be x/y or null.");
         if (d.planeAxis != null && (d.atlas?.directions ?? 1) > 1)

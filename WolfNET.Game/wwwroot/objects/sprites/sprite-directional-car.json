@@ -9,6 +9,7 @@
   "texture": "textures/race/car-game-atlas.png",
   "textureLayer": 32,
   "rotationDegrees": -90,
+  "facingCamera": false,
   "atlas": {
     "directions": 8,
     "frames": [

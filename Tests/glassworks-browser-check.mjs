@@ -65,7 +65,7 @@ try {
     await send('Network.enable');
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 720, deviceScaleFactor: 1, mobile: false});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
-        window.__camera = null; window.__images = new Set(); window.__view = null;
+        window.__camera = null; window.__images = new Set(); window.__view = null; window.__directional = [];
         const originalFetch = window.fetch;
         window.fetch = async function(input, ...args) {
             const response = await originalFetch.call(this, input, ...args);
@@ -83,6 +83,12 @@ try {
         };
         const write = GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer = function(buffer, offset, data, ...args) {
+            if(buffer.label === 'WolfNET Sprites') {
+                const raw=data.buffer??data,start=data.byteOffset??0,u=new Uint32Array(raw,start,data.byteLength/4),f=new Float32Array(raw,start,data.byteLength/4);
+                window.__directional=[];
+                for(let i=0;i<u.length;i+=8)if((u[i+2]>=32&&u[i+2]<40)||(u[i+2]>=48&&u[i+2]<56))
+                    window.__directional.push({x:f[i],y:f[i+1],layer:u[i+2],kind:u[i+7]});
+            }
             if (buffer.label === 'WolfNET Camera') {
                 const values = new Float32Array(data.buffer ?? data, data.byteOffset ?? 0, 12);
                 window.__camera = Array.from(values);
@@ -103,6 +109,16 @@ try {
     assert.equal(await evaluate(`document.querySelector('button[aria-pressed="true"]').textContent`), 'The Glassworks');
     assert.equal(failedRequests.length, 0, 'Missing asset responses: ' + failedRequests.join(', '));
     const images = await evaluate('[...window.__images]');
+    const directional=await evaluate('({sprites:window.__directional,camera:window.__camera})');
+    assert(directional.sprites.length>0, 'No directional furnishings reached the renderer');
+    for(const sprite of directional.sprites){
+        const baseLayer=sprite.layer>=48?48:32;
+        const angle=Math.atan2(directional.camera[1]-sprite.y,directional.camera[0]-sprite.x)-Math.PI/2;
+        const view=(Math.floor(angle/(Math.PI*2)*8+.5)%8+8)%8;
+        const normal=((90+view*45)%360)/360*65536;
+        assert.equal(sprite.layer,baseLayer+view,'Uploaded texture does not match its view sector');
+        assert.equal(sprite.kind>>>0,((normal<<16)|24)>>>0,'facingCamera=false did not upload a fixed directional plane');
+    }
     for (const name of ['fern-grounded-v2.png', 'bench-directional-atlas-v2.png', 'pump-directional-atlas-v2.png', 'lantern-sprite.png', 'glass-roof.svg'])
         assert(images.some(url => url.endsWith(name)), `${name} was not uploaded to the GPU`);
     const floating = await evaluate(`(async()=>{

@@ -124,6 +124,18 @@ rotation faces east (+X); 90 faces south (+Y), and -90 faces north. The view is
 selected from the sprite-to-player angle, so looking around in place does not
 change it. Extra frames are reserved for future animation; there is no playback yet.
 
+`facingCamera` defaults to `true`, preserving the camera-facing billboard while
+selecting directional textures as before. Set `"facingCamera": false` to hold
+each directional view's quad in a fixed world orientation. Its normal is
+`rotationDegrees + viewIndex * 360 / atlas.directions`; the quad and texture
+switch together only when the observer crosses a view-sector boundary. For an
+eight-view atlas, sectors are 45 degrees wide with boundaries 22.5 degrees from
+each view center. Position, size, and elevation retain their authored transforms.
+Groups inherit the child sprite's flag. The flag affects atlases with multiple
+directions; ordinary sprites, single-direction animation atlases, and explicit
+`planeAxis` fixtures keep their existing behavior. The Glassworks benches and
+pumps use `false` to demonstrate this mode; the car explicitly keeps `true`.
+
 Every atlas frame reserves one consecutive texture layer starting at `textureLayer`;
 these slots must fit within 0–255 and cannot overlap different textures or frames.
 Frames are cropped before mip generation to prevent neighboring views from bleeding.

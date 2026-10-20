@@ -70,7 +70,7 @@ try {
                 const ints=new Uint32Array(raw,start,data.byteLength/4);
                 const floats=new Float32Array(raw,start,data.byteLength/4);
                 for(let i=0;i<ints.length;i+=8)if(ints[i+2]>=32&&ints[i+2]<40)
-                    window.__car={x:floats[i],y:floats[i+1],layer:ints[i+2],sx:floats[i+4],sy:floats[i+5],z:floats[i+6]};
+                    window.__car={x:floats[i],y:floats[i+1],layer:ints[i+2],sx:floats[i+4],sy:floats[i+5],z:floats[i+6],kind:ints[i+7]};
             }
             return write.call(this,buffer,offset,data,...rest);
         };
@@ -100,6 +100,7 @@ try {
     })()`);
     assert(clipped.every(value=>!value),'Atlas slice is empty or cuts visible pixels at its edges');
     let car=await evaluate('window.__car');
+    assert.equal(car.kind,0,'facingCamera=true car no longer uses billboard geometry');
     assert.equal(car.layer,36,'South observer must see rear view');
     const rear=definition.atlas.frames[4];
     assert(Math.abs(car.sx-member.scale.x*rear.width/rear.height)<.00001 && Math.abs(car.sy-member.scale.y)<.00001,'Atlas aspect/group scale incorrect');

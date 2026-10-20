@@ -74,6 +74,10 @@ Benches and pumps use eight directional views so their asymmetric sides and back
 remain consistent as the player circles them. Their new reference-based turntable
 atlases and exact prompts are documented in
 [`directional.prompt.txt`](../textures/glassworks/directional.prompt.txt).
+Both set `facingCamera: false`: their quads hold one world orientation within a
+45-degree view sector and switch orientation and texture together at its boundary.
+Set this flag to `true` in the sprite definition to compare the original billboard
+behavior; groups inherit it from the bench or pump sprite.
 The runtime v2 atlases isolate each connected silhouette from the generated
 sheet, avoiding neighboring furniture fragments. The engine views are ordered by
 wheel and gauge orientation. Rebuild them from the preserved sheets with

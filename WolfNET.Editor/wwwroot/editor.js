@@ -552,7 +552,7 @@ $("add-object").onclick = act(() => {
         const used = new Set(Object.values(doc.objects).filter(o => o.type === "sprite").flatMap(o => Array.from({length: o.atlas?.frames?.length ?? 1}, (_, i) => o.textureLayer + i)));
         let layer = 0; while (used.has(layer)) layer++;
         if (layer > 255) throw Error("All 256 sprite texture layers are already in use.");
-        Object.assign(d, { texture: "textures/wolf/barrel.png", textureLayer: layer });
+        Object.assign(d, { texture: "textures/wolf/barrel.png", textureLayer: layer, facingCamera: true });
     }
     if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8, autoCloseSeconds: 10 });
     if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8, autoCloseSeconds: 10 });

@@ -259,6 +259,36 @@ export async function checkGpu(sources) {
         return {width:Math.max(...xs)-Math.min(...xs)+1,height:Math.max(...ys)-Math.min(...ys)+1,
             centerY:(Math.max(...ys)+Math.min(...ys)+1)/2};
     }
+    // Non-facing directional views use a fixed quad at the sector's world angle.
+    // Check all eight packed normals, including high-bit angles, from both sides
+    // of each sector center against independent ray/plane intersections.
+    resetMap();
+    for(let view=0;view<8;view++)for(const offset of [-20,0,20]){
+        const angle=view*Math.PI/4,nx=Math.cos(angle),ny=Math.sin(angle),tx=-ny,ty=nx;
+        const observerAngle=angle+offset*Math.PI/180;
+        const px=2.5+1.25*Math.cos(observerAngle),py=2.5+1.25*Math.sin(observerAngle);
+        const dx=-Math.cos(observerAngle),dy=-Math.sin(observerAngle);
+        const kind=(24|((view*8192)<<16))>>>0;
+        setSprites([[2.5,2.5,2,13,.8,.6,0,kind]]);
+        const frame=await draw(dx,dy,1,false,px,py);
+        for(const x of [16,32,48,64,80,96,112])for(const y of [32,48,64,80,96]){
+            const column=2*(x+.5)/128-1,rx=dx+dy*.66*column,ry=dy-dx*.66*column;
+            const depth=((2.5-px)*nx+(2.5-py)*ny)/(rx*nx+ry*ny);
+            const along=(px+depth*rx-2.5)*tx+(py+depth*ry-2.5)*ty;
+            const vertical=(y+.5-64)*depth/(128/(2*.66));
+            if(Math.abs(Math.abs(along)-.4)<.003||Math.abs(Math.abs(vertical)-.3)<.003)continue;
+            const expected=depth>.0001&&Math.abs(along)<=.4&&Math.abs(vertical)<=.3;
+            assert(equal(frame.pixel(x,y),colors[2])===expected,
+                `Directional plane rotated incorrectly: sector=${view}, offset=${offset}, pixel=${x},${y}`);
+        }
+    }
+    const tilt=20*Math.PI/180;
+    setSprites([[2.5,2.5,2,13,.8,.6,0,24]]);
+    const anchoredBounds=blueBounds(await draw(-Math.cos(tilt),-Math.sin(tilt),1,false,2.5+1.25*Math.cos(tilt),2.5+1.25*Math.sin(tilt)));
+    setSprites([[2.5,2.5,2,13,.8,.6,0,0]]);
+    const facingBounds=blueBounds(await draw(-Math.cos(tilt),-Math.sin(tilt),1,false,2.5+1.25*Math.cos(tilt),2.5+1.25*Math.sin(tilt)));
+    assert(anchoredBounds&&facingBounds&&anchoredBounds.width<facingBounds.width,
+        "Non-facing directional sprite still follows the observer continuously");
     setSprites([[1,2.5,2,11,.5,.25,.25]]);
     const raised = blueBounds(await draw(-1,0,1));
     const unitSize = 128/(2*.66*1.5);

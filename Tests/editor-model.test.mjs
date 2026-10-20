@@ -6,6 +6,8 @@ const wall = { type: "wall", id: 1, passageId: 0, collides: true, raycastTranspa
 const sprite = { type: "sprite", id: 2, passageId: 0, textureLayer: 8, collides: false, raycastTransparent: true };
 const atlasSprite = { ...sprite, atlas: { directions: 2, frames: [{x:0,y:0,width:16,height:8}, {x:16,y:0,width:16,height:8}] }, rotationDegrees: 90 };
 assert.equal(checkDefinition(atlasSprite, {0:passage}), atlasSprite);
+for(const facingCamera of [true,false])assert.equal(checkDefinition({...atlasSprite,facingCamera},{0:passage}).facingCamera,facingCamera);
+for(const facingCamera of [null,"false",0,1,{}])assert.throws(()=>checkDefinition({...atlasSprite,facingCamera},{0:passage}));
 assert.equal(checkDefinition({...sprite, planeAxis: "x"}, {0: passage}).planeAxis, "x");
 assert.throws(() => checkDefinition({...sprite, planeAxis: "z"}, {0: passage}));
 assert.throws(() => checkDefinition({...atlasSprite, planeAxis: "y"}, {0: passage}));

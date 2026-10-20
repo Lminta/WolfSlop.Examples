@@ -66,9 +66,14 @@ fn vertexMain(
     output.textureLayer = sprite.textureLayer;
     output.ownerCell = sprite.ownerCell;
     output.kind = sprite.kind;
-    if ((sprite.kind & 3u) != 0u) {
+    let directionalPlane = (sprite.kind & 16u) != 0u;
+    if ((sprite.kind & 3u) != 0u || directionalPlane) {
         // Doors and fixed decorations use world-aligned quads.
-        let axis = select(vec2f(1.0, 0.0), vec2f(0.0, 1.0), (sprite.kind & 3u) == 1u);
+        var axis = select(vec2f(1.0, 0.0), vec2f(0.0, 1.0), (sprite.kind & 3u) == 1u);
+        if (directionalPlane) {
+            let angle = f32(sprite.kind >> 16u) * (6.28318530718 / 65536.0);
+            axis = vec2f(-sin(angle), cos(angle));
+        }
         let point = sprite.position + axis * ((corners[vertex].x - 0.5) * sprite.scale.x);
         let pointRelative = point - camera.position;
         let across = inverseDet * (camera.direction.y * pointRelative.x - camera.direction.x * pointRelative.y);

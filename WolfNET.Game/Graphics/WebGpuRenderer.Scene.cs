@@ -168,7 +168,7 @@ public sealed partial class WebGpuRenderer
             upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(scale.X);
             upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(scale.Y);
             upload[i * 8 + 6] = BitConverter.SingleToUInt32Bits(sprite.Elevation);
-            upload[i * 8 + 7] = (uint)sprite.Kind;
+            upload[i * 8 + 7] = sprite.ViewKind(cameraPosition);
         }
 
         using var data = new Uint32Array(upload);
