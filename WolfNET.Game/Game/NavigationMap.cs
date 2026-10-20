@@ -19,6 +19,8 @@ public sealed class NavigationMap : INavigationMap
         _crouchable = crouchable;
     }
 
+    internal void SetWalkable(int x, int y, bool value) => _walkable[x][y] = value;
+
     public bool IsWalkable(int x, int y, bool inAir = false, bool crouching = false) =>
         x >= 0 && x < _walkable.Length && y >= 0 && y < _walkable[x].Length &&
         (_walkable[x][y] || (inAir && _jumpable[x][y]) || (!inAir && crouching && _crouchable[x][y]));

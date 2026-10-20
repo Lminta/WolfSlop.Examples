@@ -62,8 +62,9 @@ public sealed partial class MapWorkspace
     public object Library()
     {
         var objects = new List<object>();
-        foreach (var kind in new[] { "passages", "walls", "sprites", "sprite-groups" })
-        foreach (var file in Directory.GetFiles(Path.Combine(Root, "objects", kind), "*.json").Order())
+        foreach (var kind in new[] { "passages", "walls", "doors", "sprites", "sprite-groups" })
+        foreach (var file in (Directory.Exists(Path.Combine(Root, "objects", kind))
+            ? Directory.GetFiles(Path.Combine(Root, "objects", kind), "*.json") : []).Order())
             objects.Add(new { path = "../" + Path.GetRelativePath(Root, file).Replace('\\', '/'), definition = Read<MapObjectDefinition>(file) });
         var textures = Directory.GetFiles(Path.Combine(Root, "textures"), "*", SearchOption.AllDirectories)
             .Where(file => IsTexture(file))
@@ -100,6 +101,7 @@ public sealed partial class MapWorkspace
     private static IEnumerable<int> Dependencies(MapObjectDefinition definition) => definition switch
     {
         WallDefinition wall => [wall.PassageId],
+        DoorDefinition door => [door.PassageId],
         SpriteDefinition sprite => [sprite.PassageId],
         SpriteGroupDefinition group => new[] { group.PassageId }.Concat(
             (group.Sprites ?? throw new InvalidDataException("Sprite group needs a sprites list."))

@@ -49,7 +49,7 @@ dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj -- --EngineRoot="C:\pa
   referenced, choose a replacement for its cells, passage references, or group members.
   Undo restores the definition and references. Shared library files remain unchanged.
   Deleted library IDs persist in optional `editor` metadata, which the engine ignores.
-- Walls, sprites and groups use `passageId`. Floor and ceiling paths belong to passages.
+- Walls, doors, sprites and groups use `passageId`. Floor and ceiling paths belong to passages.
   Keep explicit sprite texture layers unique when using different images.
 - Resizing preserves interior cells and reconstructs the outer boundary. Expanding turns
   the former boundary into floor. Shrinking may move an out-of-bounds spawn to a walkable cell.
@@ -115,3 +115,10 @@ node Tests/editor-browser-check.mjs 9246 http://127.0.0.1:5080
 
 The browser check edits only its browser document; disk-save behavior is tested in a
 temporary asset directory. Node 22 or newer is required for its built-in WebSocket client.
+
+Doors are available under **Doors** in the palette and **Add object**. Set `axis`
+(`x` normal for east/west travel, `y` normal for north/south travel) and
+`openSeconds` in object JSON. `raycastTransparent` enables the texture's alpha
+view-through behavior; `collides` controls closed-door movement. Doors export with
+their textures and load closed. Runtime F interaction is in the game; F remains
+the fill shortcut in the editor.

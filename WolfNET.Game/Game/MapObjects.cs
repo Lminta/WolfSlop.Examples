@@ -8,6 +8,7 @@ namespace WolfNET.Game;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(PassageDefinition), "passage")]
 [JsonDerivedType(typeof(WallDefinition), "wall")]
+[JsonDerivedType(typeof(DoorDefinition), "door")]
 [JsonDerivedType(typeof(SpriteDefinition), "sprite")]
 [JsonDerivedType(typeof(SpriteGroupDefinition), "spriteGroup")]
 public abstract record MapObjectDefinition
@@ -30,6 +31,15 @@ public sealed record WallDefinition : MapObjectDefinition
 {
     public WallTextures? Textures { get; init; }
     public required int PassageId { get; init; }
+}
+
+public sealed record DoorDefinition : MapObjectDefinition
+{
+    public required int PassageId { get; init; }
+    public string? Texture { get; init; }
+    // Normal axis: x separates east/west, y separates north/south.
+    public string Axis { get; init; } = "y";
+    public float OpenSeconds { get; init; } = .8f;
 }
 
 public sealed record WallTextures
@@ -121,6 +131,7 @@ public static class MapObjectLoader
             pending = definitions.SelectMany(definition => definition switch
             {
                 WallDefinition wall => new[] { wall.PassageId },
+                DoorDefinition door => new[] { door.PassageId },
                 SpriteDefinition sprite => new[] { sprite.PassageId },
                 SpriteGroupDefinition group => new[] { group.PassageId }.Concat(
                     (group.Sprites ?? throw new InvalidDataException($"Sprite group {group.Id} has no sprite list."))

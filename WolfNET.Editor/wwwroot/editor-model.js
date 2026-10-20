@@ -1,5 +1,5 @@
 export const copy = value => structuredClone(value);
-export const kinds = ["passage", "wall", "sprite", "spriteGroup"];
+export const kinds = ["passage", "wall", "door", "sprite", "spriteGroup"];
 
 export function checkDefinition(definition, objects) {
     const d = definition;
@@ -17,6 +17,9 @@ export function checkDefinition(definition, objects) {
         throw Error("ceilingMode must be texture or sky.");
     if (d.type === "wall" && ("floorTexture" in d || "ceilingTexture" in d))
         throw Error("Wall surfaces use passageId. Put floorTexture and ceilingTexture on the passage.");
+    if (d.type === "door" && (!["x", "y"].includes(d.axis ?? "y") ||
+        !Number.isFinite(d.openSeconds ?? .8) || (d.openSeconds ?? .8) <= 0))
+        throw Error("Door axis must be x/y and openSeconds must be positive and finite.");
     if (d.type === "sprite" && (!Number.isInteger(d.textureLayer) || d.textureLayer < 0 || d.textureLayer > 255))
         throw Error("A sprite textureLayer must be an integer from 0 to 255.");
     if (d.type === "sprite") {
@@ -45,7 +48,7 @@ export function checkDefinition(definition, objects) {
         }
     }
     const paths = d.type === "passage" ? [d.floorTexture, d.ceilingTexture] :
-        d.type === "wall" ? Object.values(d.textures ?? {}) : d.type === "sprite" ? [d.texture] : [];
+        d.type === "wall" ? Object.values(d.textures ?? {}) : ["sprite", "door"].includes(d.type) ? [d.texture] : [];
     if (paths.some(path => path != null && typeof path !== "string")) throw Error("Texture paths must be strings or null.");
     return d;
 }

@@ -98,6 +98,8 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     var side = 0u;
     var hitCell = 0u;
     var distance = 1e30;
+    var doorU = 0.0;
+    var doorHit = false;
 
     // Protect against invalid maps or open boundaries.
     let maxSteps = mapInfo.width + mapInfo.height + 1u;
@@ -125,6 +127,29 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 
         let cell = worldMap[index];
 
+        if ((cell.flags & 8u) != 0u) {
+            // Thin sliding plane at the cell center; the opening is a real ray gap.
+            let normalX = (cell.flags & 16u) != 0u;
+            let normal = select(rayDir.y, rayDir.x, normalX);
+            if ((cell.flags & 1u) != 0u && abs(normal) > 0.000001) {
+                let plane = select(f32(mapY), f32(mapX), normalX) + 0.5;
+                let origin = select(camera.position.y, camera.position.x, normalX);
+                let t = (plane - origin) / normal;
+                let along = select(camera.position.x + t * rayDir.x - f32(mapX),
+                    camera.position.y + t * rayDir.y - f32(mapY), normalX);
+                let opened = f32(cell.flags >> 16u) / 65535.0;
+                if (t >= 0.0 && t <= min(sideDistX, sideDistY) + 0.00001 && along >= opened && along < 1.0) {
+                    hitCell = index + 1u;
+                    distance = t;
+                    side = select(1u, 0u, normalX);
+                    doorU = along - opened;
+                    doorHit = true;
+                    break;
+                }
+            }
+            continue;
+        }
+
         if ((cell.flags & 1u) != 0u) {
             hitCell = index + 1u;
 
@@ -140,7 +165,9 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 
     var wallU = 0.0;
 
-    if (hitCell != 0u) {
+    if (doorHit) {
+        wallU = doorU;
+    } else if (hitCell != 0u) {
         let hitCoordinate = select(
             camera.position.x + distance * rayDir.x,
             camera.position.y + distance * rayDir.y,

@@ -668,7 +668,7 @@ public sealed class WebGpuRenderer : IDisposable
         if (sprites.Count == 0)
             return;
 
-        // Matches the 32-byte Sprite in both WGSL shaders, including the final padding word.
+        // Matches the 32-byte Sprite in both WGSL shaders, including the final geometry-kind word.
         var upload = new uint[checked(sprites.Count * 8)];
         for (int i = 0; i < _sortedSprites.Count; i++)
         {
@@ -681,6 +681,7 @@ public sealed class WebGpuRenderer : IDisposable
             upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(scale.X);
             upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(scale.Y);
             upload[i * 8 + 6] = BitConverter.SingleToUInt32Bits(sprite.Elevation);
+            upload[i * 8 + 7] = (uint)sprite.Kind;
         }
 
         using var data = new Uint32Array(upload);

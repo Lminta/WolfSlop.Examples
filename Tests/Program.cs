@@ -71,7 +71,7 @@ Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.C
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(18.5f, 22.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 76, "Showcase sprite demonstrations missing");
+Check(showcase.RendererMap.Sprites.Count == 78, "Showcase sprite demonstrations missing");
 RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
 Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
 Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
@@ -94,6 +94,7 @@ foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, 
 Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalkable(4, 21), "Showcase group walkability incorrect");
 foreach (var sprite in showcase.RendererMap.Sprites)
 {
+    if (sprite.Kind != SpriteKind.Billboard) continue;
     var definition = showcase.Objects.Values.OfType<SpriteDefinition>().First(value => value.TextureLayer == sprite.TextureLayer);
     if (definition.Texture is "textures/wolf/barrel.png" or "textures/wolf/greenlight.png" or "textures/wolf/pillar.png")
         Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) ==
@@ -145,7 +146,8 @@ foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
 {
     var next = (X: cell.X + dx, Y: cell.Y + dy);
     if ((showcase.NavigationMap.IsWalkable(next.X, next.Y, inAir:true) ||
-         showcase.NavigationMap.IsWalkable(next.X, next.Y, crouching:true)) && reachable.Add(next)) frontier.Enqueue(next);
+         showcase.NavigationMap.IsWalkable(next.X, next.Y, crouching:true) ||
+         (next.X>=0&&next.Y>=0&&next.X<showcase.RendererMap.Width&&next.Y<showcase.RendererMap.Height&&ShowcaseCell(next.X,next.Y).Flags.HasFlag(RenderCellFlags.Door))) && reachable.Add(next)) frontier.Enqueue(next);
 }
 for (int x = 0; x < showcase.RendererMap.Width; x++)
 for (int y = 0; y < showcase.RendererMap.Height; y++)
@@ -362,6 +364,68 @@ var childSurfaces = Compile(SmallMap(3), new(definitions)
     [2] = spriteDef with { PassageId = 5 }
 });
 Check(childSurfaces.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("child-only")), "Unused child surfaces included in catalog");
+
+// Sliding doors keep the texture catalog stable while geometry/rays/navigation animate.
+var steelDoor = new DoorDefinition { Id=4, PassageId=0, Texture="textures/doors/steel-door.png", Axis="y",
+    RaycastTransparent=false, Collides=true, OpenSeconds=.8f };
+var doorObjects=new Dictionary<int,MapObjectDefinition>(definitions){[4]=steelDoor};
+var doorMap=Compile(SmallMap(4),doorObjects);
+var doorActor=new Vector2(2.5f,3.5f);
+Check(doorMap.Doors.Count==1 && !doorMap.NavigationMap.IsWalkable(2,2),"Closed door is missing or walkable");
+Check(doorMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay),"Solid door does not stop rays");
+Check(!doorMap.Interact(doorActor,Vector2.UnitY,.15f),"Door activated while looking away");
+Check(!doorMap.Interact(new(2.5f,4.5f),-Vector2.UnitY,.15f),"Door activated from two tiles away");
+Check(!doorMap.Interact(new(1.5f,3.5f),new(1,-1),.15f),"Door activated from a diagonal tile");
+Check(!doorMap.Interact(doorActor,new(2,-1),.15f),"Door activated while looking beside the panel");
+var doorTextures=doorMap.RendererMap.Textures;
+var closedRevision=doorMap.Revision;
+doorMap.UpdateDoors(100,doorActor,.15f);
+Check(doorMap.Revision==closedRevision,"Idle door rebuilt the render map");
+Check(doorMap.Interact(doorActor,-Vector2.UnitY,.15f),"F-style action failed from the adjacent tile");
+doorMap.UpdateDoors(200,doorActor,.15f);
+var movingDoor=doorMap.Doors.Single();
+Check(Math.Abs(movingDoor.Openness-.25f)<.00001f && !doorMap.NavigationMap.IsWalkable(2,2),"Opening door skipped animation or unlocked collision too early");
+var movingPanel=doorMap.RendererMap.Sprites.Single();
+Check(movingPanel.Kind==(SpriteKind.DoorNormalY|SpriteKind.Opaque) && movingPanel.Position==new Vector2(2.625f,2.5f) && movingPanel.Scale.X==.75f,"Sliding geometry does not match door progress");
+Check(ReferenceEquals(doorTextures,doorMap.RendererMap.Textures) && ((uint)doorMap.RendererMap.Cells[12].Flags>>16)==16384,"Door animation changed textures or lost packed progress");
+Check(doorMap.Interact(doorActor,-Vector2.UnitY,.15f),"Moving door cannot reverse");
+doorMap.UpdateDoors(100,doorActor,.15f);Check(Math.Abs(movingDoor.Openness-.125f)<.00001f,"Door did not reverse smoothly");
+doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(1000,doorActor,.15f);
+Check(movingDoor.Openness==1 && doorMap.NavigationMap.IsWalkable(2,2) && !doorMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) && doorMap.RendererMap.Sprites.Single().Scale.X==0,"Fully open door still blocks movement/rays or draws a panel");
+Check(!doorMap.Interact(new(2.5f,3.05f),-Vector2.UnitY,.15f) && movingDoor.TargetOpen,"Door closed on the player's collision circle");
+doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(100,new(2.5f,2.5f),.15f);
+Check(movingDoor.TargetOpen && movingDoor.Openness==1,"Closing door did not reopen when occupied");
+doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(400,doorActor,.15f);
+Check(movingDoor.Openness==.5f && !doorMap.NavigationMap.IsWalkable(2,2),"Closing door is not animated/collidable");
+doorMap.UpdateDoors(400,doorActor,.15f);Check(movingDoor.Openness==0 && doorMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay),"Closed door did not restore ray blocking");
+doorMap.UpdateDoors(100,new(2.5f,3.1f),.15f);Check(movingDoor.Openness==0,"Touching a closed door opened it without F");
+doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(200,doorActor,.15f);
+doorMap.SetCell(3,3,4);Check(doorMap.Doors.Count==2 && doorMap.Doors.Single(d=>d.X==2).Openness==.25f && doorMap.Doors.Single(d=>d.X==3).Openness==0,"Map edit reset an existing door or shared its state");
+doorMap.SetCell(2,2,0);Check(doorMap.Doors.Count==1 && doorMap.NavigationMap.IsWalkable(2,2),"Deleted door left collision behind");
+{
+    var flightLevel=SmallMap(4) with {PlayerStart=SmallMap().PlayerStart with {X=2.5f,Y=3.5f,DirectionX=0,DirectionY=-1,JumpLength=2}};
+    var flightDoors=Compile(flightLevel,doorObjects);
+    flightDoors.Interact(new(2.5f,3.5f),-Vector2.UnitY,.15f);flightDoors.UpdateDoors(1000,new(2.5f,3.5f),.15f);
+    var flyer=new WolfNET.Game.Core.ObjectBase {Transform=new(){Position=new(2.5f,3.5f),Rotation=-Vector2.UnitY}};
+    var flightInput=new WolfNET.Game.InputEvents.KeyTracker {KeyState=new(){Jump=true}};
+    var flightCamera=new WolfNET.Game.Player.Components.CameraComponent {Plane=new(-.66f,0)};
+    var flightController=new WolfNET.Game.Player.Components.PlayerController(flightInput,new(),flightDoors.NavigationMap,flightCamera,flightLevel.PlayerStart,flyer);
+    flightController.Update(25);
+    flightDoors.Interact(flyer.Transform.Position,-Vector2.UnitY,.15f);flightDoors.UpdateDoors(50,flyer.Transform.Position,.15f);
+    for(int i=0;i<20;i++)flightController.Update(25);
+    Check(flyer.Transform.Position.Y>=3.15f && !flightController.InAir,"Jump tunneled through a door that closed after takeoff");
+}
+var glassMap=Compile(SmallMap(4),new(definitions){[4]=steelDoor with {Axis="x",RaycastTransparent=true,Texture="textures/doors/glass-door.png"}});
+Check(!glassMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) && !glassMap.NavigationMap.IsWalkable(2,2),"Glass door did not separate visibility from collision");
+Check(glassMap.Interact(new(1.5f,2.5f),Vector2.UnitX,.15f),"X-normal door cannot be used from west");
+glassMap.UpdateDoors(200,new(1.5f,2.5f),.15f);
+Check(glassMap.RendererMap.Sprites.Single().Position==new Vector2(2.5f,2.625f),"X-normal door slid on the wrong axis");
+Check(glassMap.Interact(new(3.5f,2.5f),-Vector2.UnitX,.15f),"X-normal door cannot be used from east");
+foreach(var invalid in new[]{steelDoor with{Axis="z"},steelDoor with{OpenSeconds=0},steelDoor with{OpenSeconds=float.NaN}})
+    Reject(()=>Compile(SmallMap(4),new(definitions){[4]=invalid}),"Invalid door configuration accepted");
+var boundaryDoor=SmallMap();boundaryDoor.WorldMap[0][2]=4;
+Reject(()=>Compile(boundaryDoor,doorObjects),"A door was allowed to open the map boundary");
+Check(showcase.Doors.Count==2 && showcase.Doors.Any(d=>d.X==18&&d.Y==12&&!d.Definition.RaycastTransparent) && showcase.Doors.Any(d=>d.X==24&&d.Y==18&&d.Definition.RaycastTransparent),"Showcase door examples missing");
 
 // Third-person rendering stays separate from the movement/collision transform.
 var orbitGrid = Enumerable.Range(0,12).Select(x => Enumerable.Range(0,12)

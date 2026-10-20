@@ -9,7 +9,7 @@ Each map JSON has an `objects` index mapping IDs to paths relative to the map fi
 }
 ```
 
-Definitions live in `objects/passages`, `walls`, `sprites`, and `sprite-groups`.
+Definitions live in `objects/passages`, `walls`, `doors`, `sprites`, and `sprite-groups`.
 Maps share these definitions by referencing the same paths in their own indexes.
 Grid indexing stays `worldMap[x][y]`; every value, including zero, is an object ID.
 Only grid objects and their dependencies (group members and passage references) are
@@ -30,6 +30,7 @@ Types:
 - `wall`: `textures` with `north`, `east`, `south`, and `west` paths. North is -Y;
   east is +X. Each face can use a different image. Required `passageId`
   selects the floor and ceiling, including inside walk-through and ray-transparent walls.
+- `door`: `texture`, `passageId`, `axis` (`x` or `y`), and `openSeconds` (default 0.8). See sliding doors below.
 - `sprite`: `texture`, zero-based GPU `textureLayer`, and `passageId` for the floor
   and ceiling. A sprite is placed at the center of its tile.
 - `spriteGroup`: `passageId` and a `sprites` list containing
@@ -109,9 +110,30 @@ selected from the sprite-to-player angle, so looking around in place does not
 change it. Extra frames are reserved for future animation; there is no playback yet.
 
 Every atlas frame reserves one consecutive texture layer starting at `textureLayer`;
-these slots must fit within 0–255 and cannot overlap different textures or frames.
+these slots must fit within 0â€“255 and cannot overlap different textures or frames.
 Frames are cropped before mip generation to prevent neighboring views from bleeding.
 Frame width/height preserves aspect ratio, and group scale/elevation apply normally.
 Use consistent frame height and baseline for steady size and ground alignment.
 The editor accepts these fields in object JSON and previews the first frame.
 See `sprites/sprite-directional-car.json` for an eight-view example.
+
+### Sliding doors
+
+`type: "door"` uses a thin plane through the center of its tile. `axis: "x"`
+separates east/west and slides along Y; `axis: "y"` separates north/south and
+slides along X. `openSeconds` must be positive and finite. Doors cannot be placed
+on map boundaries. Their floor/ceiling use `passageId`.
+
+Press **F** from one of the four cardinal neighboring tiles while aiming at the
+door plane. Each press toggles opening/closing; a held key does not retrigger.
+Pressing during animation reverses smoothly. Collision remains active until fully
+open, then the whole tile becomes walkable. Closing restores collision; an occupied
+door tile reopens and an overlapping player circle prevents starting a close.
+
+`raycastTransparent: false` stops DDA at the remaining sliding panel; the open gap
+lets rays through during animation. This mode always draws an opaque panel.
+`raycastTransparent: true` continues rays behind the door and blends its texture's
+alpha, including cutouts and partially transparent glass, over the scene. Both
+modes block walking when `collides: true`. Door geometry stays aligned to the world
+and participates in the sprite pass's depth/alpha handling. Runtime openness is
+per placed door, resets on map reload, and is not saved into map JSON.

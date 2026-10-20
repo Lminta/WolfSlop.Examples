@@ -9,6 +9,7 @@
     <Compile Include="../WolfNET.Game/Game/MapDefinition.cs" Link="Game/MapDefinition.cs" />
     <Compile Include="../WolfNET.Game/Game/MapObjects.cs" Link="Game/MapObjects.cs" />
     <Compile Include="../WolfNET.Game/Game/MapCompiler.cs" Link="Game/MapCompiler.cs" />
+    <Compile Include="../WolfNET.Game/Game/DoorSystem.cs" Link="Game/DoorSystem.cs" />
     <Compile Include="../WolfNET.Game/Game/GameMap.cs" Link="Game/GameMap.cs" />
     <Compile Include="../WolfNET.Game/Game/IMap.cs" Link="Game/IMap.cs" />
     <Compile Include="../WolfNET.Game/Game/NavigationMap.cs" Link="Game/NavigationMap.cs" />

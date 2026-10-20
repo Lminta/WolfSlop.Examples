@@ -156,7 +156,7 @@ function select(id, force = false) {
     $("selected-id").textContent = `#${brush}`;
     $("object-json").value = JSON.stringify(d, null, 2);
     $("object-summary").textContent = `${title(brush)} · ${d.collides ? "Blocks movement" : "Walkable"} · ${d.raycastTransparent ? "Rays pass through" : "Stops rays"} · ${d.jumpable ? "Jumpable" : "Not jumpable"} · ${d.crouchable ? "Crouchable" : "Not crouchable"}`;
-    const fields = d.type === "passage" ? ["floorTexture", "ceilingTexture"] : d.type === "wall" ? ["north", "east", "south", "west"] : d.type === "sprite" ? ["texture"] : [];
+    const fields = d.type === "passage" ? ["floorTexture", "ceilingTexture"] : d.type === "wall" ? ["north", "east", "south", "west"] : ["sprite", "door"].includes(d.type) ? ["texture"] : [];
     $("texture-picker").hidden = !fields.length;
     $("texture-target").replaceChildren(...fields.map(field => {
         const option = document.createElement("option"); option.value = field; option.textContent = field; return option;
@@ -229,6 +229,22 @@ function draw() {
                 ctx.strokeStyle = "#70dfc4"; ctx.setLineDash([s / 7, s / 7]);
                 ctx.strokeRect(px + 3, py + 3, s - 6, s - 6); ctx.setLineDash([]);
             }
+        }
+        if (d.type === "door") {
+            drawTexture(d.texture, px + 2, py + 2, s - 4, .85);
+            ctx.strokeStyle = d.raycastTransparent ? "#70dfc4" : "#f5d08a";
+            ctx.lineWidth = 3; ctx.beginPath();
+            if (d.axis === "x") { ctx.moveTo(px+s/2,py+2);ctx.lineTo(px+s/2,py+s-2); }
+            else {ctx.moveTo(px+2,py+s/2);ctx.lineTo(px+s-2,py+s/2);}
+            ctx.stroke();ctx.lineWidth=1;
+        }
+        if (d.type === "door") {
+            drawTexture(d.texture, px + 2, py + 2, s - 4, .85);
+            ctx.strokeStyle = d.raycastTransparent ? "#70dfc4" : "#f5d08a";
+            ctx.lineWidth = 3; ctx.beginPath();
+            if (d.axis === "x") { ctx.moveTo(px+s/2,py+2);ctx.lineTo(px+s/2,py+s-2); }
+            else {ctx.moveTo(px+2,py+s/2);ctx.lineTo(px+s-2,py+s/2);}
+            ctx.stroke();ctx.lineWidth=1;
         }
         if ($("show-collision").checked && d.collides) {
             ctx.fillStyle = "#fb9b653b"; ctx.fillRect(px, py, s, s);
@@ -528,7 +544,7 @@ $("apply-object").onclick = act(() => {
 $("add-object").onclick = act(() => {
     const type = $("new-type").value, id = Math.max(...Object.keys(doc.objects).map(Number), ...(doc.deletedObjectIds ?? [])) + 1;
     const { floor } = defaults();
-    const d = { type, id, raycastTransparent: type !== "wall", collides: type === "wall", jumpable: false, crouchable: false };
+    const d = { type, id, raycastTransparent: !["wall", "door"].includes(type), collides: ["wall", "door"].includes(type), jumpable: false, crouchable: false };
     if (type === "passage") Object.assign(d, { floorTexture: "textures/wolf/mossy.png", ceilingTexture: "textures/wolf/wood.png" });
     else d.passageId = floor;
     if (type === "wall") d.textures = { north: "textures/wolf/wood.png", east: "textures/wolf/wood.png", south: "textures/wolf/wood.png", west: "textures/wolf/wood.png" };
@@ -538,6 +554,8 @@ $("add-object").onclick = act(() => {
         if (layer > 255) throw Error("All 256 sprite texture layers are already in use.");
         Object.assign(d, { texture: "textures/wolf/barrel.png", textureLayer: layer });
     }
+    if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8 });
+    if (type === "door") Object.assign(d, { texture: "textures/doors/steel-door.png", axis: "y", openSeconds: .8 });
     if (type === "spriteGroup") d.sprites = [];
     change(() => { doc.objects[id] = d; doc.map.objects[id] = `../objects/editor/${doc.name}/${id}.json`; });
     select(id, true); toast(`Created ${type} #${id}. Edit its definition, then paint it onto the map.`);

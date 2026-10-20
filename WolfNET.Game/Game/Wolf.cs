@@ -147,6 +147,8 @@ public sealed class Wolf : IDisposable
             // Skip missed deadlines rather than rendering a burst of catch-up frames.
             _nextFrameTime += Math.Max(1, Math.Floor((frameStartTime - _nextFrameTime) / interval) + 1) * interval;
             _objectCollection.Update((float)deltaTime);
+            if (KeyTracker.ConsumeAction()) Map.Interact(_player.Transform.Position, _player.Transform.Rotation, Map.PlayerStart.CollisionRadius);
+            Map.UpdateDoors((float)deltaTime, _player.Transform.Position, Map.PlayerStart.CollisionRadius);
             if (!ReferenceEquals(_sceneTextures, Map.RendererMap.Textures))
             {
                 _ = RefreshSceneAsync(generation);

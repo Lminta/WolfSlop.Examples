@@ -8,7 +8,9 @@ public enum RenderCellFlags : uint
     None = 0,
     StopsRay = 1,
     Wall = 2,
-    SkyCeiling = 4
+    SkyCeiling = 4,
+    Door = 8,
+    DoorNormalX = 16
 }
 
 // All GPU records contain four 32-bit values, matching the WGSL structures.

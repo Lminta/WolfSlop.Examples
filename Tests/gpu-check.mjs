@@ -69,8 +69,8 @@ export async function checkGpu(sources) {
     const floatBits = value => new Uint32Array(new Float32Array([value]).buffer)[0];
     function setSprites(values) {
         const data = new Uint32Array(32);
-        values.forEach(([x,y,layer,owner,sx=1,sy=1,z=0], i) => data.set(
-            [floatBits(x),floatBits(y),layer,owner,floatBits(sx),floatBits(sy),floatBits(z),0], i * 8));
+        values.forEach(([x,y,layer,owner,sx=1,sy=1,z=0,kind=0], i) => data.set(
+            [floatBits(x),floatBits(y),layer,owner,floatBits(sx),floatBits(sy),floatBits(z),kind], i * 8));
         device.queue.writeBuffer(sprites, 0, data);
     }
     async function draw(dx = -1, dy = 0, count = 0, overlay = false, px = 2.5, py = 2.5, width = 128, height = 128, pitch = 0, elevation = 0) {
@@ -116,6 +116,41 @@ export async function checkGpu(sources) {
     assert(result.cell === 15 && Math.abs(result.depth-1.5)<.001, "Transparent wall stopped DDA");
     map.set([0,4,5,1],13*4);
     assert((await draw(1,0)).cell === 14, "Opaque non-wall did not stop DDA");
+    resetMap();
+    // Thin door planes: ray blocking moves with the actual sliding panel.
+    const doorCell=12;
+    const doorFlags=(open,solid=true,normalX=true)=>(8|2|(solid?1:0)|(normalX?16:0)|(Math.round(open*65535)<<16))>>>0;
+    resetMap();map.set([1,4,5,doorFlags(0)],doorCell*4);
+    setSprites([[2.5,2.5,2,13,1,1,0,5]]);
+    result=await draw(1,0,1,false,1.5,2.5);
+    assert(result.cell===13&&Math.abs(result.depth-1)<.001,"Closed opaque door did not hit its center plane");
+    assert(equal(result.pixel(64,64),colors[2]),"World-aligned door panel did not render");
+    assert(equal((await draw(-1,0,1,false,3.5,2.5)).pixel(64,64),colors[2]),"Door is invisible from its back side");
+    map[doorCell*4+3]=doorFlags(.5);
+    setSprites([[2.5,2.75,2,13,.5,1,0,5]]);
+    result=await draw(1,0,1,false,1.5,2.25);
+    assert(result.cell===15,"Partially open door did not let a ray pass through its gap");
+    assert(!equal(result.pixel(64,64),colors[2]),"Door geometry covered its open gap");
+    result=await draw(1,0,1,false,1.5,2.75);
+    assert(result.cell===13&&Math.abs(result.depth-1)<.001&&equal(result.pixel(64,64),colors[2]),"Remaining half of a sliding door did not block rays and draw");
+    map[doorCell*4+3]=doorFlags(1);
+    setSprites([[2.5,3,2,13,0,1,0,5]]);
+    result=await draw(1,0,1,false,1.5,2.5);
+    assert(result.cell===15&&!equal(result.pixel(64,64),colors[2]),"Fully open door still draws or blocks rays");
+    map[doorCell*4+3]=doorFlags(0,true,false);
+    setSprites([[2.5,2.5,2,13,1,1,0,6]]);
+    assert((await draw(0,1,1,false,2.5,1.5)).cell===13,"Y-normal door uses the wrong plane");
+    assert(!equal((await draw(1,0,1,false,1.5,2.75)).pixel(64,64),colors[2]),"Door rotated as a camera-facing billboard");
+    const glassPixels=new Uint8Array(64);for(let i=0;i<16;i++)glassPixels.set([128,0,0,128],i*4);
+    device.queue.writeTexture({texture:textures,origin:[0,0,7]},glassPixels,{bytesPerRow:16,rowsPerImage:4},[4,4,1]);
+    map[doorCell*4+3]=doorFlags(0,false);
+    setSprites([[3.2,2.5,1,14],[2.5,2.5,7,13,1,1,0,1]]);
+    result=await draw(1,0,2,false,1.5,2.5);
+    assert(result.cell===15&&equal(result.pixel(64,64),[128,127,0,255]),"Glass door did not show and blend the sprite behind it");
+    map[doorCell*4+3]=doorFlags(0,true);
+    setSprites([[3.2,2.5,1,14]]);
+    assert(!equal((await draw(1,0,1,false,1.5,2.5)).pixel(64,64),colors[1]),"Sprite behind an opaque door ignored door depth");
+    device.queue.writeTexture({texture:textures,origin:[0,0,7]},pixels.slice(7*64,8*64),{bytesPerRow:16,rowsPerImage:4},[4,4,1]);
     resetMap();
     // Camera tile has a different floor; sampling must use the projected tile.
     map[12*4+1] = 6;

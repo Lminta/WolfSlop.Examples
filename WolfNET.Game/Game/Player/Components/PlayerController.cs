@@ -79,7 +79,11 @@ public class PlayerController : ComponentBase
             // Horizontal input and subsequent camera turns cannot steer this trajectory.
             _jumpElapsed = MathF.Min(_jumpTime, _jumpElapsed + deltaTime);
             var distance = MathF.Min(_jumpElapsed * _jumpSpeed, Vector2.Distance(_jumpOrigin, JumpDestination));
-            var position = _jumpOrigin + _jumpDirection * distance;
+            var desired = _jumpOrigin + _jumpDirection * distance;
+            // Doors can close after takeoff. Sweep this frame's motion against the
+            // current navigation grid instead of trusting only the launch-time plan.
+            var position = TraceJump(new(posX, posY), desired);
+            if (Vector2.DistanceSquared(position, desired) > .0000000001f) JumpDestination = position;
             posX = position.X;
             posY = position.Y;
             var progress = _jumpElapsed / _jumpTime;

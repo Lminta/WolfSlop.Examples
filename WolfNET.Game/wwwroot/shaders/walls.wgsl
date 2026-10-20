@@ -44,7 +44,7 @@ struct Sprite {
     ownerCell: u32,
     scale: vec2f,
     elevation: f32,
-    padding: f32,
+    kind: u32,
 };
 
 @group(0) @binding(0)
@@ -241,7 +241,7 @@ fn fragmentMain(
     }
 
     let cell = worldMap[hit.hitCell - 1u];
-    if ((cell.flags & 2u) == 0u) {
+    if ((cell.flags & 2u) == 0u || (cell.flags & 8u) != 0u) {
         return floorCeilingColor(input.position.xy);
     }
     let screenHeight = camera.screenSize.y;

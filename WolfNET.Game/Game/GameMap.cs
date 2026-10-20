@@ -8,6 +8,8 @@ public sealed class GameMap : IMap
 {
     private readonly MapCompiler _compiler;
     private MapDefinition _definition;
+    private readonly DoorSystem _doors = new();
+    public IReadOnlyCollection<DoorState> Doors => _doors.Doors;
     public int[][] WorldMap => Copy(_definition.WorldMap);
     public IReadOnlyDictionary<int, MapObjectDefinition> Objects { get; }
     public RenderMap RendererMap { get; private set; }
@@ -27,6 +29,8 @@ public sealed class GameMap : IMap
         var compiled = _compiler.Compile(_definition, 1);
         RendererMap = compiled.Renderer;
         NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
+        _doors.Rebuild(_definition.WorldMap, Objects);
+        RendererMap = _doors.Apply(RendererMap, NavigationMap);
     }
 
     public static async Task<GameMap> LoadAsync(HttpClient http, string path, int maxWidth, int maxHeight,
@@ -53,7 +57,17 @@ public sealed class GameMap : IMap
         var compiled = _compiler.Compile(next, checked(Revision + 1));
         _definition = next;
         NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
+        _doors.Rebuild(_definition.WorldMap, Objects);
+        RendererMap = _doors.Apply(RendererMap, NavigationMap);
         RendererMap = compiled.Renderer;
+    }
+
+    public bool Interact(Vector2 position, Vector2 direction, float radius) => _doors.Interact(position, direction, radius);
+
+    public void UpdateDoors(float milliseconds, Vector2 position, float radius)
+    {
+        if (!_doors.Update(milliseconds, position, radius)) return;
+        RendererMap = _doors.Apply(RendererMap with { Revision = checked(Revision + 1) }, NavigationMap);
     }
 
     private static int[][] Copy(int[][]? cells) => cells == null ? [] :

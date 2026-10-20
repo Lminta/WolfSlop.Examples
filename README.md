@@ -184,8 +184,12 @@ planning and collision stay at the player's position. Camera elevation uses the
 engine's existing simulated pitch and stays within floor/ceiling height limits.
 
 The character uses `WolfNET.Game/wwwroot/player-character.json` and the v3 atlas.
-Two-frame pairs are: rear walk 0–1, rear-left 2–3, rear-right 4–5, left strafe 6–7,
-right strafe 8–9, rear crouch 10–11, rear jump 12–13; frame 14 is idle. Actual
+Two-frame pairs are: rear walk 0â€“1, rear-left 2â€“3, rear-right 4â€“5, left strafe 6â€“7,
+right strafe 8â€“9, rear crouch 10â€“11, rear jump 12â€“13; frame 14 is idle. Actual
 movement advances walking/crouching frames every 160 ms; jumping uses the same
 interval. Standing against a wall does not animate walking. Character frames load
 with each scene, and the player sprite participates in normal wall/sprite occlusion.
+
+Press **F** while facing a door from a cardinal neighboring tile to open/close it.
+The showcase includes an opaque steel door at (18,12) and an alpha-glass door at
+(24,18). Wait until fully open to walk through; closing doors avoid the player.

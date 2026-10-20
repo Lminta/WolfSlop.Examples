@@ -5,7 +5,7 @@ namespace WolfNET.Game;
 
 public sealed class MapCompiler
 {
-    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees);
+    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard);
     private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
@@ -96,6 +96,19 @@ public sealed class MapCompiler
                     materials.Add(new WallMaterial(Resolve(wall.Textures?.North), Resolve(wall.Textures?.East),
                         Resolve(wall.Textures?.South), Resolve(wall.Textures?.West)));
                     break;
+                case DoorDefinition door:
+                    if (door.Axis is not ("x" or "y") || !float.IsFinite(door.OpenSeconds) || door.OpenSeconds <= 0)
+                        throw new InvalidDataException($"Door {id} needs axis x/y and a positive finite openSeconds.");
+                    passage = Passage(id, door.PassageId);
+                    flags |= RenderCellFlags.Wall | RenderCellFlags.Door;
+                    if (door.Axis == "x") flags |= RenderCellFlags.DoorNormalX;
+                    material = (uint)materials.Count;
+                    var doorLayer = Resolve(door.Texture);
+                    materials.Add(new WallMaterial(doorLayer, doorLayer, doorLayer, doorLayer));
+                    var kind = (door.Axis == "x" ? SpriteKind.DoorNormalX : SpriteKind.DoorNormalY) |
+                        (door.RaycastTransparent ? 0 : SpriteKind.Opaque);
+                    sprites = [new(Vector3.Zero, Vector2.One, doorLayer, null, 0, kind)];
+                    break;
                 case SpriteDefinition sprite:
                     passage = Passage(id, sprite.PassageId);
                     sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees)];
@@ -160,7 +173,7 @@ public sealed class MapCompiler
                 if (!_objects.TryGetValue(map[x][y], out var obj))
                     throw new InvalidDataException($"Unknown object ID {map[x][y]} at ({x}, {y}).");
                 if ((x == 0 || y == 0 || x == width - 1 || y == height - 1) &&
-                    (obj.Walkable || obj.Jumpable || obj.Crouchable || !obj.Cell.Flags.HasFlag(RenderCellFlags.StopsRay)))
+                    (obj.Walkable || obj.Jumpable || obj.Crouchable || obj.Cell.Flags.HasFlag(RenderCellFlags.Door) || !obj.Cell.Flags.HasFlag(RenderCellFlags.StopsRay)))
                     throw new InvalidDataException("Map boundaries must block movement, jumping, crouching, and rays.");
                 int index = y * width + x;
                 cells[index] = obj.Cell;
@@ -174,7 +187,7 @@ public sealed class MapCompiler
                         position.X < 0 || position.Y < 0 || position.X >= width || position.Y >= height)
                         throw new InvalidDataException($"Sprite from ({x}, {y}) is outside the map.");
                     sprites.Add(new Sprite(position, sprite.Layer, (uint)index + 1)
-                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, RotationDegrees = sprite.RotationDegrees });
+                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind });
                 }
             }
         }

@@ -10,6 +10,11 @@ for (const atlas of [{frames:[]}, {...atlasSprite.atlas,directions:3}, {frames:[
     assert.throws(() => checkDefinition({...atlasSprite,atlas}, {0:passage}));
 assert.throws(() => checkDefinition({...atlasSprite,textureLayer:255}, {0:passage}));
 assert.throws(() => checkDefinition({...atlasSprite,rotationDegrees:Infinity}, {0:passage}));
+const door={type:"door",id:4,passageId:0,collides:true,raycastTransparent:true,texture:"textures/doors/glass-door.png",axis:"x",openSeconds:.8};
+assert.equal(checkDefinition(door,{0:passage}),door);
+assert.throws(()=>checkDefinition({...door,axis:"z"},{0:passage}));
+for(const openSeconds of [0,-1,NaN,Infinity])assert.throws(()=>checkDefinition({...door,openSeconds},{0:passage}));
+assert.throws(()=>checkDefinition({...door,texture:42},{0:passage}));
 const group = { type: "spriteGroup", id: 3, passageId: 0, sprites: [{ spriteId: 2, offset: { x: -.25, y: .5 } }], collides: false, raycastTransparent: true };
 const objects = { 0: passage, 1: wall, 2: sprite, 3: group };
 const scaledGroup = { ...group, sprites: [{ spriteId: 2, offset: { x: 0, y: 0, z: -.25 }, scale: { x: .5, y: 2 } }] };

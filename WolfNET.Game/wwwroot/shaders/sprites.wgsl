@@ -19,15 +19,16 @@ struct Sprite {
     ownerCell: u32,
     scale: vec2f,
     elevation: f32,
-    padding: f32,
+    kind: u32,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) uv: vec2f,
-    @location(1) @interpolate(flat) depth: f32,
+    @location(1) depth: f32,
     @location(2) @interpolate(flat) textureLayer: u32,
     @location(3) @interpolate(flat) ownerCell: u32,
+    @location(4) @interpolate(flat) kind: u32,
 };
 
 @group(0) @binding(0) var<storage, read> rayHits: array<RayHit>;
@@ -64,6 +65,28 @@ fn vertexMain(
     output.depth = depth;
     output.textureLayer = sprite.textureLayer;
     output.ownerCell = sprite.ownerCell;
+    output.kind = sprite.kind;
+    if ((sprite.kind & 3u) != 0u) {
+        // Doors are world-aligned quads, never camera-facing billboards.
+        let axis = select(vec2f(1.0, 0.0), vec2f(0.0, 1.0), (sprite.kind & 3u) == 1u);
+        let point = sprite.position + axis * ((corners[vertex].x - 0.5) * sprite.scale.x);
+        let pointRelative = point - camera.position;
+        let across = inverseDet * (camera.direction.y * pointRelative.x - camera.direction.x * pointRelative.y);
+        let pointDepth = inverseDet * (-camera.plane.y * pointRelative.x + camera.plane.x * pointRelative.y);
+        output.depth = pointDepth;
+        output.uv = vec2f(corners[vertex].x * sprite.scale.x, corners[vertex].y);
+        output.position = vec4f(2.0, 2.0, 0.0, 1.0);
+        if (pointDepth > 0.0001) {
+            let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+            let size = focalLength / pointDepth;
+            let pixel = vec2f(camera.screenSize.x * 0.5 * (1.0 + across / pointDepth),
+                camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength +
+                (camera.look.y - sprite.elevation + (corners[vertex].y - 0.5) * sprite.scale.y) * size);
+            let ndc = pixel / camera.screenSize * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0);
+            output.position = vec4f(ndc * pointDepth, 0.0, pointDepth);
+        }
+        return output;
+    }
     // Collapse sprites behind or on the camera plane to an offscreen point.
     output.position = vec4f(2.0, 2.0, 0.0, 1.0);
     if (depth <= 0.0001) {
@@ -96,6 +119,10 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
 
     // Mips store premultiplied RGBA; blending uses ONE, ONE_MINUS_SRC_ALPHA.
     let color = textureSampleGrad(spriteTextures, spriteSampler, input.uv, i32(input.textureLayer), gradientX, gradientY);
+    if ((input.kind & 4u) != 0u) {
+        // Opaque doors seal the plane even when their chosen texture contains alpha.
+        return vec4f(color.rgb / max(color.a, 0.0001), 1.0);
+    }
     if (color.a == 0.0) {
         discard;
     }
