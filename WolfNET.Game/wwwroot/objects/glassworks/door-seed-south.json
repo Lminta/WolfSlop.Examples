@@ -1,0 +1,11 @@
+{
+  "type": "door",
+  "id": 345,
+  "raycastTransparent": false,
+  "collides": true,
+  "passageId": 302,
+  "texture": "textures/doors/steel-door.png",
+  "axis": "y",
+  "openSeconds": 0.7,
+  "autoCloseSeconds": 0
+}

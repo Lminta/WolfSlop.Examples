@@ -1,0 +1,11 @@
+{
+  "type": "door",
+  "id": 340,
+  "raycastTransparent": true,
+  "collides": true,
+  "passageId": 300,
+  "texture": "textures/doors/glass-door.png",
+  "axis": "y",
+  "openSeconds": 0.7,
+  "autoCloseSeconds": 0
+}

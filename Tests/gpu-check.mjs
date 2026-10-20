@@ -141,6 +141,39 @@ export async function checkGpu(sources) {
     setSprites([[2.5,2.5,2,13,1,1,0,6]]);
     assert((await draw(0,1,1,false,2.5,1.5)).cell===13,"Y-normal door uses the wrong plane");
     assert(!equal((await draw(1,0,1,false,1.5,2.75)).pixel(64,64),colors[2]),"Door rotated as a camera-facing billboard");
+    // Compare near-plane-straddling quads against independent ray/plane intersections.
+    // Replacing behind-camera vertices with an offscreen point creates false triangles.
+    resetMap();
+    for (const [normalX,kind] of [[true,5],[false,6],[true,9],[false,10]]) {
+        setSprites([[2.5,2.5,2,13,1,1,0,kind]]);
+        for (const offset of [-.2,.2]) for (const tangent of [-.4,0,.4])
+        for (const angle of [-2.5,-1.6,-.8,.3,1.2,2]) {
+            const px=2.5+(normalX?offset:tangent), py=2.5+(normalX?tangent:offset);
+            const dx=Math.cos(angle),dy=Math.sin(angle);
+            const frame=await draw(dx,dy,1,false,px,py);
+            for (const x of [1,8,24,48,64,80,104,120,126]) {
+                const column=2*(x+.5)/128-1;
+                const rx=dx+dy*.66*column,ry=dy-dx*.66*column;
+                const denominator=normalX?rx:ry;
+                const depth=(2.5-(normalX?px:py))/denominator;
+                const along=(normalX?py: px)+depth*(normalX?ry:rx);
+                // Skip a sample on a geometric edge to avoid rasterization tie rules.
+                if (Math.min(Math.abs(along-2),Math.abs(along-3))<.002) continue;
+                for(const y of [1,16,48,64,96,112,126]) {
+                    const vertical=(y+.5-64)*depth/(128/(2*.66));
+                    if(Math.abs(Math.abs(vertical)-.5)<.002)continue;
+                    const expected=depth>=.0001&&along>=2&&along<=3&&Math.abs(vertical)<=.5;
+                    assert(equal(frame.pixel(x,y),colors[2])===expected,
+                        `Near-camera plane produced a false/missing pixel: kind=${kind}, camera=${px},${py}, angle=${angle}, pixel=${x},${y}`);
+                }
+            }
+        }
+    }
+    // A plane wholly behind the viewer must disappear, including its corners.
+    setSprites([[1.5,2.5,2,12,1,1,0,5]]);
+    const behindPlane=await draw(1,0,1);
+    assert(!equal(behindPlane.pixel(1,1),colors[2])&&!equal(behindPlane.pixel(64,64),colors[2]),
+        "Behind-camera door leaked onto the screen");
     const glassPixels=new Uint8Array(64);for(let i=0;i<16;i++)glassPixels.set([128,0,0,128],i*4);
     device.queue.writeTexture({texture:textures,origin:[0,0,7]},glassPixels,{bytesPerRow:16,rowsPerImage:4},[4,4,1]);
     map[doorCell*4+3]=doorFlags(0,false);
@@ -206,6 +239,22 @@ export async function checkGpu(sources) {
     setSprites([[1,2.5,2,11,.5,.25,.25]]);
     const raised = blueBounds(await draw(-1,0,1));
     const unitSize = 128/(2*.66*1.5);
+    // Fixed wall decorations use the complete texture, even on a narrow quad.
+    // Layer 7 has a red center and transparent border, so cropping UVs would erase it.
+    const fixturePixels = new Uint8Array(4*4*4);
+    for(let y=1;y<3;y++)for(let x=1;x<3;x++)fixturePixels.set([255,0,0,255],(y*4+x)*4);
+    device.queue.writeTexture({texture:textures,origin:[0,0,7]},fixturePixels,{bytesPerRow:16,rowsPerImage:4},[4,4,1]);
+    setSprites([[1,2.5,7,11,.3,.4,0,9]]);
+    assert(equal((await draw(-1,0,1)).pixel(64,64),colors[0]), "Narrow fixed plane cropped its sprite texture");
+    const countRed = frame => {let count=0;for(let y=0;y<128;y++)for(let x=0;x<128;x++)if(equal(frame.pixel(x,y),colors[0]))count++;return count;};
+    const fixedFront = countRed(await draw(-1,0,1));
+    const obliqueLength = Math.hypot(1.5,1);
+    const fixedOblique = countRed(await draw(-1.5/obliqueLength,-1/obliqueLength,1,false,2.5,3.5));
+    setSprites([[1,2.5,7,11,.3,.4,0,0]]);
+    const billboardOblique = countRed(await draw(-1.5/obliqueLength,-1/obliqueLength,1,false,2.5,3.5));
+    assert(fixedFront>0 && fixedOblique>0 && fixedOblique!==billboardOblique, "Fixed decoration still projects as a billboard when viewed obliquely");
+    setSprites([[2.5,1,7,8,.3,.4,0,10]]);
+    assert(equal((await draw(0,-1,1)).pixel(64,64),colors[0]), "Y-normal fixed decoration did not render");
     assert(raised && Math.abs(raised.width-unitSize*.5)<=1 && Math.abs(raised.height-unitSize*.25)<=1,
         "Per-member scale did not independently change billboard width and height");
     assert(Math.abs(raised.centerY-(64-unitSize*.25))<=1, "Positive offset.z did not move the billboard up");

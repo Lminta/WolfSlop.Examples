@@ -68,6 +68,8 @@ public sealed record SpriteDefinition : MapObjectDefinition
     public string? Texture { get; init; }
     public SpriteAtlas? Atlas { get; init; }
     public float RotationDegrees { get; init; }
+    // Optional fixed quad normal, matching door axes. Null keeps a billboard.
+    public string? PlaneAxis { get; init; }
     public required uint TextureLayer { get; init; }
     public required int PassageId { get; init; }
 }

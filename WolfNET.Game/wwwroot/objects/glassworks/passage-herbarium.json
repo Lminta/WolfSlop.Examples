@@ -1,0 +1,8 @@
+{
+  "type": "passage",
+  "id": 304,
+  "raycastTransparent": true,
+  "collides": false,
+  "floorTexture": "textures/glassworks/botanical-mosaic.png",
+  "ceilingTexture": "textures/glassworks/glass-roof.svg"
+}

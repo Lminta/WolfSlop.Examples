@@ -30,6 +30,10 @@ public sealed class MapCompiler
             var atlas = sprite.Atlas;
             if (!float.IsFinite(sprite.RotationDegrees))
                 throw new InvalidDataException($"Sprite {sprite.Id} has an invalid rotationDegrees.");
+            if (sprite.PlaneAxis is not (null or "x" or "y"))
+                throw new InvalidDataException($"Sprite {sprite.Id} planeAxis must be x/y or null.");
+            if (sprite.PlaneAxis != null && atlas is { Directions: > 1 })
+                throw new InvalidDataException($"Sprite {sprite.Id} cannot combine a fixed plane with directional views.");
             if (atlas != null && (atlas.Frames == null || atlas.Frames.Length == 0 || atlas.Frames.Length > 256 ||
                 atlas.Directions < 1 || atlas.Directions > atlas.Frames.Length ||
                 atlas.Frames.Any(frame => frame == null || frame.X < 0 || frame.Y < 0 || frame.Width <= 0 || frame.Height <= 0 ||
@@ -76,6 +80,12 @@ public sealed class MapCompiler
         {
             new(TextureCatalog.MissingLayer, TextureCatalog.MissingLayer, TextureCatalog.MissingLayer, TextureCatalog.MissingLayer)
         };
+        static SpriteKind Geometry(SpriteDefinition sprite) => sprite.PlaneAxis switch
+        {
+            "x" => SpriteKind.FixedPlane | SpriteKind.PlaneNormalX,
+            "y" => SpriteKind.FixedPlane | SpriteKind.PlaneNormalY,
+            _ => SpriteKind.Billboard
+        };
         foreach (var (id, definition) in objects.OrderBy(pair => pair.Key))
         {
             if (id < 0 || id != definition.Id)
@@ -113,7 +123,7 @@ public sealed class MapCompiler
                     break;
                 case SpriteDefinition sprite:
                     passage = Passage(id, sprite.PassageId);
-                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees)];
+                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite))];
                     break;
                 case SpriteGroupDefinition group:
                     passage = Passage(id, group.PassageId);
@@ -128,7 +138,7 @@ public sealed class MapCompiler
                         if (!objects.TryGetValue(member.SpriteId, out var child) || child is not SpriteDefinition sprite)
                             throw new InvalidDataException($"Sprite group {id} references unknown/non-sprite ID {member.SpriteId}.");
                         return new SpriteTemplate(new Vector3(member.Offset.X, member.Offset.Y, member.Offset.Z),
-                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees);
+                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite));
                     }).ToArray();
                     break;
                 default:

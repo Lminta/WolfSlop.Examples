@@ -13,6 +13,7 @@ public partial class Home
     private ElementReference _canvas;
     private HTMLCanvasElement? _canvasElement;
     private readonly CancellationTokenSource _lifetime = new();
+    private const string GlassworksMap = "maps/glassworks.json";
     private const string OriginalMap = "maps/level1.json";
     private const string ShowcaseMap = "maps/showcase.json";
     private string? _selectedMap;
@@ -61,7 +62,7 @@ public partial class Home
             await ShowLoadingProgressAsync("Starting graphics...");
             await Renderer.InitializeAsync(_canvasElement, shaders, _lifetime.Token);
 
-            var initialMap = OriginalMap;
+            var initialMap = GlassworksMap;
             if (!string.IsNullOrWhiteSpace(RequestedMap))
             {
                 if (!System.Text.RegularExpressions.Regex.IsMatch(RequestedMap, "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$"))

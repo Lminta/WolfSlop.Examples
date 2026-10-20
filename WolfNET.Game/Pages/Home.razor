@@ -34,12 +34,18 @@
 
 <aside class="map-switcher" aria-label="Map selection">
     <nav aria-label="Maps">
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == GlassworksMap))"
+                aria-pressed="@(_selectedMap == GlassworksMap ? "true" : "false")" @onclick="() => SelectMapAsync(GlassworksMap)">The Glassworks</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
                 aria-pressed="@(_selectedMap == OriginalMap ? "true" : "false")" @onclick="() => SelectMapAsync(OriginalMap)">The Brickyard</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
     <p role="status">@(_loading ? _loadingMessage : _observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
+    @if (_selectedMap == GlassworksMap)
+    {
+        <p>Explore an abandoned botanical station. Circle the central glasshouse through the potting room and pump room, or discover the maintenance shortcut.</p>
+    }
     @if (_selectedMap == ShowcaseMap)
     {
         <ul class="showcase-guide">

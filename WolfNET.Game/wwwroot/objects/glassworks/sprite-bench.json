@@ -1,0 +1,63 @@
+{
+  "type": "sprite",
+  "id": 361,
+  "raycastTransparent": true,
+  "collides": false,
+  "passageId": 301,
+  "texture": "textures/glassworks/bench-directional-atlas.png",
+  "textureLayer": 32,
+  "rotationDegrees": 90,
+  "atlas": {
+    "directions": 8,
+    "frames": [
+      {
+        "height": 512,
+        "width": 512,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 512,
+        "y": 0
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 1024,
+        "y": 0
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 1536,
+        "y": 0
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 0,
+        "y": 512
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 512,
+        "y": 512
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 1024,
+        "y": 512
+      },
+      {
+        "height": 512,
+        "width": 512,
+        "x": 1536,
+        "y": 512
+      }
+    ]
+  }
+}

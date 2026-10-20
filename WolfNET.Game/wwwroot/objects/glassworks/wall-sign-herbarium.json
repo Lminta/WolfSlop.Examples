@@ -1,0 +1,13 @@
+{
+  "type": "wall",
+  "id": 333,
+  "raycastTransparent": false,
+  "collides": true,
+  "passageId": 301,
+  "textures": {
+    "north": "textures/glassworks/limestone-wall.png",
+    "east": "textures/glassworks/limestone-wall.png",
+    "south": "textures/glassworks/limestone-wall.png",
+    "west": "textures/glassworks/sign-herbarium.svg"
+  }
+}

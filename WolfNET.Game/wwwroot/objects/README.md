@@ -51,6 +51,19 @@ lights (`0.5` on both axes), including single-member groups for direct placement
 Barrels use Z = -0.2 to compensate for transparent padding and remain grounded; lights use Z = 0.25 to hang from the ceiling.
 
 Texture paths are relative to the application base, e.g. `textures/wolf/wood.png`.
+Sprites may set `planeAxis: "x"` or `"y"` to draw a fixed world-aligned quad
+instead of a billboard. The axis is the quad's normal, matching door axes: X
+spans north/south, Y spans east/west. Groups inherit their child sprite's plane.
+Use group offsets to put a wall fixture just in front of masonry; the Glassworks
+lanterns sit 0.02 squares from their supporting wall. Fixed planes display the
+whole image at any scale and cannot use multiple directional views.
+
+For padded sprites, ground the visible artwork using
+`offset.z = -0.5 + scale.y * (baseline / imageHeight - 0.5)`, where `baseline` is
+the row immediately below the visible feet or pot base within the source frame.
+This compensates for transparent space below the artwork. With an unpadded image,
+`baseline == imageHeight` gives the usual `(scale.y - 1) / 2` offset.
+
 Images may use different resolutions. The renderer resamples them into a shared array,
 preserving source resolution up to 2048px per side and a 128 MiB scene texture budget.
 All object definitions accept `jumpable` (default `false`). Solid jumpable cells

@@ -6,6 +6,9 @@ const wall = { type: "wall", id: 1, passageId: 0, collides: true, raycastTranspa
 const sprite = { type: "sprite", id: 2, passageId: 0, textureLayer: 8, collides: false, raycastTransparent: true };
 const atlasSprite = { ...sprite, atlas: { directions: 2, frames: [{x:0,y:0,width:16,height:8}, {x:16,y:0,width:16,height:8}] }, rotationDegrees: 90 };
 assert.equal(checkDefinition(atlasSprite, {0:passage}), atlasSprite);
+assert.equal(checkDefinition({...sprite, planeAxis: "x"}, {0: passage}).planeAxis, "x");
+assert.throws(() => checkDefinition({...sprite, planeAxis: "z"}, {0: passage}));
+assert.throws(() => checkDefinition({...atlasSprite, planeAxis: "y"}, {0: passage}));
 for (const atlas of [{frames:[]}, {...atlasSprite.atlas,directions:3}, {frames:[{x:-1,y:0,width:1,height:1}]}, {frames:[{x:0,y:0,width:0,height:1}]}])
     assert.throws(() => checkDefinition({...atlasSprite,atlas}, {0:passage}));
 assert.throws(() => checkDefinition({...atlasSprite,textureLayer:255}, {0:passage}));

@@ -117,7 +117,7 @@ public sealed class DoorSystem
         for (int i = 0; i < sprites.Length; i++)
         {
             var sprite = sprites[i];
-            if ((sprite.Kind & (SpriteKind)3) == 0) continue;
+            if ((sprite.Kind & (SpriteKind)3) == 0 || sprite.Kind.HasFlag(SpriteKind.FixedPlane)) continue;
             int index = (int)sprite.OwnerCell - 1;
             if (!_doors.TryGetValue((index % map.Width, index / map.Width), out var door)) continue;
             var axis = door.Definition.Axis == "x" ? Vector2.UnitY : Vector2.UnitX;

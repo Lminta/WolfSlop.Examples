@@ -67,24 +67,28 @@ fn vertexMain(
     output.ownerCell = sprite.ownerCell;
     output.kind = sprite.kind;
     if ((sprite.kind & 3u) != 0u) {
-        // Doors are world-aligned quads, never camera-facing billboards.
+        // Doors and fixed decorations use world-aligned quads.
         let axis = select(vec2f(1.0, 0.0), vec2f(0.0, 1.0), (sprite.kind & 3u) == 1u);
         let point = sprite.position + axis * ((corners[vertex].x - 0.5) * sprite.scale.x);
         let pointRelative = point - camera.position;
         let across = inverseDet * (camera.direction.y * pointRelative.x - camera.direction.x * pointRelative.y);
         let pointDepth = inverseDet * (-camera.plane.y * pointRelative.x + camera.plane.x * pointRelative.y);
         output.depth = pointDepth;
-        output.uv = vec2f(corners[vertex].x * sprite.scale.x, corners[vertex].y);
-        output.position = vec4f(2.0, 2.0, 0.0, 1.0);
-        if (pointDepth > 0.0001) {
-            let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
-            let size = focalLength / pointDepth;
-            let pixel = vec2f(camera.screenSize.x * 0.5 * (1.0 + across / pointDepth),
-                camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength +
-                (camera.look.y - sprite.elevation + (corners[vertex].y - 0.5) * sprite.scale.y) * size);
-            let ndc = pixel / camera.screenSize * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0);
-            output.position = vec4f(ndc * pointDepth, 0.0, pointDepth);
-        }
+        // A sliding door reveals a cropped panel; a fixed decoration uses its full image.
+        output.uv = vec2f(corners[vertex].x * select(sprite.scale.x, 1.0, (sprite.kind & 8u) != 0u), corners[vertex].y);
+        // Keep every corner in homogeneous clip space, including corners behind
+        // the eye. The GPU clips the original triangles at z=0 (depth=near).
+        // Moving individual corners offscreen instead creates spurious diagonals
+        // whenever the camera passes beside or through a door's plane.
+        let near = 0.0001;
+        let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+        let vertical = camera.look.y - sprite.elevation + (corners[vertex].y - 0.5) * sprite.scale.y;
+        output.position = vec4f(
+            across,
+            -2.0 * focalLength / camera.screenSize.y * (tan(camera.look.x) * pointDepth + vertical),
+            pointDepth - near,
+            pointDepth
+        );
         return output;
     }
     // Collapse sprites behind or on the camera plane to an offscreen point.

@@ -150,7 +150,9 @@ try {
     await send("Fetch.enable",{patterns:[{urlPattern:"*objects/*.json"},
         ...(missingTextures?[{urlPattern:"*textures/*"}]:[])]});
     await send("Emulation.setDeviceMetricsOverride",{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
-    await send("Page.navigate",{url:appUrl}); await send("Page.bringToFront");
+    const legacyMapUrl = new URL(appUrl);
+    legacyMapUrl.searchParams.set("map", "level1");
+    await send("Page.navigate",{url:legacyMapUrl.href}); await send("Page.bringToFront");
     for(let i=0;i<200&&!heldObjectRequest;i++) await delay(100);
     assert(heldObjectRequest,"Last object was never requested");
     assert(!await evaluate("!!window.__camera"),"Game rendered before all definitions loaded");

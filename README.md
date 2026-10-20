@@ -10,12 +10,13 @@ The solution contains sibling projects:
 
 Build both applications with `dotnet build WolfNET.slnx`.
 
-The default level is **The Brickyard**, an abandoned motor depot with a gatehouse,
-an open courtyard, covered arcades, and interconnected storage bays. Find the car
-in the northern motor yard via the loading hall or the damaged service passage.
-Doors, jumpable debris, and low overhead obstacles shape the routes. See the
-[level notes](WolfNET.Game/wwwroot/maps/level1.md) for the layout. The separate
-Showcase map remains available from the map selector.
+The default level is **The Glassworks**, a compact abandoned botanical station
+built around a central glasshouse. Explore its potting room and pump room, then
+find the maintenance shortcut that links the rooms. See the
+[Glassworks notes](WolfNET.Game/wwwroot/maps/glassworks.md) for the layout.
+**The Brickyard**, the original motor depot, and **Showcase** remain available
+from the map selector. Open `?map=level1` to load The Brickyard directly; its
+[level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
 
 Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filtering
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite

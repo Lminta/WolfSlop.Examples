@@ -1,0 +1,13 @@
+{
+  "type": "wall",
+  "id": 321,
+  "raycastTransparent": false,
+  "collides": true,
+  "passageId": 300,
+  "textures": {
+    "north": "textures/glassworks/teal-wall.png",
+    "east": "textures/glassworks/teal-wall.png",
+    "south": "textures/glassworks/teal-wall.png",
+    "west": "textures/glassworks/teal-wall.png"
+  }
+}

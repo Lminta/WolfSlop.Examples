@@ -97,6 +97,7 @@ foreach (var landmark in new[] { (12, 20), (17, 18), (27, 26), (27, 15), (29, 7)
 Check(fileHandler.Requests.All(path => path != "maps/showcase.json" && !path.EndsWith("index.json")), "Loaded another map or global index");
 Check(fileHandler.Requests.Count == map.Objects.Count + 1, "An object was loaded more than once");
 Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("showcase-missing")), "Unrelated map textures leaked");
+assertions += await GlassworksChecks.RunAsync(http, webRoot);
 var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
 Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
 Check(showcase.PlayerStartPosition == new Vector2(18.5f, 22.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
@@ -217,6 +218,16 @@ Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { Te
 Reject(() => Compile(objects: new(atlasObjects) { [4] = spriteDef with { Id = 4, TextureLayer = 33 } }), "Overlapping atlas slot accepted");
 Reject(() => Compile(objects: new(atlasObjects) { [4] = atlasDefinition with { Id = 4, Atlas = car.Atlas with { Frames = car.Atlas.Frames.Reverse().ToArray() } } }), "Conflicting atlas rectangles accepted");
 Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { RotationDegrees = float.NaN } }), "Invalid sprite facing accepted");
+foreach (var axis in new[] { "x", "y" })
+{
+    var fixedObjects = new Dictionary<int, MapObjectDefinition>(definitions) { [2] = spriteDef with { PlaneAxis = axis } };
+    var fixedGroup = Compile(SmallMap(3), fixedObjects);
+    var expectedKind = SpriteKind.FixedPlane | (axis == "x" ? SpriteKind.PlaneNormalX : SpriteKind.PlaneNormalY);
+    Check(fixedGroup.RendererMap.Sprites.All(sprite => sprite.Kind == expectedKind), "Group lost fixed sprite geometry");
+    Check(Compile(SmallMap(2), fixedObjects).RendererMap.Sprites.Single().Kind == expectedKind, "Standalone fixed sprite lost plane axis");
+}
+Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { PlaneAxis = "z" } }), "Invalid fixed plane axis accepted");
+Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { PlaneAxis = "x" } }), "Directional fixed plane accepted");
 var skyMap = SmallMap() with { Sky = new() { Texture = "textures/skyboxes/skybox.jpg", RotationDegrees = 45 } };
 var skyLevel = Compile(skyMap, openPassages);
 Check(skyLevel.RendererMap.Sky == skyMap.Sky && skyLevel.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.SkyCeiling),

@@ -3,7 +3,16 @@ using System.Numerics;
 namespace WolfNET.Game;
 
 [Flags]
-public enum SpriteKind : uint { Billboard = 0, DoorNormalX = 1, DoorNormalY = 2, Opaque = 4 }
+public enum SpriteKind : uint
+{
+    Billboard = 0,
+    PlaneNormalX = 1,
+    PlaneNormalY = 2,
+    DoorNormalX = PlaneNormalX,
+    DoorNormalY = PlaneNormalY,
+    Opaque = 4,
+    FixedPlane = 8
+}
 
 // OwnerCell is the flattened cell index plus one, matching RayHit.hitCell.
 public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint OwnerCell)

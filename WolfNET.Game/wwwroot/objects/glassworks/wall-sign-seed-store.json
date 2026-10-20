@@ -1,0 +1,13 @@
+{
+  "type": "wall",
+  "id": 334,
+  "raycastTransparent": false,
+  "collides": true,
+  "passageId": 302,
+  "textures": {
+    "north": "textures/glassworks/limestone-wall.png",
+    "east": "textures/glassworks/limestone-wall.png",
+    "south": "textures/glassworks/sign-seed-store.svg",
+    "west": "textures/glassworks/limestone-wall.png"
+  }
+}

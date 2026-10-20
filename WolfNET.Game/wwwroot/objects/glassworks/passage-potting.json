@@ -1,0 +1,8 @@
+{
+  "type": "passage",
+  "id": 302,
+  "raycastTransparent": true,
+  "collides": false,
+  "floorTexture": "textures/glassworks/limestone-floor.png",
+  "ceilingTexture": "textures/glassworks/plaster-ceiling.svg"
+}

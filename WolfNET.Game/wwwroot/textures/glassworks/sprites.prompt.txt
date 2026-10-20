@@ -1,0 +1,40 @@
+Glassworks sprite atlas generation
+=================================
+
+Tool: built-in image_gen.imagegen (no fallback CLI)
+Date: 2026-10-20
+Mode: new asset; transparent_background=true
+Source: C:/Users/lmint/.codex/generated_images/01a158f0-e3eb-75d2-8eb4-f408a9b13521/exec-5fb8f1a0-4d79-40a7-8ab6-b5bdf9a047fd.png
+Project atlas: sprites-atlas.png, 1254 x 1254 RGBA PNG
+
+Export method: System.Drawing.Bitmap, independent 627 x 627 square source crops. Each crop is scaled with nearest-neighbor interpolation into a 460 x 460 rectangle at (26,26) on a transparent 512 x 512 RGBA canvas. Generated alpha is preserved.
+
+Crop coordinates (x,y,width,height):
+- fern-sprite.png: (0,0,627,627)
+- bench-sprite.png: (627,0,627,627)
+- pump-sprite.png: (0,627,627,627)
+- lantern-sprite.png: (627,627,627,627)
+
+All exported sprite files: 512 x 512; 26px minimum canvas padding.
+Alpha verification (zero / full / intermediate alpha pixel counts):
+- fern-sprite.png: 115237 / 1 / 146906
+- bench-sprite.png: 118065 / 82 / 143997
+- pump-sprite.png: 122822 / 23 / 139299
+- lantern-sprite.png: 189795 / 17 / 72332
+Note: generated subject pixels are mostly alpha 250-252. Low-alpha edge/background noise is inherited from the generated PNG and is suitable for the renderer's alpha cutoff.
+
+Final prompt
+------------
+Use case: stylized-concept
+Asset type: transparent 2x2 sprite atlas for a retro first-person game level called The Glassworks, a compact old botanical pumping station.
+Primary request: create ONE square PNG with a true transparent alpha background, divided into FOUR exactly equal square cells in a 2 by 2 grid, with no visible cell borders.
+Subjects, by fixed cell:
+TOP LEFT: one mature broad leafy green fern growing from a substantial terracotta plant pot, many readable fronds.
+TOP RIGHT: one complete botanical potting workbench, weathered timber bench with small terracotta pots, one soil bag, and hand tools arranged on its top and shelf, all parts attached to this one furnishing.
+BOTTOM LEFT: one aged industrial brass and copper water pump machine, squat cast base, large circular handwheel, pressure gauge and curved pipe, complete freestanding silhouette.
+BOTTOM RIGHT: one warm glowing brass lantern hanging from a short attached metal wall bracket, compact complete single silhouette.
+Style/medium: cohesive detailed painterly retro FPS pixel art, intentionally visible chunky pixel clusters as if drawn at approximately 128px per object, rich readable material texture and strong silhouettes, not hyperrealistic. Same artist and palette across all four subjects: deep fern green, terracotta, warm old brass, dark worn timber.
+Composition/framing: all four individual objects are shown near-front with a very slight elevated view; each single object is centered inside its own equal square cell; each is fully contained within its cell with at least 5 percent transparent margin on every side. Objects occupy most of each cell; align their bottoms to a consistent internal margin. Keep empty transparent separation between the four objects.
+Lighting/mood: soft neutral light from upper left with crisp readable shading painted on the objects. Lantern may contain a small warm yellow light confined to its glass.
+Constraints: genuine transparent alpha background, not a checkerboard. Exactly four isolated objects, precisely one per quadrant. No environment, scene, ground, floor, backdrop, cast shadows, detached extra objects, text, lettering, labels, numbers, grids, outlines around cells, watermarks, or logos. Keep every leaf and all parts fully inside their quadrant.
+
