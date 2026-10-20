@@ -58,9 +58,9 @@ object('group-safety-rail-y', 621, 'spriteGroup', { collides: true, passageId: 5
 object('group-safety-rail-corner', 622, 'spriteGroup', { collides: true, passageId: 502,
     sprites: [member(523, 0, 0, 1.1), member(524, 0, 0, 1.1)] });
 object('group-safety-rail-corner-tires', 623, 'spriteGroup', { collides: true, passageId: 502,
-    sprites: [member(531, 0, 0, .95)] });
+    sprites: [member(531, 0, 0, .62)] });
 object('group-safety-rail-black-tires', 624, 'spriteGroup', { collides: true, passageId: 502,
-    sprites: [member(521, 0, 0, .95)] });
+    sprites: [member(521, 0, 0, .62)] });
 
 const signDefinitions = [
     [598, 'paddock', 'PINE LOOP', 'PADDOCK', '#284a45'],
@@ -208,7 +208,7 @@ rect(192, 372, 218, 396, 615, true); rect(219, 383, 231, 385, 615, true);
 for (const [x, y, id] of [[198, 374, 612], [208, 374, 613], [198, 388, 613], [208, 388, 612]]) rect(x, y, x + 4, y + 6, id);
 for (const point of [[195, 376], [216, 377], [194, 393], [216, 392]]) grid[point[0]][point[1]] = 608;
 place(603, [[222, 380]]);
-place(599, [[105, 319]]); place(604, [[237, 224]]); place(605, [[69, 213]]); place(606, [[152, 472]]);
+place(604, [[237, 224]]); place(605, [[69, 213]]); place(606, [[152, 472]]);
 
 // Tires protect each major apex; additional runoffs and buffer approach
 // markers distinguish the many corner complexes without narrowing asphalt.
@@ -237,7 +237,6 @@ place(583, [[28, 451]]); place(584, [[28, 452]]); place(582, [[43, 449]]);
 const shortcut = { name: 'Mud Express', left: 102, right: 139, top: 320, bottom: 321,
     from: [101, 321], to: [141, 321], seal: [120, 317, 120, 324] };
 rect(shortcut.left, shortcut.top, shortcut.right, shortcut.bottom, 502);
-place(626, [[104, 316]]); place(627, [[136, 325]]);
 const drivingCore = new Set(track);
 function allowDriving(left, top, right, bottom) {
     for (let x = left; x <= right; x++) for (let y = top; y <= bottom; y++) drivingCore.add(key(x, y));

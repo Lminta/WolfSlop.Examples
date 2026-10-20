@@ -25,10 +25,11 @@ crossings or shared road sections.
 
 Continuous colliding safety rails enclose the racing surface, with a one-tile
 shoulder beside its two lanes. Mesh fences line the straights; individual black
-and white tire stacks replace them around the turns and corners. These close the loop
+and white tire stacks at the same 0.62 scale as the existing grouped piles replace
+them around the turns and corners. These close the loop
 cuts, including diagonal gaps. The **Mud Express** is the one deliberate shortcut:
 a two-tile dirt lane at **Y 320–321, X 102–139**, linking the Meadow loop at X 100
-to the central return at X 140. Entry and rejoin signs mark both ends. Quarry,
+to the central return at X 140, without signs at either end. Quarry,
 village, plaza, and service-yard pockets keep access from their own road section.
 
 | Region | Layout and scenery |
