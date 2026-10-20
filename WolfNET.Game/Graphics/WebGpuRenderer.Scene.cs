@@ -64,6 +64,7 @@ public sealed partial class WebGpuRenderer
             _preparedTextures = map.Textures;
             _uploadedMap = null;
             UpdateMap(map);
+            _sceneAnimationClock.Restart();
             Console.WriteLine($"[GPU] Scene prepared: {map.Width}x{map.Height}, {map.Sprites.Count} sprites");
         }
         catch
@@ -75,6 +76,7 @@ public sealed partial class WebGpuRenderer
 
     public void ReleaseScene()
     {
+        _sceneAnimationClock.Reset();
         _preparedTextures = null;
         _renderBindGroup?.Dispose();
         _spriteBindGroup?.Dispose();
@@ -92,14 +94,14 @@ public sealed partial class WebGpuRenderer
         _frameSprites.Clear();
     }
 
-    private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition)
+    private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition, double elapsedSeconds)
     {
         _sortedSprites.Clear();
         foreach (var sprite in sprites)
         {
             var distanceSquared = Vector2.DistanceSquared(cameraPosition, sprite.Position);
             // Retain wide quads whose near edge is still inside the visible circle.
-            var maximumDistance = _settings.RenderDistance + sprite.ViewScale(cameraPosition).X * .5f;
+            var maximumDistance = _settings.RenderDistance + sprite.ViewScale(cameraPosition, elapsedSeconds).X * .5f;
             if (distanceSquared <= maximumDistance * maximumDistance)
                 _sortedSprites.Add((sprite, distanceSquared));
         }
@@ -167,9 +169,9 @@ public sealed partial class WebGpuRenderer
             var sprite = _sortedSprites[i].Sprite;
             upload[i * 8] = BitConverter.SingleToUInt32Bits(sprite.Position.X);
             upload[i * 8 + 1] = BitConverter.SingleToUInt32Bits(sprite.Position.Y);
-            upload[i * 8 + 2] = sprite.ViewLayer(cameraPosition);
+            upload[i * 8 + 2] = sprite.ViewLayer(cameraPosition, elapsedSeconds);
             upload[i * 8 + 3] = sprite.OwnerCell;
-            var scale = sprite.ViewScale(cameraPosition);
+            var scale = sprite.ViewScale(cameraPosition, elapsedSeconds);
             upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(scale.X);
             upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(scale.Y);
             upload[i * 8 + 6] = BitConverter.SingleToUInt32Bits(sprite.Elevation);

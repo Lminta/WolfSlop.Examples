@@ -122,7 +122,8 @@ A sprite can add `rotationDegrees` and `atlas` alongside its existing `texture` 
 occupy the first N frames, ordered clockwise starting with the front view. Zero
 rotation faces east (+X); 90 faces south (+Y), and -90 faces north. The view is
 selected from the sprite-to-player angle, so looking around in place does not
-change it. Extra frames are reserved for future animation; there is no playback yet.
+change it. Without an animation definition, a single-direction atlas holds its
+first frame.
 
 `facingCamera` defaults to `true`, preserving the camera-facing billboard while
 selecting directional textures as before. Set `"facingCamera": false` to hold
@@ -143,6 +144,20 @@ Frame width/height preserves aspect ratio, and group scale/elevation apply norma
 Use consistent frame height and baseline for steady size and ground alignment.
 The editor accepts these fields in object JSON and previews the first frame.
 See `sprites/sprite-directional-car.json` for an eight-view example.
+
+### Animated scenery sprites
+
+Add `"animation": { "framesPerSecond": 4, "phaseSeconds": 0 }` to a sprite
+with an atlas whose `directions` is 1. All frames loop in order using elapsed
+scene time, independently of the render frame rate. `phaseSeconds` offsets the
+loop so neighboring flags or spectators can start at different poses. The clock
+restarts when loading a scene. Sprite groups inherit their child sprite's
+animation, and the current frame determines both its texture and aspect ratio.
+
+The frame rate must be positive and finite, and the phase must be finite and
+nonnegative. Animation and directional views cannot be combined in one sprite.
+The raceway flagpole and cheering-crowd presets each use three frames; the start
+signal and sponsor billboards are static scenery.
 
 ### Sliding doors
 

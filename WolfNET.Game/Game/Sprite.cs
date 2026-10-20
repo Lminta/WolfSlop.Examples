@@ -22,12 +22,22 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
     public Vector2 Scale { get; init; } = Vector2.One;
     public float Elevation { get; init; }
     public SpriteAtlas? Atlas { get; init; }
+    public SpriteAnimation? Animation { get; init; }
     public float RotationDegrees { get; init; }
     public bool FacingCamera { get; init; } = true;
 
+    // Animated atlases use absolute scene seconds; ordinary atlases use the view direction.
     // World X is east, world Y is south; positive angles turn clockwise.
-    public int ViewFrame(Vector2 observer)
+    public int ViewFrame(Vector2 observer, double elapsedSeconds = 0)
     {
+        if (Animation is { } animation && Atlas is { } animatedAtlas)
+        {
+            if (!double.IsFinite(elapsedSeconds) || elapsedSeconds < 0)
+                throw new ArgumentOutOfRangeException(nameof(elapsedSeconds));
+            var cycleSeconds = animatedAtlas.Frames.Length / (double)animation.FramesPerSecond;
+            var cyclePosition = (elapsedSeconds % cycleSeconds + animation.PhaseSeconds % cycleSeconds) % cycleSeconds;
+            return Math.Min(animatedAtlas.Frames.Length - 1, (int)(cyclePosition * animation.FramesPerSecond));
+        }
         if (Atlas is not { Directions: > 1 } atlas) return 0;
         var relative = observer - Position;
         if (relative.LengthSquared() < 0.00000001f) return 0;
@@ -36,7 +46,7 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
         return (frame % atlas.Directions + atlas.Directions) % atlas.Directions;
     }
 
-    public uint ViewLayer(Vector2 observer) => TextureLayer + (uint)ViewFrame(observer);
+    public uint ViewLayer(Vector2 observer, double elapsedSeconds = 0) => TextureLayer + (uint)ViewFrame(observer, elapsedSeconds);
 
     // A non-billboard atlas holds its quad normal at the selected view's center.
     // The geometry word keeps flags in its low 16 bits and a world-space normal
@@ -51,10 +61,10 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
         return (uint)(SpriteKind.FixedPlane | SpriteKind.DirectionalPlane) | (angle << 16);
     }
 
-    public Vector2 ViewScale(Vector2 observer)
+    public Vector2 ViewScale(Vector2 observer, double elapsedSeconds = 0)
     {
         if (Atlas is not { } atlas) return Scale;
-        var frame = atlas.Frames[ViewFrame(observer)];
+        var frame = atlas.Frames[ViewFrame(observer, elapsedSeconds)];
         return Scale * new Vector2((float)frame.Width / frame.Height, 1);
     }
 }

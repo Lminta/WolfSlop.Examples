@@ -63,10 +63,17 @@ public sealed record SpriteAtlas
     public int Directions { get; init; } = 1;
 }
 
+public sealed record SpriteAnimation
+{
+    public float FramesPerSecond { get; init; } = 4;
+    public float PhaseSeconds { get; init; }
+}
+
 public sealed record SpriteDefinition : MapObjectDefinition
 {
     public string? Texture { get; init; }
     public SpriteAtlas? Atlas { get; init; }
+    public SpriteAnimation? Animation { get; init; }
     public float RotationDegrees { get; init; }
     public bool FacingCamera { get; init; } = true;
     // Optional fixed quad normal, matching door axes; overrides FacingCamera.

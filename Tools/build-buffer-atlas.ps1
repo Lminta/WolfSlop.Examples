@@ -91,6 +91,8 @@ try {
 
     $atlasPath = Join-Path $textureDirectory 'buffer-directional-atlas-v1.png'
     $atlas.Save($atlasPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    # The current fixed-plane buffer uses only this preserved long-face crop.
+    $front.Save((Join-Path $textureDirectory 'buffer-front.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 
     $frontFrame = [ordered]@{ x = 0; y = 0; width = $frontWidth; height = $frameHeight }
     $sideFrame = [ordered]@{ x = $frontWidth; y = 0; width = $sideWidth; height = $frameHeight }
@@ -132,4 +134,3 @@ finally {
     $frontSource.Dispose()
     $sideSource.Dispose()
 }
-

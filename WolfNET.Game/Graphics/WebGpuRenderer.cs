@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
@@ -35,6 +36,7 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
     private int _spriteCapacity;
     private readonly List<(Sprite Sprite, float Distance)> _sortedSprites = [];
     private readonly List<Sprite> _frameSprites = [];
+    private readonly Stopwatch _sceneAnimationClock = new();
 
     private GPUBindGroup? _computeBindGroup;
     private GPUBindGroup? _renderBindGroup;
@@ -87,7 +89,7 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
 
         // 2. Update camera every frame.
         UpdateCamera(position, direction, plane, pitch, elevation);
-        UpdateSprites(sprites, position);
+        UpdateSprites(sprites, position, _sceneAnimationClock.Elapsed.TotalSeconds);
 
         // 3. Create GPU command encoder.
         using var encoder =

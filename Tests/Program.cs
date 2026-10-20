@@ -1030,6 +1030,7 @@ try
     Reject(() => store.Load("unsafe"), "Editor followed a path outside engine assets");
 }
 finally { Directory.Delete(editorRoot, true); }
+assertions += SpriteAnimationChecks.Run();
 assertions += await EngineChecks.RunAsync(http);
 assertions += await PineLoopChecks.RunAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");

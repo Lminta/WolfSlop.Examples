@@ -19,7 +19,7 @@ assert(views.length > 0, 'No matching review viewpoints');
 const objects = new Map(Object.entries(level.objects).map(([id, filename]) =>
     [Number(id), JSON.parse(fs.readFileSync(path.resolve(webRoot, 'maps', filename)))]));
 const bufferDefinitions = [...objects.values()].filter(object => object.type === 'sprite' &&
-    object.texture?.endsWith('/buffer-directional-atlas-v1.png'));
+    object.texture?.endsWith('/buffer-front.png'));
 assert.equal(bufferDefinitions.length, 2);
 
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {method: 'PUT'})).json();
@@ -67,7 +67,7 @@ try {
     await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 850, deviceScaleFactor: 1, mobile: false});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
-        window.__camera=null; window.__mapInfo=null; window.__buffers=[]; window.__sprites=[]; window.__frames=[]; window.__crops=[];
+        window.__camera=null; window.__mapInfo=null; window.__buffers=[]; window.__sprites=[]; window.__frames=[]; window.__events={};
         const views=new Map(${JSON.stringify(fixture.views)}), originalFetch=window.fetch;
         window.fetch=async function(input,...args){
             const response=await originalFetch.call(this,input,...args), url=String(input?.url??input);
@@ -81,11 +81,6 @@ try {
                 return new Response(JSON.stringify(map),{headers:{'Content-Type':'application/json'}});
             }
             return response;
-        };
-        const bitmap=window.createImageBitmap;
-        window.createImageBitmap=function(...args){
-            if(args[0]?.src?.endsWith('/buffer-directional-atlas-v1.png'))window.__crops.push(args.slice(1,5));
-            return bitmap.apply(this,args);
         };
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...args){
@@ -101,19 +96,32 @@ try {
                 for(let i=0;i<u.length;i+=8){
                     const sprite={x:f[i],y:f[i+1],layer:u[i+2],sx:f[i+4],sy:f[i+5],z:f[i+6],kind:u[i+7]};
                     window.__sprites.push(sprite);
-                    if(u[i+2]>=110&&u[i+2]<114)window.__buffers.push(sprite);
+                    if(sprite.layer>=130&&sprite.layer<=140){
+                        const key=sprite.x+','+sprite.y,event=window.__events[key]??={layers:[],geometry:JSON.stringify([sprite.x,sprite.y,sprite.sx,sprite.sy,sprite.z,sprite.kind]),stable:true};
+                        if(!event.layers.includes(sprite.layer))event.layers.push(sprite.layer);
+                        event.stable&&=event.geometry===JSON.stringify([sprite.x,sprite.y,sprite.sx,sprite.sy,sprite.z,sprite.kind]);
+                    }
+                    if(u[i+2]===110)window.__buffers.push(sprite);
                 }
             }
             return write.call(this,buffer,offset,data,...args);
         };
     `});
-    const observed = new Set();
     fs.mkdirSync('artifacts/pine-loop-grand', {recursive: true});
     for (const [name, view] of views) {
         await send('Page.navigate', {url: base + '/?map=pine-loop&reviewView=' + encodeURIComponent(name)});
         await send('Page.bringToFront');
         await waitFor('window.__camera && window.__mapInfo && !document.querySelector(".loading-overlay") && window.__frames.length >= 4');
-        const state = await evaluate('({camera:window.__camera,map:window.__mapInfo,buffers:window.__buffers,sprites:window.__sprites,crops:window.__crops,frames:window.__frames})');
+        if (fixture.eventPlacements && (name === 'start' || name === 'spectator-plaza')) {
+            await waitFor(`Object.values(window.__events).filter(event=>event.layers[0]>=130&&event.layers[0]<=135).length>=2&&Object.values(window.__events).filter(event=>event.layers[0]>=130&&event.layers[0]<=135).every(event=>event.layers.length===3)`);
+            const events = await evaluate('Object.values(window.__events)');
+            assert(events.some(event => event.layers.every(layer => layer >= 130 && layer <= 132)), 'No animated flag reached the GPU');
+            assert(events.some(event => event.layers.every(layer => layer >= 133 && layer <= 135)), 'No animated crowd reached the GPU');
+            assert(events.every(event => event.stable), 'Animation changed a prop position, scale, elevation, or plane');
+            assert(events.filter(event => event.layers[0] >= 136).every(event => event.layers.length === 1), 'Static signal or billboard animated');
+            console.log(`PASS ${name} animation: each nearby flag and crowd cycled through all three frames with stable geometry.`);
+        }
+        const state = await evaluate('({camera:window.__camera,map:window.__mapInfo,buffers:window.__buffers,sprites:window.__sprites,frames:window.__frames})');
         assert.deepEqual(state.map.slice(0, 2), [256, 512]);
         assert(state.map[2] < 4500, 'Unexpectedly large sprite population');
         assert.equal(state.map[2], state.sprites.length, 'Draw count includes culled sprites or spare capacity');
@@ -129,32 +137,23 @@ try {
             const owner = objects.get(level.worldMap[Math.floor(sprite.x)][Math.floor(sprite.y)]);
             const member = owner.sprites.find(member => bufferDefinitions.some(definition => definition.id === member.spriteId));
             const definition = objects.get(member.spriteId);
-            const turns = (Math.atan2(state.camera[1] - sprite.y, state.camera[0] - sprite.x) - definition.rotationDegrees * Math.PI / 180) / (Math.PI * 2);
-            const index = ((Math.floor(turns * 4 + .5) % 4) + 4) % 4;
-            const frame = definition.atlas.frames[index], scale = member.scale;
-            assert.equal(sprite.layer, definition.textureLayer + index, 'Buffer shows the wrong direction');
-            assert(Math.abs(sprite.sx - scale.x * frame.width / frame.height) < .0001, 'Buffer direction width was lost');
-            const degrees = ((definition.rotationDegrees + index * 90) % 360 + 360) % 360;
-            const angle = Math.round(degrees / 360 * 65536) & 0xffff;
-            assert.equal(sprite.kind >>> 0, ((angle << 16) | 24) >>> 0, 'Buffer quad is not aligned to its directional frame');
-            observed.add(index % 2);
+            assert.equal(sprite.layer, definition.textureLayer, 'Buffer switched artwork');
+            assert(Math.abs(sprite.sx - member.scale.x) < .0001 && Math.abs(sprite.sy - member.scale.y) < .0001,
+                'Buffer fixed dimensions changed');
+            assert.equal(sprite.kind, 8 | (definition.planeAxis === 'x' ? 1 : 2), 'Buffer plane rotates with the observer');
         }
         if (name === 'buffer-front' || name === 'buffer-side') {
             const [x, y] = fixture.bufferCoordinate;
             assert(state.buffers.some(sprite => sprite.x === x + .5 && sprite.y === y + .5 &&
-                sprite.layer === 110 + (name === 'buffer-side' ? 1 : 0)), 'Dedicated buffer view was culled or selected the wrong artwork');
+                sprite.layer === 110), 'Dedicated buffer view was culled or switched artwork');
         }
-        for (const definition of bufferDefinitions) for (const frame of definition.atlas.frames)
-            assert(state.crops.some(crop => crop.every((value, i) => value === [frame.x, frame.y, frame.width, frame.height][i])), 'Directional artwork was not cropped for the GPU');
         assert.deepEqual(errors, []); assert.deepEqual(missing, []);
         const capture = await send('Page.captureScreenshot', {format: 'png'});
         fs.writeFileSync(`artifacts/pine-loop-grand/${name}.png`, Buffer.from(capture.data, 'base64'));
         const intervals = state.frames.slice(1).map((time, i) => time - state.frames[i]).sort((a, b) => a - b);
         console.log(`PASS ${name}: ${state.map[0]}x${state.map[1]}, ${state.map[2]} sprites, median frame interval ${Math.round(intervals[Math.floor(intervals.length / 2)])} ms${hd ? ' at 1080p' : ''}.`);
     }
-    if (views.some(([name]) => name === 'buffer-front') && views.some(([name]) => name === 'buffer-side'))
-        assert.equal(observed.size, 2, 'Did not exercise both buffer artworks');
-    console.log('PASS: Pine Loop scenes, actual camera spawns, two-artwork directional buffers, GPU frame geometry, and no missing assets or GPU errors.');
+    console.log('PASS: Pine Loop scenes, actual camera spawns, fixed buffer planes, GPU frame geometry, and no missing assets or GPU errors.');
 } finally {
     socket.close();
     for (const task of pending.values()) clearTimeout(task.timer);

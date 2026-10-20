@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 627,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/landmark-shortcut-exit.svg",
+    "east": "textures/raceway/landmark-shortcut-exit.svg",
+    "south": "textures/raceway/landmark-shortcut-exit.svg",
+    "west": "textures/raceway/landmark-shortcut-exit.svg"
+  }
+}

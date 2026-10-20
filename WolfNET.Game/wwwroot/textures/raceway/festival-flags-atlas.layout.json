@@ -1,0 +1,34 @@
+{
+  "texture": "textures/raceway/festival-flags-atlas.png",
+  "width": 1536,
+  "height": 512,
+  "baselineRow": 496,
+  "frames": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "x": 512,
+      "y": 0,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "x": 1024,
+      "y": 0,
+      "width": 512,
+      "height": 512
+    }
+  ],
+  "source": "festival-flags-source.png",
+  "sourceFrameWidth": 724,
+  "sourceBaselines": [
+    705,
+    705,
+    705
+  ],
+  "scale": 0.6629834254143646
+}

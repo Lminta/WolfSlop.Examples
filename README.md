@@ -19,9 +19,11 @@ from the map selector. Open `?map=level1` to load The Brickyard directly; its
 [level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
 
 **Pine Loop** is a 256 × 512 outdoor racing circuit with a three-tile starting grid
-that narrows to two tiles, technical bends, woodland hairpins, tunnels, pit boxes,
-and several spectator stands and landmarks. Separate tire stacks form grouped
-barriers, and directional buffers switch between front and side artwork.
+that narrows to two tiles, large infield loops, a long eastern straight, a tunnel,
+pit boxes, and several spectator stands and landmarks. Continuous safety rails
+close the cuts except for one marked dirt shortcut. Animated flagpoles and
+cheering spectators join fake sponsor billboards and a starting signal. Separate
+tire stacks protect the bends, and long buffer sprites keep a fixed orientation.
 Choose it in the map selector or open `?map=pine-loop`. Its
 [map notes](WolfNET.Game/wwwroot/maps/pine-loop.md) describe the route and assets.
 

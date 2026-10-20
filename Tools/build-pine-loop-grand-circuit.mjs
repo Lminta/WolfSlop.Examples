@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeRacewayEventProps } from './build-raceway-event-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web = path.join(repository, 'WolfNET.Game/wwwroot');
@@ -13,6 +14,10 @@ const grid = Array.from({ length: width }, () => Array(height).fill(501));
 const track = new Set();
 const key = (x, y) => `${x},${y}`;
 const definitions = new Map();
+for (const filename of fs.readdirSync(objectDirectory).filter(name => name.endsWith('.json'))) {
+    const definition = JSON.parse(fs.readFileSync(path.join(objectDirectory, filename), 'utf8'));
+    definitions.set(definition.id, definition);
+}
 
 function object(name, id, type, fields) {
     const value = { type, id, raycastTransparent: true, collides: false,
@@ -44,6 +49,18 @@ wall('wall-village-plaster', 617, 'textures/glassworks/limestone-wall.png', 595)
 object('sprite-service-barrel', 609, 'sprite', { passageId: 501, texture: 'textures/wolf/barrel.png', textureLayer: 124 });
 object('group-service-barrels', 608, 'spriteGroup', { collides: true, passageId: 615,
     sprites: [member(609, -.25, -.2, .6), member(609, .26, -.17, .6), member(609, .05, .26, .6)] });
+// Repeating rail sections share the existing transparent fence artwork. The
+// corner section closes both visual planes while every occupied tile collides.
+object('group-safety-rail-x', 620, 'spriteGroup', { collides: true, passageId: 502,
+    sprites: [member(523, 0, 0, 1.1)] });
+object('group-safety-rail-y', 621, 'spriteGroup', { collides: true, passageId: 502,
+    sprites: [member(524, 0, 0, 1.1)] });
+object('group-safety-rail-corner', 622, 'spriteGroup', { collides: true, passageId: 502,
+    sprites: [member(523, 0, 0, 1.1), member(524, 0, 0, 1.1)] });
+object('group-safety-rail-corner-tires', 623, 'spriteGroup', { collides: true, passageId: 502,
+    sprites: [member(531, 0, 0, .95)] });
+object('group-safety-rail-black-tires', 624, 'spriteGroup', { collides: true, passageId: 502,
+    sprites: [member(521, 0, 0, .95)] });
 
 const signDefinitions = [
     [598, 'paddock', 'PINE LOOP', 'PADDOCK', '#284a45'],
@@ -56,6 +73,8 @@ const signDefinitions = [
     [605, 'hairpins', 'WOODLAND', 'LOOP', '#506343'],
     [606, 'south-loop', 'SOUTH LOOP', 'RETURN TO GRID', '#8b613c'],
     [616, 'control', 'RACE', 'CONTROL', '#234742'],
+    [626, 'shortcut-entry', 'ONE SHORTCUT', 'MUD EXPRESS →', '#9a6d32'],
+    [627, 'shortcut-exit', 'MUD EXPRESS', 'REJOIN WITH CARE', '#9a6d32'],
 ];
 for (const [id, name, first, second, color] of signDefinitions) {
     const filename = `landmark-${name}.svg`;
@@ -82,7 +101,7 @@ const corners = [[24, 478], [24, 280], [100, 280], [100, 360],
 const direction = (a, b) => [Math.sign(b[0] - a[0]), Math.sign(b[1] - a[1])];
 const anchors = [];
 const bendRadii = [];
-const bendEntries = [], bendMidpoints = [];
+const bendEntries = [], bendMidpoints = [], bendExits = [];
 function appendRoundedPoint(point) {
     const target = point.map(Math.round);
     if (!anchors.length) { anchors.push(target); return; }
@@ -112,6 +131,7 @@ for (let i = 0; i < corners.length; i++) {
             center[1] - outgoing[1] * radius * Math.cos(angle) + incoming[1] * radius * Math.sin(angle)]);
         if (step === radius * 4) bendMidpoints.push(anchors.at(-1));
     }
+    bendExits.push(anchors.at(-1));
 }
 appendRoundedPoint(anchors[0]);
 for (let i = 1; i < anchors.length; i++) {
@@ -211,6 +231,87 @@ for (let i = 0; i < corners.length; i++) {
 // Isolated stack samples remain useful editor presets and mark the paddock exit.
 place(583, [[28, 451]]); place(584, [[28, 452]]); place(582, [[43, 449]]);
 
+// One deliberate mud link is the only way to skip an infield loop. All other
+// scenery stays visible behind continuous rails rather than being driveable
+// open grass. Landmark pockets have a single side open to their own road leg.
+const shortcut = { name: 'Mud Express', left: 102, right: 139, top: 320, bottom: 321,
+    from: [101, 321], to: [141, 321], seal: [120, 317, 120, 324] };
+rect(shortcut.left, shortcut.top, shortcut.right, shortcut.bottom, 502);
+place(626, [[104, 316]]); place(627, [[136, 325]]);
+const drivingCore = new Set(track);
+function allowDriving(left, top, right, bottom) {
+    for (let x = left; x <= right; x++) for (let y = top; y <= bottom; y++) drivingCore.add(key(x, y));
+}
+allowDriving(shortcut.left, shortcut.top, shortcut.right, shortcut.bottom);
+allowDriving(24, 388, 41, 453); // Grid, pit apron, garages, and race control.
+allowDriving(70, 33, 112, 59); // Quarry runoff contains only this road section.
+allowDriving(182, 180, 207, 215); // Village opens onto X208, separated from X176.
+allowDriving(179, 261, 203, 279); // Plaza opens onto X176, separated from X208.
+allowDriving(178, 268, 184, 270);
+allowDriving(192, 372, 218, 396); // Yard is a cul-de-sac from the eastern straight.
+allowDriving(219, 383, 231, 385);
+// A one-tile shoulder leaves room beside the two racing lanes. The surrounding
+// eight-neighbour ring also closes diagonal gaps for the production collider.
+const drivingArea = new Set();
+for (const point of drivingCore) {
+    const [x, y] = point.split(',').map(Number);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) drivingArea.add(key(x + dx, y + dy));
+}
+const railCells = new Set();
+const bendBounds = corners.map((corner, i) => {
+    const points = [corner, bendEntries[i], bendExits[i]];
+    return [Math.min(...points.map(point => point[0])) - 5, Math.min(...points.map(point => point[1])) - 5,
+        Math.max(...points.map(point => point[0])) + 6, Math.max(...points.map(point => point[1])) + 6];
+});
+const bendRailCells = [];
+for (const point of drivingArea) {
+    const [x, y] = point.split(',').map(Number);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        const tx = x + dx, ty = y + dy;
+        if (!drivingArea.has(key(tx, ty))) railCells.add(key(tx, ty));
+    }
+}
+for (const point of railCells) {
+    const [x, y] = point.split(',').map(Number);
+    if (definitions.get(grid[x][y])?.collides) continue;
+    const coreEastWest = drivingArea.has(key(x - 1, y)) || drivingArea.has(key(x + 1, y));
+    const coreNorthSouth = drivingArea.has(key(x, y - 1)) || drivingArea.has(key(x, y + 1));
+    if (bendBounds.some(([left, top, right, bottom]) => x >= left && x <= right && y >= top && y <= bottom)) {
+        grid[x][y] = (x + y) % 2 === 0 ? 623 : 624;
+        bendRailCells.push([x, y]);
+    } else grid[x][y] = coreEastWest && coreNorthSouth ? 622 : coreEastWest ? 620 : coreNorthSouth ? 621 : 623;
+}
+// Cross-sections are away from POI pockets. Sealing the marked shortcut and
+// these gates must split the production navigation map into18 corner sections.
+const topologyGates = bendExits.map((exit, i) => {
+    const entry = bendEntries[(i + 1) % corners.length];
+    const x = Math.round((exit[0] + entry[0]) / 2), y = Math.round((exit[1] + entry[1]) / 2);
+    return exit[0] === entry[0] ? [x - 6, y, x + 7, y] : [x, y - 6, x, y + 7];
+});
+topologyGates[10] = [170, 230, 183, 230]; // Above the spectator-plaza access pocket.
+const eventProps = writeRacewayEventProps();
+for (const [id, definition] of eventProps.definitions) definitions.set(id, definition);
+const eventPlacements = [];
+for (const placement of eventProps.placements) {
+    const candidates = [];
+    for (let dx = -placement.searchRadius; dx <= placement.searchRadius; dx++)
+        for (let dy = -placement.searchRadius; dy <= placement.searchRadius; dy++) {
+            const x = placement.x + dx, y = placement.y + dy;
+            if (x <= 1 || x >= width - 1 || y <= 1 || y >= height - 1 || ![501, 502, 593, 594, 615].includes(grid[x][y])) continue;
+            if (track.has(key(x, y))) continue;
+            // Keep the billboard/pole width out of the racing lanes.
+            let clear = true;
+            for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++)
+                if (track.has(key(x + ox, y + oy))) clear = false;
+            if (clear) candidates.push({ x, y, distance: dx * dx + dy * dy });
+        }
+    candidates.sort((a, b) => a.distance - b.distance || a.x - b.x || a.y - b.y);
+    if (!candidates.length) throw new Error(`No free event prop position for ${placement.label}`);
+    const { x, y } = candidates[0];
+    grid[x][y] = placement.id;
+    eventPlacements.push({ ...placement, x, y });
+}
+
 function hash(x, y) { return ((Math.imul(x + 101, 73856093) ^ Math.imul(y + 67, 19349663)) >>> 0); }
 // Multi-source Chebyshev distance limits woodland to scenic corridors instead
 // of filling all131,072cells with expensive transparent sprites.
@@ -231,7 +332,7 @@ const treePresets = [540, 541, 570, 571, 572, 573, 574, 575, 576, 577, 578];
 function reserved(x, y) { return x >= 12 && x <= 44 && y >= 385 && y <= 456; }
 for (let x = 4; x < width - 4; x += 6) for (let y = 4; y < height - 4; y += 6) {
     const value = hash(x, y), tx = x + value % 3, ty = y + (value >>> 3) % 3;
-    if (grid[tx][ty] === 501 && distances[tx][ty] >= 3 && distances[tx][ty] <= 9 && !reserved(tx, ty))
+    if (grid[tx][ty] === 501 && distances[tx][ty] >= 3 && distances[tx][ty] <= 18 && !reserved(tx, ty) && !drivingArea.has(key(tx, ty)))
         grid[tx][ty] = treePresets[(value >>> 6) % treePresets.length];
 }
 const belts = [...lineX(3, width - 4, 3, 10), ...lineX(3, width - 4, height - 4, 10),
@@ -239,11 +340,11 @@ const belts = [...lineX(3, width - 4, 3, 10), ...lineX(3, width - 4, height - 4,
     ...lineX(8, width - 9, 8, 10), ...lineX(8, width - 9, height - 9, 10),
     ...lineY(8, 14, height - 15, 10), ...lineY(width - 9, 14, height - 15, 10)];
 place(579, belts);
-for (let x = 14; x < width - 14; x += 22) for (let y = 14; y < height - 14; y += 22)
-    if (grid[x][y] === 501 && distances[x][y] > 11 && hash(x, y) % 3 === 0 && !reserved(x, y))
+for (let x = 14; x < width - 14; x += 13) for (let y = 14; y < height - 14; y += 13)
+    if (grid[x][y] === 501 && distances[x][y] > 18 && hash(x, y) % 3 !== 0 && !reserved(x, y) && !drivingArea.has(key(x, y)))
         grid[x][y] = treePresets[(hash(x, y) >>> 7) % treePresets.length];
-for (let x = 5; x < width - 5; x += 5) for (let y = 5; y < height - 5; y += 5)
-    if (grid[x][y] === 501 && distances[x][y] >= 2 && distances[x][y] <= 8 && hash(x, y) % 5 === 0 && !reserved(x, y))
+for (let x = 5; x < width - 5; x += 6) for (let y = 5; y < height - 5; y += 6)
+    if (grid[x][y] === 501 && distances[x][y] >= 3 && distances[x][y] <= 14 && hash(x, y) % 5 === 0 && !reserved(x, y) && !drivingArea.has(key(x, y)))
         grid[x][y] = hash(x, y) % 2 ? 542 : 550;
 
 const objects = {};
@@ -271,7 +372,10 @@ const zones = [
     { name: 'Southern sweep', checkpoint: [147, 479], bounds: [24, 448, 232, 480] },
 ];
 const fixture = { dimensions: [width, height], lap: anchors.map(([x, y]) => [x + 1, y + 1]),
-    majorCorners: corners, bendRadii, zones, tunnel: { left: 82, right: 103, top: 44, bottom: 45 },
+    majorCorners: corners, bendRadii, zones, shortcut, topologyGates, eventPlacements, bendRailCells,
+    cornerCheckpoints: bendMidpoints.map(([x, y]) => [x + 1, y + 1]),
+    safetyRailCells: [...railCells].map(point => point.split(',').map(Number)),
+    tunnel: { left: 82, right: 103, top: 44, bottom: 45 },
     pitEntrances: [[34, 412], [34, 416], [34, 420]], bufferCoordinate: [28, 404], bufferSpriteId: 525,
     poiApproaches: [
         { name: 'Covered pit box', from: [31.5, 416.5], to: [35.5, 416.5] },
@@ -284,13 +388,14 @@ fs.mkdirSync(path.join(repository, 'artifacts'), { recursive: true });
 const views = [['start', [25.5, 445.5, 0, -1]], ['narrowing', [25.5, 399.5, 0, -1]],
     ['grandstand-row', [25.5, 438.5, -.8, -.6]], ['grandstand-front', [25.5, 418.5, -1, 0]],
     ['pits', [31.5, 416.5, 1, 0]], ['race-control', [25.5, 391.5, 1, 0]],
-    ['meadow-loop', [101, 320, 0, 1]], ['woodland-loop', [65, 215, 0, -1]],
+    ['meadow-loop', [101, 320, 0, 1]], ['mud-express', [101, 321, 1, 0]], ['woodland-loop', [65, 215, 0, -1]],
     ['quarry', [76.5, 45, 0, 1]], ['tunnel-entry', [79.5, 45, 1, 0]], ['tunnel-interior', [92.5, 45, 1, 0]],
     ['northern-bowl', [150, 45, 1, 0]], ['village', [183.5, 187.5, 1, 0]],
     ['village-stand', [201.5, 213, 0, -1]], ['spectator-plaza', [177, 270, 1, 0]],
     ['plaza-courtyard', [185.5, 269.5, .8, -.6]], ['maintenance-yard', [233.5, 384.5, -1, 0]],
     ['eastern-straight', [233, 150, 0, 1]], ['central-loop', [141, 320, 0, -1]],
     ['south-loop', [147, 479, -1, 0]], ['tires', [100.5, 365.5, -.7, -.7]],
+    ['tire-bend', [...fixture.cornerCheckpoints[2], Math.SQRT1_2, Math.SQRT1_2]],
     ['buffer-front', [30.5, 404.5, -1, 0]], ['buffer-side', [28.5, 406.5, 0, -1]]];
 fixture.views = views;
 fs.writeFileSync(path.join(repository, 'Tests/Fixtures/pine-loop-lap.json'), JSON.stringify(fixture, null, 2) + '\n');
@@ -307,6 +412,7 @@ for (const column of grid) for (const id of column) {
     if ([590, 592].includes(id)) grandstands++;
 }
 const lapLength = fixture.lap.slice(1).reduce((sum, [x, y], i) => sum + Math.hypot(x - fixture.lap[i][0], y - fixture.lap[i][1]), 0);
-const overview = `<svg xmlns="http://www.w3.org/2000/svg" width="930" height="1080" viewBox="0 0 930 1080"><rect width="930" height="1080" fill="#182f2a"/><rect x="1" y="1" width="510" height="1022" fill="#345441" stroke="#6b8266"/><polyline points="${linePoints}" fill="none" stroke="#a88d5b" stroke-width="8" stroke-linejoin="round"/><polyline points="${linePoints}" fill="none" stroke="#3b4444" stroke-width="4" stroke-linejoin="round"/><path d="M48 884H54" stroke="#f4e9cf" stroke-width="6"/>${labels}<text x="540" y="42" fill="#f3ead1" font-family="Arial" font-size="28" font-weight="bold">PINE LOOP</text><text x="540" y="69" fill="#b3c4b5" font-family="Arial" font-size="16">256 × 512 · ${lapLength} unit lap</text><text x="540" y="530" fill="#c4d1c1" font-family="Arial" font-size="16">${corners.length} major bends · ${treeCount} trees</text><text x="540" y="558" fill="#c4d1c1" font-family="Arial" font-size="16">${grandstands} larger grandstand modules</text><text x="540" y="605" fill="#c4d1c1" font-family="Arial" font-size="15">North is up. Route is two tiles wide.</text><text x="540" y="631" fill="#c4d1c1" font-family="Arial" font-size="15">Start: 3 lanes, narrowing to 2.</text></svg>\n`;
+const shortcutLine = `<path d="M202 642H282" stroke="#e6bb68" stroke-width="5" stroke-dasharray="6 4"/><text x="208" y="630" font-family="Arial" font-size="12" fill="#ffe4a6">Mud Express</text>`;
+const overview = `<svg xmlns="http://www.w3.org/2000/svg" width="930" height="1080" viewBox="0 0 930 1080"><rect width="930" height="1080" fill="#182f2a"/><rect x="1" y="1" width="510" height="1022" fill="#345441" stroke="#6b8266"/><polyline points="${linePoints}" fill="none" stroke="#a88d5b" stroke-width="8" stroke-linejoin="round"/><polyline points="${linePoints}" fill="none" stroke="#3b4444" stroke-width="4" stroke-linejoin="round"/>${shortcutLine}<path d="M48 884H54" stroke="#f4e9cf" stroke-width="6"/>${labels}<text x="540" y="42" fill="#f3ead1" font-family="Arial" font-size="28" font-weight="bold">PINE LOOP</text><text x="540" y="69" fill="#b3c4b5" font-family="Arial" font-size="16">256 × 512 · ${lapLength} unit lap</text><text x="540" y="530" fill="#c4d1c1" font-family="Arial" font-size="16">${corners.length} major bends · ${treeCount} trees</text><text x="540" y="558" fill="#c4d1c1" font-family="Arial" font-size="16">${grandstands} larger grandstand modules</text><text x="540" y="586" fill="#c4d1c1" font-family="Arial" font-size="16">${eventPlacements.length} event props · continuous safety rails</text><text x="540" y="630" fill="#e6bb68" font-family="Arial" font-size="15">Dashed gold: the only loop shortcut.</text><text x="540" y="665" fill="#c4d1c1" font-family="Arial" font-size="15">North is up. Route is two tiles wide.</text><text x="540" y="691" fill="#c4d1c1" font-family="Arial" font-size="15">Start: 3 lanes, narrowing to 2.</text></svg>\n`;
 fs.writeFileSync(path.join(repository, 'artifacts/pine-loop-overview.svg'), overview);
 console.log(`Pine Loop: ${width}x${height}, ${track.size} main-road cells, ${lapLength}-unit lap, ${corners.length} major bends, ${treeCount} trees, ${spriteCount} sprites, ${grandstands} grandstand modules.`);

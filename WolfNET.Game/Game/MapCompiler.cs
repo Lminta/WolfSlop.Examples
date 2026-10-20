@@ -5,7 +5,7 @@ namespace WolfNET.Game;
 
 public sealed class MapCompiler
 {
-    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard, bool FacingCamera = true);
+    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard, bool FacingCamera = true, SpriteAnimation? Animation = null);
     private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
@@ -39,6 +39,10 @@ public sealed class MapCompiler
                 atlas.Frames.Any(frame => frame == null || frame.X < 0 || frame.Y < 0 || frame.Width <= 0 || frame.Height <= 0 ||
                     (long)frame.X + frame.Width > int.MaxValue || (long)frame.Y + frame.Height > int.MaxValue)))
                 throw new InvalidDataException($"Sprite {sprite.Id} has invalid atlas frames/directions.");
+            if (sprite.Animation is { } animation &&
+                (atlas is not { Directions: 1 } || !float.IsFinite(animation.FramesPerSecond) || animation.FramesPerSecond <= 0 ||
+                 !float.IsFinite(animation.PhaseSeconds) || animation.PhaseSeconds < 0))
+                throw new InvalidDataException($"Sprite {sprite.Id} animation requires a single-direction atlas, a positive finite framesPerSecond, and a finite nonnegative phaseSeconds.");
             var count = atlas?.Frames.Length ?? 1;
             if ((ulong)sprite.TextureLayer + (uint)count > TextureCatalog.MaxLayers)
                 throw new InvalidDataException($"Sprite {sprite.Id} texture layers must fit within {TextureCatalog.MaxLayers} slots.");
@@ -123,7 +127,7 @@ public sealed class MapCompiler
                     break;
                 case SpriteDefinition sprite:
                     passage = Passage(id, sprite.PassageId);
-                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera)];
+                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera, sprite.Animation)];
                     break;
                 case SpriteGroupDefinition group:
                     passage = Passage(id, group.PassageId);
@@ -138,7 +142,7 @@ public sealed class MapCompiler
                         if (!objects.TryGetValue(member.SpriteId, out var child) || child is not SpriteDefinition sprite)
                             throw new InvalidDataException($"Sprite group {id} references unknown/non-sprite ID {member.SpriteId}.");
                         return new SpriteTemplate(new Vector3(member.Offset.X, member.Offset.Y, member.Offset.Z),
-                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera);
+                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera, sprite.Animation);
                     }).ToArray();
                     break;
                 default:
@@ -199,7 +203,7 @@ public sealed class MapCompiler
                         position.X < 0 || position.Y < 0 || position.X >= width || position.Y >= height)
                         throw new InvalidDataException($"Sprite from ({x}, {y}) is outside the map.");
                     sprites.Add(new Sprite(position, sprite.Layer, (uint)index + 1)
-                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind, FacingCamera = sprite.FacingCamera });
+                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, Animation = sprite.Animation, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind, FacingCamera = sprite.FacingCamera });
                 }
             }
         }

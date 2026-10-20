@@ -23,6 +23,14 @@ and rounds the northern bowl through the quarry tunnel. The long outer eastern
 straight leads to a wide southern sweep and back to the grid. There are no
 crossings or shared road sections.
 
+Continuous colliding safety rails enclose the racing surface, with a one-tile
+shoulder beside its two lanes. Mesh fences line the straights; individual black
+and white tire stacks replace them around the turns and corners. These close the loop
+cuts, including diagonal gaps. The **Mud Express** is the one deliberate shortcut:
+a two-tile dirt lane at **Y 320–321, X 102–139**, linking the Meadow loop at X 100
+to the central return at X 140. Entry and rejoin signs mark both ends. Quarry,
+village, plaza, and service-yard pockets keep access from their own road section.
+
 | Region | Layout and scenery |
 | --- | --- |
 | Paddock and spectator straight | Seven larger grandstand modules line the west side of the start at X 17, Y 402–450. The fenced pit apron, three roofed garages, and race control building sit opposite them. |
@@ -41,19 +49,34 @@ static car displays sit inside. The race control building is at X 34–40,
 Y 388–394. Seven stand modules face the starting straight, two face the village
 section, and three face the plaza section: **12 larger stand modules** in total.
 
-The forest uses **2,236 individually placed tree sprites** across three species:
+The forest uses **3,856 individually placed tree sprites** across three species:
 pines, oaks, and birches. Most trees occupy scenic corridors beside the racing
 surface or two perimeter belts. Sparse groves fill the deeper infield. A dedicated
 opaque forest texture closes the distant map boundary. Trees and undergrowth
 keep clear setbacks around the course, pit entrances, huts, and public areas.
-The complete map contains **3,095 scenery sprites**.
+The complete map contains **10,324 scenery sprites**, including the continuous
+safety rails. The existing 60-block render distance culls distant scenery.
+
+**79 event props** populate the grid, spectator areas, quarry, infield loops,
+and eastern straight. Checkered flags on poles and five-person cheering groups
+each use a three-frame animation at four frames per second. Three phase presets
+keep nearby groups from moving in unison. Crowd presets use half their original
+size (1.2-unit scale), with the feet kept on the ground. A static five-lamp race signal marks
+the start; it is scenery rather than a race countdown. Four fake sponsors have
+reusable billboard presets in both fixed-plane orientations:
+
+- **GRIP HAPPENS** — Tires with a positive attitude.
+- **BRAKE-ish** — We'll stop eventually.
+- **MUD CLUB** — Free dirt. Strict dress code.
+- **APEX ACADEMY** — Cut tuition. Not corners.
 
 Tire barriers use separate, symmetric black and white single-stack sprites.
 Reusable groups place individual stacks at different world positions in rows,
-corner clusters, elbows, and double rows. Buffers use one directional sprite
-with **two unique views**: the long face and the narrow end. The atlas repeats
-those views for opposite directions and holds the sprite orientation within
-each view sector. Fences and grandstands keep fixed world planes.
+corner clusters, elbows, and double rows. Each buffer uses **one long sprite**
+on a fixed X- or Y-aligned plane. It keeps the same long-face texture and its
+1.5-unit width from every viewpoint. `buffer-front.png` is the cropped long face
+of the preserved buffer artwork; `Tools/build-buffer-atlas.ps1` can rebuild it.
+Fences and grandstands also keep fixed world planes.
 
 Map-specific definitions live in [`../objects/raceway`](../objects/raceway/).
 Generated materials, forest scenery, tire stacks, buffer atlas, and transparent
@@ -68,7 +91,12 @@ the current map, owned landmark definitions, fixture, browser views, and route
 overview. The entry script delegates the large layout to
 `Tools/build-pine-loop-grand-circuit.mjs`. The previous 80 × 70 layout remains
 available through the explicit `--legacy` authoring option. Shared tree, tire,
-and directional buffer definitions are preserved as source assets.
+and fixed buffer definitions are preserved as source assets.
+The builder also calls `Tools/build-raceway-event-props.mjs` for the shared event
+definitions, billboard artwork, and starting signal. The generated flag/crowd
+source sheets, prompts, and packed atlases are preserved in `textures/raceway`.
+Run `pwsh -NoProfile -File Tools/build-festival-atlases.ps1` to repack their
+three 512-square frames with a shared baseline at row 496.
 
 The generator writes these review artifacts:
 
@@ -81,8 +109,11 @@ The generator writes these review artifacts:
 a complete lap with the existing collision circle. It checks the explicit
 256 × 512 dimensions, route length, three-to-two lane transition, landmark
 approaches, inline stands, tree species and sprite budget, tunnel roof, pit
-entrances, separate tire groups, directional buffer views, all referenced assets,
-and expanded-map editor load/export.
+entrances, separate tire groups, fixed buffer views, all referenced assets,
+and expanded-map editor load/export. Navigation topology checks seal the shortcut
+and split the lap into 18 isolated corner sections; opening the shortcut connects
+exactly two of them. They also check that the rails cannot be jumped or crouched
+through and that the animated event props retain their grounded transforms.
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
@@ -94,3 +125,7 @@ check rendered landmarks and both buffer views using actual player positions:
 ```powershell
 node Tests/pine-loop-browser-check.mjs 9255 http://127.0.0.1:53719 start grandstand-row buffer-front buffer-side
 ```
+
+The `start` and `spectator-plaza` browser views verify all three animation layers
+reach the GPU for every nearby flag and crowd without changing their geometry.
+Add `mud-express` to inspect the shortcut from its entry.

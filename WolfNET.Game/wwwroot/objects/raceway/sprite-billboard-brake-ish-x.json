@@ -1,0 +1,12 @@
+{
+  "type": "sprite",
+  "id": 635,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/billboard-brake-ish.svg",
+  "textureLayer": 138,
+  "planeAxis": "x"
+}

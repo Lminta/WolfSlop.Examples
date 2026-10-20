@@ -85,6 +85,96 @@ internal static class PineLoopChecks
                 $"Pine Loop landmark is unreachable: {approach.GetProperty("name").GetString()}");
         }
 
+        // Verify the topology through the production navigation map. Removing
+        // one cross-section per straight must leave18 separate corner pockets;
+        // opening the deliberately marked mud link joins exactly two of them.
+        // This catches indirect grass/village/plaza routes as well as direct cuts.
+        foreach (var point in fixture.RootElement.GetProperty("safetyRailCells").EnumerateArray())
+        {
+            var x = point[0].GetInt32(); var y = point[1].GetInt32();
+            Check(!map.NavigationMap.IsWalkable(x, y) &&
+                !map.NavigationMap.IsWalkable(x, y, inAir: true) &&
+                !map.NavigationMap.IsWalkable(x, y, crouching: true),
+                $"Pine Loop safety boundary has a driving/jumping/crouching gap at {x},{y}");
+        }
+        var gateBlockers = new HashSet<(int X, int Y)>();
+        void BlockRectangle(JsonElement bounds, HashSet<(int X, int Y)> blockers)
+        {
+            for (int x = bounds[0].GetInt32(); x <= bounds[2].GetInt32(); x++)
+            for (int y = bounds[1].GetInt32(); y <= bounds[3].GetInt32(); y++) blockers.Add((x, y));
+        }
+        foreach (var bounds in fixture.RootElement.GetProperty("topologyGates").EnumerateArray())
+            BlockRectangle(bounds, gateBlockers);
+        int[] CornerComponents(HashSet<(int X, int Y)> blockers)
+        {
+            var labels = new Dictionary<(int X, int Y), int>();
+            var components = new List<int>();
+            foreach (var point in fixture.RootElement.GetProperty("cornerCheckpoints").EnumerateArray())
+            {
+                var start = (X: point[0].GetInt32(), Y: point[1].GetInt32());
+                Check(!blockers.Contains(start) && map.NavigationMap.IsWalkable(start.X, start.Y),
+                    "Pine Loop topology checkpoint is blocked");
+                if (!labels.TryGetValue(start, out var label))
+                {
+                    label = components.Count;
+                    var queue = new Queue<(int X, int Y)>(); queue.Enqueue(start); labels.Add(start, label);
+                    while (queue.TryDequeue(out var cell))
+                    foreach (var next in new[] { (cell.X + 1, cell.Y), (cell.X - 1, cell.Y),
+                                 (cell.X, cell.Y + 1), (cell.X, cell.Y - 1) })
+                        if (!blockers.Contains(next) && map.NavigationMap.IsWalkable(next.Item1, next.Item2) &&
+                            labels.TryAdd(next, label)) queue.Enqueue(next);
+                }
+                components.Add(label);
+            }
+            return components.ToArray();
+        }
+        var shortcut = fixture.RootElement.GetProperty("shortcut");
+        var sealedBlockers = new HashSet<(int X, int Y)>(gateBlockers);
+        BlockRectangle(shortcut.GetProperty("seal"), sealedBlockers);
+        var sealedComponents = CornerComponents(sealedBlockers);
+        Check(sealedComponents.Distinct().Count() == 18,
+            $"Pine Loop has an unintended shortcut between its18 broad corner sections: {string.Join(',', sealedComponents)}");
+        var openComponents = CornerComponents(gateBlockers);
+        Check(openComponents.Distinct().Count() == 17 && openComponents[2] == openComponents[7],
+            "Pine Loop must have exactly one deliberate shortcut across the Meadow loop");
+        var shortcutFrom = shortcut.GetProperty("from"); var shortcutTo = shortcut.GetProperty("to");
+        var shortcutStart = new Vector2(shortcutFrom[0].GetSingle(), shortcutFrom[1].GetSingle());
+        var shortcutFinish = new Vector2(shortcutTo[0].GetSingle(), shortcutTo[1].GetSingle());
+        Check(collider.CanOccupy(shortcutStart) && collider.CanOccupy(shortcutFinish) &&
+            Vector2.Distance(collider.Trace(shortcutStart, shortcutFinish), shortcutFinish) < .0001f,
+            "Pine Loop marked mud shortcut cannot be driven with the production collision radius");
+        var bendRails = fixture.RootElement.GetProperty("bendRailCells").EnumerateArray().ToArray();
+        Check(bendRails.Length > 100 && bendRails.All(point => render.Sprites.Any(sprite =>
+            sprite.OwnerCell == point[1].GetInt32() * render.Width + point[0].GetInt32() + 1 &&
+            render.Textures.Layers[sprite.TextureLayer]?.Contains("tire-stack") == true)),
+            "Pine Loop bends need individual tire stacks in place of mesh fences");
+
+        foreach (var placement in fixture.RootElement.GetProperty("eventPlacements").EnumerateArray())
+        {
+            var x = placement.GetProperty("x").GetInt32(); var y = placement.GetProperty("y").GetInt32();
+            var group = (SpriteGroupDefinition)map.Objects[placement.GetProperty("id").GetInt32()];
+            Check(!group.Collides && render.Sprites.Any(sprite => sprite.OwnerCell == y * render.Width + x + 1),
+                $"Pine Loop event prop was omitted or blocks access at {x},{y}");
+        }
+        foreach (var suffix in new[] { "/festival-flags-atlas.png", "/festival-crowd-atlas.png" })
+        {
+            var animated = render.Sprites.Where(sprite => render.Textures.Layers[sprite.TextureLayer]?.EndsWith(suffix) == true).ToArray();
+            Check(animated.Length >= 20 && animated.All(sprite => sprite.Animation is { FramesPerSecond: 4 } &&
+                sprite.Atlas is { Directions: 1, Frames.Length: 3 }), "Pine Loop is missing its three-frame animated event props");
+            Check(animated.Select(sprite => sprite.Animation!.PhaseSeconds).Distinct().Count() == 3,
+                "Pine Loop neighboring flags and crowds all have the same animation phase");
+            Check(animated.All(sprite => Math.Abs(sprite.Elevation + sprite.Scale.Y * (.5f - 496f / 512) + .5f) < .0001f),
+                "Pine Loop animated props lost their shared ground baseline");
+        }
+        Check(render.Sprites.Count(sprite => render.Textures.Layers[sprite.TextureLayer]?.EndsWith("/race-start-light.svg") == true) == 1,
+            "Pine Loop needs one starting signal");
+        foreach (var advertisement in new[] { "grip-happens", "brake-ish", "mud-club", "apex-academy" })
+            Check(render.Sprites.Any(sprite => sprite.Kind.HasFlag(SpriteKind.FixedPlane) &&
+                render.Textures.Layers[sprite.TextureLayer]?.EndsWith($"/billboard-{advertisement}.svg") == true),
+                $"Pine Loop is missing its fixed sponsor billboard: {advertisement}");
+        Check(render.Sprites.Where(sprite => render.Textures.Layers[sprite.TextureLayer]?.EndsWith("/festival-crowd-atlas.png") == true)
+            .All(sprite => sprite.Scale == new Vector2(1.2f)), "Pine Loop crowd groups must use half their original size");
+
         foreach (var y in new[] { 44, 45 })
         foreach (var x in Enumerable.Range(82, 22))
             Check(map.NavigationMap.IsWalkable(x, y) &&
@@ -115,8 +205,8 @@ internal static class PineLoopChecks
             Check(count > 0, $"Pine Loop is missing its tree species {texture}");
             treeCount += count;
         }
-        Check(treeCount is >= 2000 and <= 5000, "Pine Loop forest density is outside its authored budget");
-        Check(render.Sprites.Count <= 4500, "Pine Loop scenery exceeds its authored sprite budget");
+        Check(treeCount is >= 3500 and <= 5000, "Pine Loop forest density is outside its authored budget");
+        Check(render.Sprites.Count <= 11000, "Pine Loop scenery exceeds its authored sprite budget");
         var boundaryMaterial = render.Materials[(int)Cell(0, 0).MaterialIndex];
         Check(render.Textures.Layers[boundaryMaterial.East]?.EndsWith("/forest-boundary.png") == true,
             "Pine Loop boundary does not use the forest backdrop");
@@ -137,20 +227,21 @@ internal static class PineLoopChecks
             var group = (SpriteGroupDefinition)map.Objects[id];
             Check(group.Sprites.Length == 1, $"Pine Loop buffer {id} is assembled from multiple planes");
             var sprite = (SpriteDefinition)map.Objects[group.Sprites[0].SpriteId];
-            Check(!sprite.FacingCamera && sprite.PlaneAxis == null && sprite.Atlas is { Directions: 4 } &&
-                sprite.Atlas.Frames.Length == 4 && sprite.Atlas.Frames.Distinct().Count() == 2 &&
-                sprite.Atlas.Frames[0] == sprite.Atlas.Frames[2] && sprite.Atlas.Frames[1] == sprite.Atlas.Frames[3],
-                $"Pine Loop buffer {id} needs two repeated directional views");
+            Check(!sprite.FacingCamera && sprite.PlaneAxis == (id == 544 ? "x" : "y") && sprite.Atlas == null &&
+                sprite.Texture?.EndsWith("/buffer-front.png") == true && group.Sprites[0].Scale.X == 1.5f,
+                $"Pine Loop buffer {id} needs one long fixed plane and one texture");
         }
         var bufferPoint = fixture.RootElement.GetProperty("bufferCoordinate");
         var bufferCenter = new Vector2(bufferPoint[0].GetSingle() + .5f, bufferPoint[1].GetSingle() + .5f);
         var sampleBuffer = render.Sprites.Single(sprite => sprite.Position == bufferCenter);
         Check(sampleBuffer.ViewLayer(bufferCenter + Vector2.UnitX * 2) == sampleBuffer.TextureLayer &&
-            sampleBuffer.ViewLayer(bufferCenter + Vector2.UnitY * 2) == sampleBuffer.TextureLayer + 1 &&
-            (sampleBuffer.ViewKind(bufferCenter + Vector2.UnitX * 2) & (uint)SpriteKind.FixedPlane) != 0,
-            "Pine Loop buffer front/side observer positions select incorrect directional views");
+            sampleBuffer.ViewLayer(bufferCenter + Vector2.UnitY * 2) == sampleBuffer.TextureLayer &&
+            sampleBuffer.ViewKind(bufferCenter + Vector2.UnitX * 2) == sampleBuffer.ViewKind(bufferCenter + Vector2.UnitY * 2) &&
+            (sampleBuffer.ViewKind(bufferCenter + Vector2.UnitX * 2) & (uint)SpriteKind.FixedPlane) != 0 &&
+            sampleBuffer.ViewScale(bufferCenter + Vector2.UnitX * 2) == sampleBuffer.ViewScale(bufferCenter + Vector2.UnitY * 2),
+            "Pine Loop buffer changes artwork or geometry with the observer");
         Check(Math.Abs(sampleBuffer.Elevation - sampleBuffer.Scale.Y * .5f + .5f) < .0001f,
-            "Pine Loop directional buffer is not grounded");
+            "Pine Loop fixed buffer is not grounded");
         foreach (var view in fixture.RootElement.GetProperty("views").EnumerateArray().Where(view =>
             view[0].GetString()?.StartsWith("buffer-") == true))
             Check(collider.CanOccupy(new(view[1][0].GetSingle(), view[1][1].GetSingle())),
@@ -173,7 +264,7 @@ internal static class PineLoopChecks
         Check(roundTrip.WorldMap.Length == 256 && roundTrip.WorldMap[0].Length == 512,
             "Editor export loses the expanded Pine Loop dimensions");
 
-        Console.WriteLine($"PASS: {assertions} Pine Loop assertions (grand circuit lap, landmarks, inline stands, forest budget, directional buffers, tire groups, tunnel, pits, textures, and editor export).");
+        Console.WriteLine($"PASS: {assertions} Pine Loop assertions (grand circuit lap, landmarks, inline stands, forest budget, fixed buffers, tire groups, tunnel, pits, textures, and editor export).");
         return assertions;
     }
 }
