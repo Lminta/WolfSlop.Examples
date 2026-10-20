@@ -14,4 +14,6 @@ public class CameraComponent : ComponentBase, ICamera
     // Radians; positive looks up. Simulated pitch shifts the projected horizon.
     public float Pitch { get; set; }
     public float Elevation { get; set; }
+    public bool ThirdPerson { get; set; }
+    public CameraView View(Graphics.RenderMap map) => ThirdPersonCamera.View(Transform, Pitch, Elevation, ThirdPerson, map);
 }

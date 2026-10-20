@@ -172,3 +172,20 @@ To remove that rule later:
 ```powershell
 Remove-NetFirewallRule -DisplayName 'WolfNET LAN development'
 ```
+
+Third-person view: press **V** while the mouse is captured to toggle modes. Mouse
+look orbits behind the player, who turns with camera yaw. The camera sits 1.5
+cells back with no shoulder offset, framing the player horizontally centered in
+the lower part of the screen. Third-person movement and jump takeoff use the updated character
+heading before the camera follows it. Standing/jumping sprites use 80% size; crouching uses 70% size. Walls shorten the camera
+boom; it returns to its normal distance when clear. Very close walls hide the
+avatar rather than showing it through the camera. First-person movement, jump
+planning and collision stay at the player's position. Camera elevation uses the
+engine's existing simulated pitch and stays within floor/ceiling height limits.
+
+The character uses `WolfNET.Game/wwwroot/player-character.json` and the v3 atlas.
+Two-frame pairs are: rear walk 0–1, rear-left 2–3, rear-right 4–5, left strafe 6–7,
+right strafe 8–9, rear crouch 10–11, rear jump 12–13; frame 14 is idle. Actual
+movement advances walking/crouching frames every 160 ms; jumping uses the same
+interval. Standing against a wall does not animate walking. Character frames load
+with each scene, and the player sprite participates in normal wall/sprite occlusion.

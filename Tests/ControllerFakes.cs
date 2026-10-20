@@ -29,6 +29,8 @@ namespace WolfNET.Game.InputEvents
                 _state = value;
             }
         }
+        public bool ViewToggleRequested { get; set; }
+        public bool ConsumeViewToggle() { var result = ViewToggleRequested; ViewToggleRequested = false; return result; }
         public bool ConsumeJump()
         {
             var requested = _jumpRequested;
@@ -56,6 +58,7 @@ namespace WolfNET.Game.Player.Components
     public sealed class CameraComponent
     {
         public Vector2 Plane { get; set; }
+        public bool ThirdPerson { get; set; }
         public float Pitch { get; set; }
         public float Elevation { get; set; }
     }

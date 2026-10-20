@@ -28,6 +28,7 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     
     private KeyState _keyState;
     private bool _jumpRequested;
+    private bool _viewToggleRequested;
     private bool _altLeft;
     private bool _altRight;
     
@@ -79,6 +80,7 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
     {
         _keyState = default;
         _jumpRequested = false;
+        _viewToggleRequested = false;
         _altLeft = _altRight = false;
     }
 
@@ -89,16 +91,26 @@ public class KeyTracker : IEventListener<InputEventSystem, KeyDownEvent>, IEvent
         return requested;
     }
 
+    public bool ConsumeViewToggle()
+    {
+        var requested = _isActive() && _viewToggleRequested;
+        _viewToggleRequested = false;
+        return requested;
+    }
+
     private void OnBlur(Event e) => Reset();
 
     private static bool IsMovementKey(string code) => code is
-        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "Space" or "AltLeft" or "AltRight";
+        "KeyV" or "KeyW" or "KeyS" or "KeyA" or "KeyD" or "Space" or "AltLeft" or "AltRight";
     
     public Task OnEvent(KeyDownEvent gameEvent)
     {
         if (!_isActive()) return Task.CompletedTask;
         switch (gameEvent.Event.Code)
         {
+            case "KeyV":
+                if (!gameEvent.Event.Repeat) _viewToggleRequested = !_viewToggleRequested;
+                break;
             case "AltLeft":
                 _altLeft = true;
                 _keyState.Crouch = true;

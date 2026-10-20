@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Net.Http.Json;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Game.Core;
@@ -35,6 +36,7 @@ public sealed class Wolf : IDisposable
     private int _frameGeneration;
     private readonly SemaphoreSlim _mapSwitchLock = new(1, 1);
     private TextureCatalog? _sceneTextures;
+    private CharacterAppearance? _characterAppearance;
     public string? CurrentMapPath { get; private set; }
 
     public Wolf(
@@ -69,7 +71,11 @@ public sealed class Wolf : IDisposable
             if (reportProgress != null) await reportProgress("Loading map and objects…");
             var map = await GameMap.LoadAsync(_http, mapPath,
                 RendererSettings.MaxMapWidth, RendererSettings.MaxMapHeight, cancellationToken);
-            await _renderer.PrepareSceneAsync(map.RendererMap, cancellationToken, reportProgress);
+            var characterDefinition = await _http.GetFromJsonAsync<SpriteDefinition>(
+                "player-character.json", cancellationToken)
+                ?? throw new InvalidDataException("Player character definition is empty.");
+            _characterAppearance = new CharacterAppearance(characterDefinition);
+            await _renderer.PrepareSceneAsync(map.RendererMap, cancellationToken, reportProgress, _characterAppearance);
             cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -146,13 +152,18 @@ public sealed class Wolf : IDisposable
                 _ = RefreshSceneAsync(generation);
                 return;
             }
+            var view = _player.Camera.View(Map.RendererMap);
+            Sprite? character = _player.Camera.ThirdPerson && view.Distance > .35f
+                ? _characterAppearance!.Sprite(_player.Animation.Frame, _player.Transform.Position,
+                    _player.InAir ? _player.Camera.Elevation : 0)
+                : null;
             _renderer.Render(
-                _player.Camera.Transform.Position, 
+                view.Position,
                 _player.Camera.Transform.Rotation,
                 _player.Camera.Plane,
                 Map.RendererMap,
                 _player.Camera.Pitch,
-                _player.Camera.Elevation);
+                view.Elevation, character);
             _window.RequestAnimationFrame(() => Frame(generation));
         }
         catch (Exception ex)
@@ -172,7 +183,7 @@ public sealed class Wolf : IDisposable
         {
             if (!_running || generation != _frameGeneration) return;
             var map = Map.RendererMap;
-            await _renderer.PrepareSceneAsync(map);
+            await _renderer.PrepareSceneAsync(map, character: _characterAppearance);
             if (!_running || generation != _frameGeneration)
             {
                 _renderer.ReleaseScene();

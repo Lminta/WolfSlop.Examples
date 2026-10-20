@@ -3,6 +3,7 @@ using System.Numerics;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Game;
+using WolfNET.Game.Player;
 
 namespace WolfNET.Graphics;
 
@@ -34,6 +35,7 @@ public sealed class WebGpuRenderer : IDisposable
     private GPUBindGroup? _spriteBindGroup;
     private int _spriteCapacity;
     private readonly List<(Sprite Sprite, float Distance)> _sortedSprites = [];
+    private readonly List<Sprite> _frameSprites = [];
 
     private GPUBindGroup? _computeBindGroup;
     private GPUBindGroup? _renderBindGroup;
@@ -333,13 +335,13 @@ public sealed class WebGpuRenderer : IDisposable
     }
 
     public async Task PrepareSceneAsync(RenderMap map, CancellationToken cancellationToken = default,
-        Func<string, Task>? reportProgress = null)
+        Func<string, Task>? reportProgress = null, CharacterAppearance? character = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_initialized) throw new InvalidOperationException("Initialize the GPU before preparing a scene.");
         ReleaseScene();
         await LoadSkyAsync(map.Sky, cancellationToken, reportProgress);
-        await LoadTexturesAsync(map.Textures, cancellationToken, reportProgress);
+        await LoadTexturesAsync(character?.AddTextures(map.Textures) ?? map.Textures, cancellationToken, reportProgress);
 
         if (reportProgress != null) await reportProgress("Preparing scene…");
 
@@ -417,6 +419,7 @@ public sealed class WebGpuRenderer : IDisposable
         _skyBuffer = null;
         _uploadedMap = null;
         _sortedSprites.Clear();
+        _frameSprites.Clear();
     }
 
     private async Task LoadSkyAsync(SkyDefinition? sky, CancellationToken cancellationToken,
@@ -892,7 +895,8 @@ public sealed class WebGpuRenderer : IDisposable
         Vector2 plane,
         RenderMap map,
         float pitch = 0,
-        float elevation = 0)
+        float elevation = 0,
+        Sprite? character = null)
     {
         if (!_initialized ||
             _device == null ||
@@ -909,7 +913,10 @@ public sealed class WebGpuRenderer : IDisposable
 
         // 1. Synchronize map only if revision changed.
         UpdateMap(map);
-        var sprites = map.Sprites;
+        _frameSprites.Clear();
+        _frameSprites.AddRange(map.Sprites);
+        if (character is { } avatar) _frameSprites.Add(avatar);
+        var sprites = _frameSprites;
 
         // 2. Update camera every frame.
         UpdateCamera(position, direction, plane, pitch, elevation);

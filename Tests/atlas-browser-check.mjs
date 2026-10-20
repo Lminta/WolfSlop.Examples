@@ -117,7 +117,7 @@ try {
     const view=((Math.floor(angle/(Math.PI*2)*8+.5)%8)+8)%8;
     assert.equal(car.layer,32+view,'Movement did not select the expected directional layer');
     assert.notEqual(car.layer,36,'Strafing did not change the view');
-    await evaluate('window.dispatchEvent(new MouseEvent("mousemove",{movementX:40,bubbles:true}))');
+    await evaluate('document.dispatchEvent(new MouseEvent("mousemove",{movementX:40,bubbles:true}))');
     await new Promise(resolve=>setTimeout(resolve,100));
     assert.equal((await evaluate('window.__car')).layer,car.layer,'Mouse look changed the view without player translation');
     if(process.env.WOLFNET_SCREENSHOT){const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.WOLFNET_SCREENSHOT,Buffer.from(shot.data,'base64'));}

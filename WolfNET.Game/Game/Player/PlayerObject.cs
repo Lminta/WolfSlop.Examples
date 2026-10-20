@@ -7,8 +7,16 @@ public class PlayerObject : ObjectBase
 {
     public CameraComponent Camera { get; }
     public PlayerController Controller { get; }
+    public PlayerAnimation Animation { get; } = new();
     public bool InAir => Controller.InAir;
     public bool Crouching => Controller.Crouching;
+    public override void Update(float deltaTime)
+    {
+        var previous = Transform.Position;
+        base.Update(deltaTime);
+        Animation.Update(deltaTime, Transform.Position - previous, Game.KeyTracker.KeyState, InAir, Crouching);
+    }
+
     public PlayerObject(Wolf game) : base(game)
     {
         Camera = new CameraComponent(this);

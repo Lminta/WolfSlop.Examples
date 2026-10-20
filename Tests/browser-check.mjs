@@ -11,6 +11,7 @@ const expectedImages = new Set(manifest.flatMap(file => {
     const object = JSON.parse(fs.readFileSync(`WolfNET.Game/wwwroot/maps/${file}`, "utf8"));
     return [object.texture, object.floorTexture, object.ceilingTexture, ...Object.values(object.textures ?? {})].filter(Boolean);
 }));
+expectedImages.add(JSON.parse(fs.readFileSync("WolfNET.Game/wwwroot/player-character.json", "utf8")).texture);
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:"PUT"})).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});

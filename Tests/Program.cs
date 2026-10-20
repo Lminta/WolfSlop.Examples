@@ -363,6 +363,103 @@ var childSurfaces = Compile(SmallMap(3), new(definitions)
 });
 Check(childSurfaces.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("child-only")), "Unused child surfaces included in catalog");
 
+// Third-person rendering stays separate from the movement/collision transform.
+var orbitGrid = Enumerable.Range(0,12).Select(x => Enumerable.Range(0,12)
+    .Select(y => x==0 || y==0 || x==11 || y==11 ? 1 : 0).ToArray()).ToArray();
+var orbitMap = Compile(SmallMap() with { WorldMap=orbitGrid });
+var orbitPlayer = new Transform { Position=new(6.5f,6.5f), Rotation=new(0,-1) };
+var firstView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,.2f,.12f,false,orbitMap.RendererMap);
+Check(firstView.Position==orbitPlayer.Position && firstView.Elevation==.12f && firstView.Distance==0,"First-person view moved off the player");
+var followView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,0,0,true,orbitMap.RendererMap);
+Check(Vector2.Distance(followView.Position,new(6.5f,8f))<.0001f && followView.Distance>1.49f,"Third-person camera did not move behind the player");
+var orbitTurned = orbitPlayer with { Rotation=new(1,0) };
+var turnedView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitTurned,0,0,true,orbitMap.RendererMap);
+Check(Vector2.Distance(turnedView.Position,new(5f,6.5f))<.0001f && orbitPlayer.Position==new Vector2(6.5f,6.5f),"Camera yaw failed to orbit a stationary player");
+var upView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,.3f,0,true,orbitMap.RendererMap);
+var downView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,-.3f,0,true,orbitMap.RendererMap);
+Check(upView.Distance<followView.Distance && upView.Elevation<followView.Elevation && downView.Elevation>followView.Elevation,"Vertical mouse look did not orbit the camera");
+orbitMap.SetCell(6,8,1);
+var closeView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,0,0,true,orbitMap.RendererMap);
+Check(closeView.Distance>1.3f && closeView.Distance<1.41f && closeView.Position.Y<=7.9f,"Camera boom crossed a wall");
+orbitMap.SetCell(6,8,0);
+Check(WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,0,0,true,orbitMap.RendererMap).Distance>1.49f,"Camera did not recover its distance after a wall cleared");
+for(int heading=0;heading<32;heading++)
+{
+    var angle=heading*MathF.Tau/32;
+    var view=WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer with {Position=new(1.2f,1.2f),Rotation=new(MathF.Cos(angle),MathF.Sin(angle))},.4f,0,true,orbitMap.RendererMap);
+    Check(view.Position.X>=1.099f && view.Position.Y>=1.099f && view.Distance<=2 && Math.Abs(view.Elevation)<=.45f,"Orbit escaped the map boundary/height range");
+}
+var visualDefinition = JsonSerializer.Deserialize<SpriteDefinition>(File.ReadAllText(Path.Combine(webRoot,"player-character.json")),new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+var appearance = new WolfNET.Game.Player.CharacterAppearance(visualDefinition);
+var combined = appearance.AddTextures(showcase.RendererMap.Textures);
+Check(combined.Layers.Count==showcase.RendererMap.Textures.Layers.Count+15 &&
+    showcase.RendererMap.Textures.Layers.All(pair=>combined.Layers[pair.Key]==pair.Value),"Character allocation replaced scene textures");
+Check(Enumerable.Range(0,15).All(i=>combined.Frames.ContainsKey(appearance.FirstLayer+(uint)i)),"Character frames were not reserved");
+var idleVisual=appearance.Sprite(14,orbitPlayer.Position,0);
+var crouchVisual=appearance.Sprite(10,orbitPlayer.Position,0);
+Check(Math.Abs(idleVisual.Scale.Y-visualDefinition.Atlas!.Frames[14].Height*.9f/310*.8f)<.00001f &&
+    Math.Abs(crouchVisual.Scale.Y-visualDefinition.Atlas.Frames[10].Height*.9f/310*.7f)<.00001f,"Character sizes do not match 80%/70%");
+Check(crouchVisual.Scale.Y<idleVisual.Scale.Y && idleVisual.OwnerCell==0,"Character crouch was enlarged or ignored normal occlusion");
+Check(Math.Abs(appearance.Sprite(12,orbitPlayer.Position,.3f).Elevation-appearance.Sprite(12,orbitPlayer.Position,0).Elevation-.3f)<.00001f,"Character jump elevation did not follow the player");
+var anim = new WolfNET.Game.Player.PlayerAnimation();
+anim.Update(1000,Vector2.Zero,new(),false,false);
+Check(anim.Frame==14,"Stationary character did not use idle");
+foreach(var (keys,expected) in new (WolfNET.Game.InputEvents.KeyState,int)[] {
+    (new(){Forward=true},0),(new(){Forward=true,StrafeLeft=true},2),(new(){Forward=true,StrafeRight=true},4),
+    (new(){StrafeLeft=true},6),(new(){StrafeRight=true},8) })
+{
+    anim.Update(0,Vector2.UnitX,keys,false,false);
+    Check(anim.Frame==expected,"Wrong movement animation pair");
+    anim.Update(160,Vector2.UnitX,keys,false,false);
+    Check(anim.Frame==expected+1,"Second leg frame did not advance");
+    anim.Update(160,Vector2.UnitX,keys,false,false);
+    Check(anim.Frame==expected,"Two-frame walk animation did not loop");
+}
+anim.Update(500,Vector2.Zero,new(){Forward=true},false,false);
+Check(anim.Frame==14,"Blocked movement animated walking");
+anim.Update(0,Vector2.Zero,new(),false,true); Check(anim.Frame==10,"Stationary crouch frame incorrect");
+anim.Update(1000,Vector2.Zero,new(),false,true); Check(anim.Frame==10,"Stationary crouch kept walking");
+anim.Update(160,Vector2.UnitY,new(),false,true); Check(anim.Frame==11,"Moving crouch did not alternate legs");
+anim.Update(0,Vector2.Zero,new(),true,true); Check(anim.Frame==12,"Jump did not take priority over crouch");
+anim.Update(160,Vector2.Zero,new(),true,false); Check(anim.Frame==13,"Jump did not animate while horizontal motion was blocked");
+var toggleObject=new WolfNET.Game.Core.ObjectBase {Transform=orbitPlayer};
+var toggleKeys=new WolfNET.Game.InputEvents.KeyTracker {ViewToggleRequested=true};
+var toggleCamera=new WolfNET.Game.Player.Components.CameraComponent {Plane=new(.66f,0)};
+var toggleController=new WolfNET.Game.Player.Components.PlayerController(toggleKeys,new(),orbitMap.NavigationMap,toggleCamera,orbitMap.PlayerStart,toggleObject);
+toggleController.Update(16); Check(toggleCamera.ThirdPerson && toggleObject.Transform.Position==orbitPlayer.Position,"V toggle changed player position");
+toggleController.Update(16); Check(toggleCamera.ThirdPerson,"Camera toggle repeated without another press");
+toggleKeys.ViewToggleRequested=true; toggleController.Update(16); Check(!toggleCamera.ThirdPerson,"Camera did not return to first person");
+
+// Third-person translation and takeoff use this frame's heading, not the previous camera heading.
+foreach (var steeringKeys in new WolfNET.Game.InputEvents.KeyState[] {
+    new(){Forward=true},new(){Backward=true},new(){StrafeLeft=true},new(){StrafeRight=true},
+    new(){Forward=true,StrafeLeft=true},new(){Forward=true,StrafeRight=true} })
+{
+    var actor=new WolfNET.Game.Core.ObjectBase {Transform=orbitPlayer};
+    var steeringCamera=new WolfNET.Game.Player.Components.CameraComponent {ThirdPerson=true,Plane=new(-.66f,0)};
+    var steeringMouse=new WolfNET.Game.InputEvents.MouseTracker {HorizontalMovement=80};
+    var steeringInput=new WolfNET.Game.InputEvents.KeyTracker {KeyState=steeringKeys};
+    var steeringController=new WolfNET.Game.Player.Components.PlayerController(steeringInput,steeringMouse,orbitMap.NavigationMap,steeringCamera,orbitMap.PlayerStart,actor);
+    steeringController.Update(50);
+    var heading=actor.Transform.Rotation;
+    var expectedDirection=heading*((steeringKeys.Forward?1:0)-(steeringKeys.Backward?1:0))+
+        new Vector2(heading.Y,-heading.X)*((steeringKeys.StrafeRight?1:0)-(steeringKeys.StrafeLeft?1:0));
+    expectedDirection=Vector2.Normalize(expectedDirection);
+    var expectedPosition=orbitPlayer.Position+expectedDirection*.25f;
+    Check(Vector2.Distance(actor.Transform.Position,expectedPosition)<.00001f,"Third-person movement lagged behind this frame's character heading");
+    steeringController.Update(50);
+    Check(Vector2.Distance(actor.Transform.Position,orbitPlayer.Position+expectedDirection*.5f)<.00001f,"Third-person travel did not stay on one straight line after steering stopped");
+}
+{
+    var actor=new WolfNET.Game.Core.ObjectBase {Transform=orbitPlayer};
+    var camera=new WolfNET.Game.Player.Components.CameraComponent {ThirdPerson=true,Plane=new(-.66f,0)};
+    var keys=new WolfNET.Game.InputEvents.KeyTracker {KeyState=new(){Jump=true}};
+    var mouse=new WolfNET.Game.InputEvents.MouseTracker {HorizontalMovement=80};
+    var controller=new WolfNET.Game.Player.Components.PlayerController(keys,mouse,orbitMap.NavigationMap,camera,orbitMap.PlayerStart,actor);
+    controller.Update(50);
+    Check(Vector2.Distance(controller.JumpDestination,orbitPlayer.Position+actor.Transform.Rotation*orbitMap.PlayerStart.JumpLength)<.00001f,"Third-person jump used the old camera heading");
+}
+
 using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
 await RejectLoad<OperationCanceledException>(http, "Cancellation ignored", cancellation.Token);
 foreach (bool wallsPresent in new[] { false, true })

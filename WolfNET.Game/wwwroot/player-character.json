@@ -1,0 +1,104 @@
+{
+  "type": "sprite",
+  "id": 900,
+  "raycastTransparent": true,
+  "collides": false,
+  "passageId": 0,
+  "texture": "textures/characters/main-character-atlas-v3.png",
+  "textureLayer": 0,
+  "atlas": {
+    "directions": 1,
+    "frames": [
+      {
+        "x": 115,
+        "y": 16,
+        "width": 145,
+        "height": 300
+      },
+      {
+        "x": 404,
+        "y": 16,
+        "width": 146,
+        "height": 300
+      },
+      {
+        "x": 712,
+        "y": 28,
+        "width": 154,
+        "height": 289
+      },
+      {
+        "x": 967,
+        "y": 28,
+        "width": 191,
+        "height": 289
+      },
+      {
+        "x": 101,
+        "y": 336,
+        "width": 144,
+        "height": 291
+      },
+      {
+        "x": 398,
+        "y": 333,
+        "width": 167,
+        "height": 294
+      },
+      {
+        "x": 676,
+        "y": 329,
+        "width": 210,
+        "height": 296
+      },
+      {
+        "x": 968,
+        "y": 329,
+        "width": 214,
+        "height": 296
+      },
+      {
+        "x": 66,
+        "y": 631,
+        "width": 210,
+        "height": 309
+      },
+      {
+        "x": 367,
+        "y": 633,
+        "width": 213,
+        "height": 307
+      },
+      {
+        "x": 703,
+        "y": 677,
+        "width": 161,
+        "height": 263
+      },
+      {
+        "x": 996,
+        "y": 675,
+        "width": 161,
+        "height": 251
+      },
+      {
+        "x": 44,
+        "y": 940,
+        "width": 260,
+        "height": 275
+      },
+      {
+        "x": 353,
+        "y": 940,
+        "width": 254,
+        "height": 275
+      },
+      {
+        "x": 715,
+        "y": 940,
+        "width": 138,
+        "height": 293
+      }
+    ]
+  }
+}

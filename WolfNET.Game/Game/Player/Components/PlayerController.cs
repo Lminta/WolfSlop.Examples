@@ -47,10 +47,11 @@ public class PlayerController : ComponentBase
         var dirX = Parent.Transform.Rotation.X;
         var dirY = Parent.Transform.Rotation.Y;
 
-        var planeX = _camera.Plane.X;
-        var planeY = _camera.Plane.Y;
-
+        if (_keyTracker.ConsumeViewToggle()) _camera.ThirdPerson = !_camera.ThirdPerson;
         var keys = _keyTracker.KeyState;
+        // Third-person input steers the character first; translation and jump
+        // planning must use the same heading that this frame's camera follows.
+        if (_camera.ThirdPerson) ApplyLook(rotSpeed, ref dirX, ref dirY);
         // Stay low under an obstacle after Alt is released; stand only when the
         // complete collision circle has cleared it. Crouching never bypasses walls in flight.
         Crouching = !InAir && (keys.Crouch || (Crouching && !CanOccupy(posX, posY, inAir: false, crouching: false)));
@@ -113,6 +114,18 @@ public class PlayerController : ComponentBase
             var change = deltaTime * _settings.CrouchDrop / 0.12f;
             _camera.Elevation += Math.Clamp(target - _camera.Elevation, -change, change);
         }
+        if (!_camera.ThirdPerson) ApplyLook(rotSpeed, ref dirX, ref dirY);
+        Parent.Transform = new Transform()
+        {
+            Position = new Vector2(posX, posY),
+            Rotation = new Vector2(dirX, dirY)
+        };
+    }
+
+    private void ApplyLook(float rotSpeed, ref float dirX, ref float dirY)
+    {
+        var planeX = _camera.Plane.X;
+        var planeY = _camera.Plane.Y;
         var mouseMovement = _mouseTracker.ConsumeMovement();
         var turn = -mouseMovement.X * MouseSensitivity;
         var pitchChange = Math.Clamp(-mouseMovement.Y * MouseSensitivity, -rotSpeed, rotSpeed);
@@ -137,11 +150,6 @@ public class PlayerController : ComponentBase
         }
 
         _camera.Plane = new Vector2(planeX, planeY);
-        Parent.Transform = new Transform()
-        {
-            Position = new Vector2(posX, posY),
-            Rotation = new Vector2(dirX, dirY)
-        };
     }
 
     private Vector2 PlanJump(Vector2 origin, Vector2 desired)
