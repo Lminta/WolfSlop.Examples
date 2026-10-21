@@ -86,7 +86,8 @@ try {
         };
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...args){
-            const raw=data.buffer??data,start=data.byteOffset??0;
+            const unit=data.BYTES_PER_ELEMENT??1,raw=data.buffer??data,start=(data.byteOffset??0)+(args[0]??0)*unit;
+            const words=(args[1]??(data.byteLength/unit-(args[0]??0)))*unit/4;
             if(buffer.label==='WolfNET Camera'){
                 window.__camera=Array.from(new Float32Array(raw,start,12));
                 window.__frames.push(performance.now());if(window.__frames.length>20)window.__frames.shift();
@@ -94,7 +95,7 @@ try {
             if(buffer.label==='WolfNET Map Info'&&offset===0)window.__mapInfo=Array.from(new Uint32Array(raw,start,4));
             if(buffer.label==='WolfNET Map Info'&&offset===8&&window.__mapInfo)window.__mapInfo[2]=new Uint32Array(raw,start,1)[0];
             if(buffer.label==='WolfNET Sprites'){
-                const u=new Uint32Array(raw,start,data.byteLength/4),f=new Float32Array(raw,start,data.byteLength/4);window.__buffers=[];window.__sprites=[];
+                const u=new Uint32Array(raw,start,words),f=new Float32Array(raw,start,words);window.__buffers=[];window.__sprites=[];
                 for(let i=0;i<u.length;i+=8){
                     const sprite={x:f[i],y:f[i+1],layer:u[i+2],sx:f[i+4],sy:f[i+5],z:f[i+6],kind:u[i+7]};
                     window.__sprites.push(sprite);
@@ -175,6 +176,7 @@ try {
     }
     console.log('PASS: Pine Loop scenes, actual camera spawns, fixed buffer planes, GPU frame geometry, and no missing assets or GPU errors.');
 } finally {
+    await send('Page.close').catch(() => {});
     socket.close();
     for (const task of pending.values()) clearTimeout(task.timer);
 }

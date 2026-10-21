@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Game;
@@ -85,37 +86,33 @@ public sealed partial class WebGpuRenderer
         DestroyBuffer(_spriteBuffer);
         _spriteBuffer = null;
         _spriteCapacity = 0;
+        _spriteUpload?.Dispose();
+        _spriteUpload = null;
+        _spriteBytes = [];
+        _uploadedSpriteCount = -1;
         DestroyBuffer(_materialsBuffer);
         _materialsBuffer = null;
         _textures?.Dispose();
         _textures = null;
         _uploadedMap = null;
-        _sortedSprites.Clear();
-        _frameSprites.Clear();
+        _spriteSelection.Clear();
+        _browserSprites?.ReleaseScene();
     }
 
-    private void UpdateSprites(IReadOnlyList<Sprite> sprites, Vector2 cameraPosition, double elapsedSeconds)
+    private void UpdateSprites()
     {
-        _sortedSprites.Clear();
-        foreach (var sprite in sprites)
-        {
-            var distanceSquared = Vector2.DistanceSquared(cameraPosition, sprite.Position);
-            // Retain wide quads whose near edge is still inside the visible circle.
-            var maximumDistance = _settings.RenderDistance + sprite.ViewScale(cameraPosition, elapsedSeconds).X * .5f;
-            if (distanceSquared <= maximumDistance * maximumDistance)
-                _sortedSprites.Add((sprite, distanceSquared));
-        }
-        var spriteCount = _sortedSprites.Count;
-
-        // Painter's algorithm: nearer opaque texels cover farther sprites.
-        _sortedSprites.Sort(static (a, b) => b.Distance.CompareTo(a.Distance));
+        var sprites = _spriteSelection.Visible;
+        var spriteCount = sprites.Count;
 
         if (Math.Max(1, spriteCount) > _spriteCapacity)
         {
             _spriteBindGroup?.Dispose();
             _minimapBindGroup?.Dispose();
             DestroyBuffer(_spriteBuffer);
-            _spriteCapacity = Math.Max(spriteCount, 16);
+            _spriteCapacity = Math.Max(16, (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)spriteCount));
+            _spriteUpload?.Dispose();
+            _spriteUpload = new Uint32Array(_spriteCapacity * 8);
+            _spriteBytes = new byte[checked(_spriteCapacity * SpriteSize)];
             _spriteBuffer = _device!.CreateBuffer(new GPUBufferDescriptor
             {
                 Label = "WolfNET Sprites",
@@ -158,30 +155,37 @@ public sealed partial class WebGpuRenderer
 
         // The third u32 of MapInfo counts active sprites, excluding spare buffer capacity.
         using var queue = _device!.Queue;
-        using (var count = new Uint32Array(new uint[] { (uint)spriteCount }))
-            queue.WriteBuffer(_mapInfoBuffer!, 8, count);
+        if (_uploadedSpriteCount != spriteCount)
+        {
+            BitConverter.TryWriteBytes(_spriteCountBytes, (uint)spriteCount);
+            _spriteCountUpload!.WriteBytes(_spriteCountBytes);
+            queue.WriteBuffer(_mapInfoBuffer!, 8, _spriteCountUpload);
+            _uploadedSpriteCount = spriteCount;
+        }
 
         if (spriteCount == 0)
             return;
 
         // Matches the 32-byte Sprite in both WGSL shaders, including the final geometry-kind word.
-        var upload = new uint[checked(spriteCount * 8)];
-        for (int i = 0; i < _sortedSprites.Count; i++)
+        var upload = MemoryMarshal.Cast<byte, uint>(_spriteBytes.AsSpan());
+        for (int i = 0; i < spriteCount; i++)
         {
-            var sprite = _sortedSprites[i].Sprite;
+            var view = sprites[i];
+            var sprite = view.Sprite;
             upload[i * 8] = BitConverter.SingleToUInt32Bits(sprite.Position.X);
             upload[i * 8 + 1] = BitConverter.SingleToUInt32Bits(sprite.Position.Y);
-            upload[i * 8 + 2] = sprite.ViewLayer(cameraPosition, elapsedSeconds);
+            upload[i * 8 + 2] = view.Layer;
             upload[i * 8 + 3] = sprite.OwnerCell;
-            var scale = sprite.ViewScale(cameraPosition, elapsedSeconds);
+            var scale = view.Scale;
             upload[i * 8 + 4] = BitConverter.SingleToUInt32Bits(scale.X);
             upload[i * 8 + 5] = BitConverter.SingleToUInt32Bits(scale.Y);
             upload[i * 8 + 6] = BitConverter.SingleToUInt32Bits(sprite.Elevation);
-            upload[i * 8 + 7] = sprite.ViewKind(cameraPosition);
+            upload[i * 8 + 7] = view.Kind;
         }
 
-        using var data = new Uint32Array(upload);
-        queue.WriteBuffer(_spriteBuffer!, 0, data);
+        _spriteUpload!.WriteBytes(_spriteBytes);
+        // writeBuffer offsets/sizes are in elements for a Uint32Array, not bytes.
+        queue.WriteBuffer(_spriteBuffer!, 0UL, _spriteUpload, 0, (ulong)spriteCount * 8);
     }
 
 }

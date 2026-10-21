@@ -62,6 +62,10 @@ internal static class EngineChecks
         Check(!timing.TryAdvance(1000, out _), "A missed deadline caused a catch-up frame.");
         timing.Reset(5000);
         Check(timing.TryAdvance(5000, out elapsed) && elapsed == 0, "Reset included loading time in simulation.");
+        timing.Reset();
+        for (var tick = 0; tick < 240; tick++)
+            Check(timing.TryAdvance(tick * (1000d / 120), out _) == (tick % 2 == 0),
+                "Browser timestamps did not maintain an even 60 FPS cadence on a 120 Hz display.");
         Throws<ArgumentOutOfRangeException>(() => new FrameTiming(0));
         Throws<ArgumentException>(() => new RendererSettings(targetFPS: 0).Validate());
         Throws<ArgumentException>(() => new RendererSettings { FovDegrees = float.NaN }.Validate());

@@ -49,9 +49,13 @@ public sealed partial class WebGpuRenderer
 
             Console.WriteLine("[GPU] Requesting adapter");
 
-            using var adapter = await gpu.RequestAdapter()
+            using var adapter = await gpu.RequestAdapter(new GPURequestAdapterOptions { PowerPreference = "high-performance" })
+                ?? await gpu.RequestAdapter()
                 ?? throw new Exception(
                     "No WebGPU adapter available.");
+
+            using (var info = adapter.Info)
+                Console.WriteLine($"[GPU] Adapter: {info.Vendor} {info.Architecture} {info.Device} {info.Description}");
 
             cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -64,6 +68,8 @@ public sealed partial class WebGpuRenderer
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             _device.OnUncapturedError += OnGpuError;
+            _profiling = _js.Get<string>("location.search").TrimStart('?').Split('&').Contains("profile=1");
+            _profileSampleStart = System.Diagnostics.Stopwatch.GetTimestamp();
 
             Console.WriteLine("[GPU] Device created");
 
@@ -88,6 +94,15 @@ public sealed partial class WebGpuRenderer
             // 3. Allocate persistent GPU buffers.
 
             CreateBuffers();
+
+            var spriteModule = await _js.Import<JSObject>("./sprite-sort.js");
+            if (cancellationToken.IsCancellationRequested || _disposed)
+            {
+                spriteModule.Dispose();
+                cancellationToken.ThrowIfCancellationRequested();
+                ObjectDisposedException.ThrowIf(_disposed, this);
+            }
+            _browserSprites = new BrowserSpriteSelection(spriteModule);
 
 
             // 4. Compile shaders.

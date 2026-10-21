@@ -26,10 +26,11 @@ try{
   const create=GPUDevice.prototype.createTexture;
   GPUDevice.prototype.createTexture=function(d){if(d.label==='WolfNET Scene Textures')window.__sceneUploads++;return create.call(this,d);};
   const write=GPUQueue.prototype.writeBuffer;
-  GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...args){const raw=data.buffer??data,start=data.byteOffset??0;
+  GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...args){const unit=data.BYTES_PER_ELEMENT??1,raw=data.buffer??data,start=(data.byteOffset??0)+(args[0]??0)*unit;
+   const words=(args[1]??(data.byteLength/unit-(args[0]??0)))*unit/4;
    if(buffer.label==='WolfNET Camera')window.__camera=Array.from(new Float32Array(raw,start,12));
    if(buffer.label==='WolfNET World Map')window.__cells=Array.from(new Uint32Array(raw,start,data.byteLength/4));
-   if(buffer.label==='WolfNET Sprites'){const u=new Uint32Array(raw,start,data.byteLength/4),f=new Float32Array(raw,start,data.byteLength/4);
+   if(buffer.label==='WolfNET Sprites'){const u=new Uint32Array(raw,start,words),f=new Float32Array(raw,start,words);
     for(let i=0;i<u.length;i+=8)if((u[i+7]&3)!==0){window.__doors[u[i+3]]={width:f[i+4],kind:u[i+7],x:f[i],y:f[i+1]};if(u[i+3]===427)window.__samples.push(f[i+4]);}}
    return write.call(this,buffer,offset,data,...args);
   };

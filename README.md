@@ -51,6 +51,52 @@ full strength at the cutoff. Walls, ground,
 ceilings, and sprites use the same circular limit; distant sprites are skipped
 before GPU upload. Reload the game to apply changes.
 
+Scenery is indexed in 16-block spatial cells. Rendering visits nearby cells and,
+on race maps, conservatively rejects scenery outside the horizontal view before
+uploading it. Compact sort keys preserve the original alpha-blending order,
+including equal-distance overlaps. The browser keeps this numeric index and
+ordering work local, passing only selected sprite IDs back to C# for artwork
+resolution. Wide props and atlas frames retain their full bounds;
+exploration minimaps still include nearby scenery in every direction. Upload
+buffers reuse capacity as the camera moves. WebGPU requests a high-performance
+adapter and logs the adapter the browser actually supplies.
+Frame deadlines use the browser's animation timestamps to stay aligned with
+display refreshes, independently of main-thread callback delays.
+
+To measure Pine Loop at the configured resolution and target FPS, start the
+development server and Edge with hardware WebGPU and a remote-debugging port:
+
+```powershell
+node Tests/race-performance-browser-check.mjs 9252 http://127.0.0.1:5195 --output=artifacts/performance/after.json --min-fps=58
+```
+
+The check warms each authored viewpoint, samples five seconds, and records FPS,
+submission and animation-callback intervals, CPU callback duration, sprite counts,
+upload bytes, and adapter identification. `--views=start,tires`, `--seconds=10`,
+and `--warmup=3` customize sampling. `--trace` saves a browser trace for diagnosing
+CPU/GPU work; run timing acceptance without tracing or concurrent browser checks.
+The optional threshold requires every view to reach the requested FPS and a
+95th-percentile submission interval of at most 20 ms. Headless results should also
+be checked in the normal browser when assessing presentation smoothness.
+Use `--views=start --drive` to benchmark acceleration along the starting straight;
+add `--chase` for the third-person camera. Run each mode separately.
+
+The numeric selection and sort also have a native reference check. Run the C#
+suite first to generate its oracle fixtures, then run `node --test Tests/sprite-sort.test.mjs`.
+
+Open the game with `?map=pine-loop&profile=1` for once-per-second `[PROFILE]`
+console samples of candidate counts and CPU selection, upload, and submission
+time. Submission timing does not wait for GPU completion. Normal play leaves this
+instrumentation disabled. For visual comparisons, run both benchmark versions
+with `--screenshots`; this freezes decorative animation at its first frame, then
+compare the outputs with:
+
+```powershell
+node Tests/compare-race-screenshots.mjs artifacts/performance/before.json artifacts/performance/after.json
+```
+
+The image check excludes the FPS counter and allows a three-level RGB tolerance.
+
 Shader and pixel regression tests can run independently of the game loop:
 
 ```powershell

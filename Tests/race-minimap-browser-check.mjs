@@ -35,9 +35,12 @@ try{
  const original=await evaluate(`({route:document.querySelector('.race-minimap-road').getAttribute('points'),transform:document.querySelector('.race-minimap-course').getAttribute('transform')})`);
  assert.equal(await evaluate('window.__legacyMinimapDraws'),0,'Race map drew old scenery dots');
  await capture();const before=await evaluate('window.__camera');
- await evaluate(`document.dispatchEvent(new MouseEvent('mousemove',{movementX:75}))`);
- await waitFor(`Math.abs(window.__camera[2]-${before[2]})>.01`);await waitFor(poseMatches);
- await key('KeyW');await delay(250);await key('KeyW',false);await delay(100);await waitFor(poseMatches);
+ await key('KeyW');await key('KeyA');
+ await waitFor(`Math.abs(window.__camera[2]-${before[2]})>.01`);
+ await key('KeyA',false);await key('KeyW',false);
+ // Car heading follows steering while moving. Brake before comparing camera modes,
+ // since releasing the throttle preserves momentum.
+ await key('Space');await delay(600);await key('Space',false);await waitFor(poseMatches);
  const moved=await evaluate('window.__camera');assert(Math.hypot(moved[0]-before[0],moved[1]-before[1])>.1,'Player did not move for minimap scroll test');
  const matrixBefore=await evaluate(`document.querySelector('.race-minimap-course').getAttribute('transform')`);
  await key('KeyV');await key('KeyV',false);await waitFor(`Math.hypot(window.__camera[0]-${moved[0]},window.__camera[1]-${moved[1]})>.1`);await delay(150);

@@ -20,6 +20,9 @@ public sealed partial class WebGpuRenderer
             _settings.MaxMapWidth *
             _settings.MaxMapHeight);
 
+        _cameraUpload = new Float32Array(12);
+        _spriteCountUpload = new Uint32Array(1);
+
 
         // Camera:
         // position   vec2f
@@ -134,6 +137,7 @@ public sealed partial class WebGpuRenderer
         using (var info = new Uint32Array(new uint[] { (uint)map.Width, (uint)map.Height, (uint)map.Sprites.Count, 0 }))
             queue.WriteBuffer(_mapInfoBuffer!, 0, info);
         _uploadedMap = map;
+        _uploadedSpriteCount = map.Sprites.Count;
         Console.WriteLine($"[GPU] Map updated: {map.Width}x{map.Height}, revision={map.Revision}, cells={map.Cells.Count}");
     }
     /// <summary>
@@ -171,13 +175,13 @@ public sealed partial class WebGpuRenderer
         _cameraData[10] = _settings.RenderDistance;
         _cameraData[11] = _settings.FogStartDistance;
 
-        using var data = new Float32Array(_cameraData);
-
+        Buffer.BlockCopy(_cameraData, 0, _cameraBytes, 0, CameraBufferSize);
+        _cameraUpload!.WriteBytes(_cameraBytes);
         using var queue = _device.Queue;
         queue.WriteBuffer(
             _cameraBuffer,
             0,
-            data);
+            _cameraUpload);
     }
 
 }

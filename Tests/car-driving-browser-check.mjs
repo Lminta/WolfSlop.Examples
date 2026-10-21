@@ -117,11 +117,12 @@ try {
         };
         const write = GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer = function(buffer, offset, data, ...args) {
-            const raw = data.buffer ?? data, start = data.byteOffset ?? 0;
+            const unit = data.BYTES_PER_ELEMENT ?? 1, raw = data.buffer ?? data, start = (data.byteOffset ?? 0) + (args[0] ?? 0) * unit;
+            const words = (args[1] ?? (data.byteLength / unit - (args[0] ?? 0))) * unit / 4;
             if (buffer.label === 'WolfNET Camera') window.__camera = Array.from(new Float32Array(raw, start, 12));
             if (buffer.label === 'WolfNET Map Info' && offset === 0) window.__mapInfo = Array.from(new Uint32Array(raw, start, 4));
             if (buffer.label === 'WolfNET Sprites') {
-                const ints = new Uint32Array(raw, start, data.byteLength / 4), floats = new Float32Array(raw, start, data.byteLength / 4);
+                const ints = new Uint32Array(raw, start, words), floats = new Float32Array(raw, start, words);
                 window.__avatar = null;
                 for (let i = 0; i < ints.length; i += 8) if (ints[i + 3] === 0) {
                     window.__avatar = {x: floats[i], y: floats[i + 1], frame: window.__carLayers[ints[i + 2]], width: floats[i + 4], height: floats[i + 5], elevation: floats[i + 6], kind: ints[i + 7]};

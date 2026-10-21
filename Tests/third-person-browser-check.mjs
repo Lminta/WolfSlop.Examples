@@ -45,10 +45,11 @@ try{
         GPUQueue.prototype.copyExternalImageToTexture=function(source,dest,...args){if(source.source.__frame!==undefined)window.__layers[dest.origin.z]=source.source.__frame;return copy.call(this,source,dest,...args);};
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...args){
-            const raw=data.buffer??data,start=data.byteOffset??0;
+            const unit=data.BYTES_PER_ELEMENT??1,raw=data.buffer??data,start=(data.byteOffset??0)+(args[0]??0)*unit;
+            const words=(args[1]??(data.byteLength/unit-(args[0]??0)))*unit/4;
             if(buffer.label==='WolfNET Camera')window.__camera=Array.from(new Float32Array(raw,start,12));
             if(buffer.label==='WolfNET Sprites'){
-                const ints=new Uint32Array(raw,start,data.byteLength/4), floats=new Float32Array(raw,start,data.byteLength/4);window.__avatar=null;
+                const ints=new Uint32Array(raw,start,words), floats=new Float32Array(raw,start,words);window.__avatar=null;
                 for(let i=0;i<ints.length;i+=8)if(ints[i+3]===0){
                     const frame=window.__layers[ints[i+2]];
                     window.__avatar={frame,x:floats[i],y:floats[i+1],sx:floats[i+4],sy:floats[i+5],z:floats[i+6]};

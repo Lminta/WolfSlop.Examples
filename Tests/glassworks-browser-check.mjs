@@ -84,7 +84,8 @@ try {
         const write = GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer = function(buffer, offset, data, ...args) {
             if(buffer.label === 'WolfNET Sprites') {
-                const raw=data.buffer??data,start=data.byteOffset??0,u=new Uint32Array(raw,start,data.byteLength/4),f=new Float32Array(raw,start,data.byteLength/4);
+                const unit=data.BYTES_PER_ELEMENT??1,raw=data.buffer??data,start=(data.byteOffset??0)+(args[0]??0)*unit;
+                const words=(args[1]??(data.byteLength/unit-(args[0]??0)))*unit/4,u=new Uint32Array(raw,start,words),f=new Float32Array(raw,start,words);
                 window.__directional=[];
                 for(let i=0;i<u.length;i+=8)if((u[i+2]>=32&&u[i+2]<40)||(u[i+2]>=48&&u[i+2]<56))
                     window.__directional.push({x:f[i],y:f[i+1],layer:u[i+2],kind:u[i+7]});
@@ -102,7 +103,7 @@ try {
             return write.call(this, buffer, offset, data, ...args);
         };
     `});
-    await send('Page.navigate', {url: base});
+    await send('Page.navigate', {url: base + '/?map=glassworks'});
     await send('Page.bringToFront');
     await waitFor(`!!window.__camera && !document.querySelector('.loading-overlay')`);
     assert.deepEqual((await evaluate('window.__camera')).slice(0, 4), [12.5, 20.5, 0, -1]);
@@ -203,5 +204,6 @@ try {
     console.log('PASS: Glassworks startup, directional atlas uploads, connected-silhouette ground contact in every frame, entrance crossing, map round-trip, no missing assets or GPU errors. Eleven screenshots: artifacts/glassworks/.');
 } finally {
     await evaluate('document.exitPointerLock?.()').catch(() => {});
+    await send('Page.close').catch(() => {});
     socket.close();
 }

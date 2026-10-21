@@ -53,10 +53,13 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
     // The geometry word keeps flags in its low 16 bits and a world-space normal
     // angle (one turn = 65536) in its high 16 bits, preserving the GPU record size.
     public uint ViewKind(Vector2 observer)
+        => ViewKind(ViewFrame(observer));
+
+    internal uint ViewKind(int frame)
     {
         if (FacingCamera || Atlas is not { Directions: > 1 } atlas || Kind != SpriteKind.Billboard)
             return (uint)Kind;
-        var degrees = (RotationDegrees % 360 + ViewFrame(observer) * (360f / atlas.Directions)) % 360;
+        var degrees = (RotationDegrees % 360 + frame * (360f / atlas.Directions)) % 360;
         if (degrees < 0) degrees += 360;
         var angle = (uint)MathF.Round(degrees / 360 * 65536) & 0xffffu;
         return (uint)(SpriteKind.FixedPlane | SpriteKind.DirectionalPlane) | (angle << 16);

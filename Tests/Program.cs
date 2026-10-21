@@ -1039,6 +1039,7 @@ assertions += await CarSurfaceChecks.RunAsync(http, webRoot);
 assertions += await CarSceneChecks.RunAsync(http);
 assertions += await PineLoopChecks.RunAsync(http, webRoot);
 assertions += await RaceMinimapChecks.RunAsync(http, webRoot);
+assertions += await SpriteSelectionChecks.RunAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler

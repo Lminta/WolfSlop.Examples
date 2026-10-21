@@ -64,11 +64,12 @@ try {
         };
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...rest){
-            const raw=data.buffer??data, start=data.byteOffset??0;
+            const unit=data.BYTES_PER_ELEMENT??1,raw=data.buffer??data,start=(data.byteOffset??0)+(rest[0]??0)*unit;
+            const words=(rest[1]??(data.byteLength/unit-(rest[0]??0)))*unit/4;
             if(buffer.label==='WolfNET Camera')window.__camera=Array.from(new Float32Array(raw,start,12));
             if(buffer.label==='WolfNET Sprites'){
-                const ints=new Uint32Array(raw,start,data.byteLength/4);
-                const floats=new Float32Array(raw,start,data.byteLength/4);
+                const ints=new Uint32Array(raw,start,words);
+                const floats=new Float32Array(raw,start,words);
                 for(let i=0;i<ints.length;i+=8)if(ints[i+2]>=32&&ints[i+2]<40)
                     window.__car={x:floats[i],y:floats[i+1],layer:ints[i+2],sx:floats[i+4],sy:floats[i+5],z:floats[i+6],kind:ints[i+7]};
             }
@@ -99,8 +100,13 @@ try {
         });
     })()`);
     assert(clipped.every(value=>!value),'Atlas slice is empty or cuts visible pixels at its edges');
+    function expectedKind(frame) {
+        if (definition.facingCamera !== false) return 0;
+        const degrees = (((definition.rotationDegrees ?? 0) + frame * 360 / definition.atlas.directions) % 360 + 360) % 360;
+        return (24 | ((Math.round(degrees / 360 * 65536) & 0xffff) << 16)) >>> 0;
+    }
     let car=await evaluate('window.__car');
-    assert.equal(car.kind,0,'facingCamera=true car no longer uses billboard geometry');
+    assert.equal(car.kind,expectedKind(car.layer-definition.textureLayer),'Car geometry no longer matches its configured facing mode');
     assert.equal(car.layer,36,'South observer must see rear view');
     const rear=definition.atlas.frames[4];
     assert(Math.abs(car.sx-member.scale.x*rear.width/rear.height)<.00001 && Math.abs(car.sy-member.scale.y)<.00001,'Atlas aspect/group scale incorrect');
@@ -117,6 +123,7 @@ try {
     const angle=Math.atan2(camera[1]-(carY+.5),camera[0]-(carX+.5))+Math.PI/2;
     const view=((Math.floor(angle/(Math.PI*2)*8+.5)%8)+8)%8;
     assert.equal(car.layer,32+view,'Movement did not select the expected directional layer');
+    assert.equal(car.kind,expectedKind(view),'Movement selected the wrong directional plane');
     assert.notEqual(car.layer,36,'Strafing did not change the view');
     await evaluate('document.dispatchEvent(new MouseEvent("mousemove",{movementX:40,bubbles:true}))');
     await new Promise(resolve=>setTimeout(resolve,100));

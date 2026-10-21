@@ -17,6 +17,7 @@ public sealed class Wolf : IDisposable
     private readonly BlazorJSRuntime _js;
     private readonly Stopwatch _clock = new();
     private readonly FrameTiming _timing;
+    private double _frameClockOrigin = double.NaN;
     private readonly SemaphoreSlim _mapSwitchLock = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _pendingLoad;
@@ -93,6 +94,7 @@ public sealed class Wolf : IDisposable
             _lastPoseNotification = double.NegativeInfinity;
             _lastDrivingNotification = double.NegativeInfinity;
             _timing.Reset();
+            _frameClockOrigin = double.NaN;
             int generation = ++_frameGeneration;
             Console.WriteLine($"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
             ScheduleFrame(generation);
@@ -111,16 +113,19 @@ public sealed class Wolf : IDisposable
         }
     }
 
-    private void ScheduleFrame(int generation) => _window.RequestAnimationFrame(() => Frame(generation));
+    private void ScheduleFrame(int generation) => _window.RequestAnimationFrame(timestamp => Frame(generation, timestamp));
     private bool IsCurrent(int generation) => !_disposed && _scene != null && generation == _frameGeneration;
 
-    private void Frame(int generation)
+    private void Frame(int generation, double timestamp)
     {
         if (!IsCurrent(generation)) return;
         try
         {
             // Return to the browser between frames so input and painting can run.
-            if (!_timing.TryAdvance(_clock.Elapsed.TotalMilliseconds, out var deltaTime))
+            // Browser timestamps share the display's clock. Callback-entry wall time
+            // varies with other main-thread work and can alternate short/long frames.
+            if (double.IsNaN(_frameClockOrigin)) _frameClockOrigin = timestamp;
+            if (!_timing.TryAdvance(timestamp - _frameClockOrigin, out var deltaTime))
             {
                 ScheduleFrame(generation);
                 return;
@@ -191,7 +196,8 @@ public sealed class Wolf : IDisposable
             await _renderer.PrepareSceneAsync(map, operation.Token, character: _scene.Character);
             if (!IsCurrent(generation)) return;
             _sceneTextures = map.Textures;
-            _timing.Reset(_clock.Elapsed.TotalMilliseconds);
+            _timing.Reset();
+            _frameClockOrigin = double.NaN;
             ScheduleFrame(generation);
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested) { }

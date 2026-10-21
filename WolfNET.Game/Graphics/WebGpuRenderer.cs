@@ -34,8 +34,20 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
     private GPUBuffer? _spriteBuffer;
     private GPUBindGroup? _spriteBindGroup;
     private int _spriteCapacity;
-    private readonly List<(Sprite Sprite, float Distance)> _sortedSprites = [];
-    private readonly List<Sprite> _frameSprites = [];
+    private readonly SpriteSelection _spriteSelection = new();
+    private BrowserSpriteSelection? _browserSprites;
+    private byte[] _spriteBytes = [];
+    private Uint32Array? _spriteUpload;
+    private Float32Array? _cameraUpload;
+    private Uint32Array? _spriteCountUpload;
+    private readonly byte[] _cameraBytes = new byte[CameraBufferSize];
+    private readonly byte[] _spriteCountBytes = new byte[4];
+    private int _uploadedSpriteCount = -1;
+    private bool _profiling;
+    private long _profileSampleStart;
+    private int _profileFrames;
+    private double _selectionMilliseconds, _uploadMilliseconds, _submissionMilliseconds;
+    private long _profileCandidates, _profileSprites;
     private readonly Stopwatch _sceneAnimationClock = new();
 
     private GPUBindGroup? _computeBindGroup;
@@ -82,14 +94,15 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
 
         // 1. Synchronize map only if revision changed.
         UpdateMap(map);
-        _frameSprites.Clear();
-        _frameSprites.AddRange(map.Sprites);
-        if (character is { } avatar) _frameSprites.Add(avatar);
-        var sprites = _frameSprites;
 
         // 2. Update camera every frame.
         UpdateCamera(position, direction, plane, pitch, elevation);
-        UpdateSprites(sprites, position, _sceneAnimationClock.Elapsed.TotalSeconds);
+        var selectionStart = _profiling ? Stopwatch.GetTimestamp() : 0;
+        _browserSprites!.Select(_spriteSelection, map.Sprites, position, direction, plane, _settings.RenderDistance,
+            map.RaceMinimap != null, _sceneAnimationClock.Elapsed.TotalSeconds, character);
+        var uploadStart = _profiling ? Stopwatch.GetTimestamp() : 0;
+        UpdateSprites();
+        var submissionStart = _profiling ? Stopwatch.GetTimestamp() : 0;
 
         // 3. Create GPU command encoder.
         using var encoder =
@@ -157,11 +170,11 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
             // Fullscreen triangle.
             pass.Draw(3);
 
-            if (_sortedSprites.Count > 0)
+            if (_spriteSelection.Visible.Count > 0)
             {
                 pass.SetPipeline(_spritePipeline);
                 pass.SetBindGroup(0, _spriteBindGroup!);
-                pass.Draw(6, (uint)_sortedSprites.Count);
+                pass.Draw(6, (uint)_spriteSelection.Visible.Count);
             }
 
             // Race maps use their route-only SVG HUD instead of scenery dots.
@@ -180,6 +193,7 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
 
         using var queue = _device.Queue;
         queue.Submit([commands]);
+        if (_profiling) ReportProfile(selectionStart, uploadStart, submissionStart);
 
         _frameCount++;
 
@@ -189,6 +203,32 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
             Console.WriteLine(
                 $"[GPU] Frame {_frameCount}");
         }
+    }
+
+    private void ReportProfile(long selectionStart, long uploadStart, long submissionStart)
+    {
+        _selectionMilliseconds += Stopwatch.GetElapsedTime(selectionStart, uploadStart).TotalMilliseconds;
+        _uploadMilliseconds += Stopwatch.GetElapsedTime(uploadStart, submissionStart).TotalMilliseconds;
+        _submissionMilliseconds += Stopwatch.GetElapsedTime(submissionStart).TotalMilliseconds;
+        _profileCandidates += _spriteSelection.CandidatesExamined;
+        _profileSprites += _spriteSelection.Visible.Count;
+        _profileFrames++;
+        if (Stopwatch.GetElapsedTime(_profileSampleStart).TotalSeconds < 1) return;
+        Console.WriteLine("[PROFILE] " + System.Text.Json.JsonSerializer.Serialize(new
+        {
+            frames = _profileFrames,
+            candidates = _profileCandidates / (double)_profileFrames,
+            sprites = _profileSprites / (double)_profileFrames,
+            uploadBytes = _profileSprites * SpriteSize / (double)_profileFrames,
+            selectionMs = _selectionMilliseconds / _profileFrames,
+            uploadMs = _uploadMilliseconds / _profileFrames,
+            // CPU command encoding/submission time; this does not wait for GPU completion.
+            submissionMs = _submissionMilliseconds / _profileFrames
+        }));
+        _profileSampleStart = Stopwatch.GetTimestamp();
+        _profileFrames = 0;
+        _selectionMilliseconds = _uploadMilliseconds = _submissionMilliseconds = 0;
+        _profileCandidates = _profileSprites = 0;
     }
 
     private void OnGpuError(
@@ -227,9 +267,12 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
         _minimapPipeline?.Dispose();
 
         _context?.Dispose();
+        _cameraUpload?.Dispose();
+        _spriteCountUpload?.Dispose();
+        _browserSprites?.Dispose();
+        _browserSprites = null;
         _device?.Dispose();
 
-        _sortedSprites.Clear();
         _uploadedMap = null;
 
         Console.WriteLine("[GPU] Renderer disposed");
