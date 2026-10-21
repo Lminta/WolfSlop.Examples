@@ -1,13 +1,13 @@
 {
   "car": {
     "length": 0.9,
-    "width": 0.7,
+    "width": 0.6,
     "wheelbase": 0.65,
     "stopSpeed": 0.05,
-    "maxSteeringDegrees": 30,
-    "steeringRateDegrees": 150,
-    "steeringReturnDegrees": 200,
-    "angularResponse": 8,
+    "maxSteeringDegrees": 10,
+    "steeringRateDegrees": 40,
+    "steeringReturnDegrees": 80,
+    "angularResponse": 5,
     "cameraFollowDistance": 1.5,
     "cameraElevation": 0.25,
     "mouseSensitivity": 0.0025,

@@ -18,7 +18,7 @@ internal static class CarSceneChecks
         }
         var gameplay = await http.GetFromJsonAsync<GameplaySettings>("gameplay-settings.json") ?? throw new Exception("Missing gameplay settings");
         gameplay.Validate();
-        Check(gameplay.Car.Length == .9f && gameplay.Car.Width == .7f && gameplay.Car.Asphalt.MaxForwardSpeed == 18 &&
+        Check(gameplay.Car.Length == .9f && gameplay.Car.Width == .6f && gameplay.Car.Asphalt.MaxForwardSpeed == 18 &&
             gameplay.Car.OffRoad.MaxForwardSpeed == 8, "Approved gameplay defaults did not load from JSON.");
         Reject(gameplay with { Car = gameplay.Car with { Width = float.NaN } });
         Reject(gameplay with { Car = gameplay.Car with { Wheelbase = 2 } });
@@ -37,7 +37,7 @@ internal static class CarSceneChecks
         var keyboard = new KeyboardState();
         var mouse = new Mouse();
         using var scene = new GameScene(loaded.Map, appearance, keyboard, mouse, renderer, gameplay);
-        Check(scene.Player is CarObject && scene.Player.InteractionRadius > .57f && !scene.Player.InAir,
+        Check(scene.Player is CarObject && scene.Player.InteractionRadius > .54f && !scene.Player.InAir,
             "Race scene needs a grounded car and full-footprint door protection.");
         var car = (CarObject)scene.Player;
         Check(scene.CaptureFrame().Character == null && !car.Camera.ThirdPerson, "Race must start in first person.");
@@ -67,7 +67,7 @@ internal static class CarSceneChecks
         keyboard.Press("KeyV"); scene.Update(1000f / 60); keyboard.Release("KeyV");
         var frame = scene.CaptureFrame();
         Check(car.Camera.ThirdPerson && frame.Character is { } sprite && sprite.ViewLayer(frame.Position) == appearance.FirstLayer + 4 &&
-            sprite.ViewScale(frame.Position).X > .69f && sprite.ViewScale(frame.Position).X < .71f &&
+            sprite.ViewScale(frame.Position).X > .59f && sprite.ViewScale(frame.Position).X < .61f &&
             !sprite.FacingCamera && (sprite.ViewKind(frame.Position) & (uint)SpriteKind.DirectionalPlane) != 0,
             "Chase view did not render the correctly scaled rear car frame.");
         var rearSprite = frame.Character!.Value;
@@ -76,6 +76,10 @@ internal static class CarSceneChecks
         Check(nearbySprite.ViewScale(nearbyObserver) == rearSprite.ViewScale(frame.Position) &&
             nearbySprite.ViewKind(nearbyObserver) == rearSprite.ViewKind(frame.Position),
             "Car sprite stretched or rotated its plane within the same directional sector.");
+        var sideObserver = car.Transform.Position + new Vector2(-car.Transform.Rotation.Y, car.Transform.Rotation.X) * 1.5f;
+        var sideSprite = appearance.CreateSprite(car, sideObserver);
+        Check(MathF.Abs(sideSprite.ViewScale(sideObserver).X - gameplay.Car.Length) < .001f,
+            "Narrowing the car incorrectly shortened its side-view sprite.");
         mouse.Movement = new(-MathF.PI / gameplay.Car.MouseSensitivity, 20);
         scene.Update(1000f / 60);
         Check(Vector2.Dot(scene.CaptureFrame().Direction, car.Transform.Rotation) < -.99f,

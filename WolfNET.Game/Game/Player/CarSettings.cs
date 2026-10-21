@@ -26,13 +26,13 @@ public sealed record CarSurfaceSettings
 public sealed record CarSettings
 {
     public float Length { get; init; } = .9f;
-    public float Width { get; init; } = .7f;
+    public float Width { get; init; } = .6f;
     public float Wheelbase { get; init; } = .65f;
     public float StopSpeed { get; init; } = .05f;
-    public float MaxSteeringDegrees { get; init; } = 30;
-    public float SteeringRateDegrees { get; init; } = 150;
-    public float SteeringReturnDegrees { get; init; } = 200;
-    public float AngularResponse { get; init; } = 8;
+    public float MaxSteeringDegrees { get; init; } = 10;
+    public float SteeringRateDegrees { get; init; } = 40;
+    public float SteeringReturnDegrees { get; init; } = 80;
+    public float AngularResponse { get; init; } = 5;
     public float CameraFollowDistance { get; init; } = 1.5f;
     public float CameraElevation { get; init; } = .25f;
     public float MouseSensitivity { get; init; } = .0025f;

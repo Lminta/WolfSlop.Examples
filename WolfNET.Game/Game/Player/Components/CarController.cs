@@ -125,13 +125,29 @@ public sealed class CarController : ComponentBase
         // forward, and reverses that yaw while backing up. Contact area does not
         // scale the penalty or pull: each side is either on mud or off it.
         yawTarget += pullSide * _settings.MudPullStrength * longitudinal / _settings.Asphalt.MaxForwardSpeed;
-        var yawLimit = surface.MaxLateralAcceleration / MathF.Max(MathF.Abs(longitudinal), _settings.StopSpeed);
+        var maximumCurvature = MathF.Tan(_settings.MaxSteeringDegrees * MathF.PI / 180) / _settings.Wheelbase;
+        maximumCurvature += MathF.Abs(pullSide) * _settings.MudPullStrength / _settings.Asphalt.MaxForwardSpeed;
+        var yawLimit = MathF.Min(
+            MathF.Abs(longitudinal) * maximumCurvature,
+            surface.MaxLateralAcceleration / MathF.Max(MathF.Abs(longitudinal), _settings.StopSpeed));
         yawTarget = Math.Clamp(yawTarget, -yawLimit, yawLimit);
         AngularVelocity += (yawTarget - AngularVelocity) * (1 - MathF.Exp(-_settings.AngularResponse * seconds));
+        // Heading must follow distance travelled even while braking. Retaining
+        // a previous yaw rate at crawling speed lets the body pivot in place.
+        AngularVelocity = Math.Clamp(AngularVelocity, -yawLimit, yawLimit);
         if (Velocity == Vector2.Zero) AngularVelocity = 0;
         var rotation = AngularVelocity * seconds;
         var result = _collider.MoveAndSlide(transform.Position, forward, Velocity * seconds, rotation, Velocity);
         Velocity = result.Velocity;
+        if (result.Collided)
+        {
+            // An impact can remove most of this step's planned motion. Do not
+            // accumulate steering momentum while pushing into a barrier.
+            var resolvedSpeed = MathF.Abs(Vector2.Dot(Velocity, result.Direction));
+            var resolvedLimit = MathF.Min(resolvedSpeed * maximumCurvature,
+                surface.MaxLateralAcceleration / MathF.Max(resolvedSpeed, _settings.StopSpeed));
+            AngularVelocity = Math.Clamp(AngularVelocity, -resolvedLimit, resolvedLimit);
+        }
         if (result.Collided && Vector2.DistanceSquared(result.Direction, Rotate(forward, rotation)) > .00000001f)
             AngularVelocity = 0;
         Parent.Transform = new Transform { Position = result.Position, Rotation = result.Direction };

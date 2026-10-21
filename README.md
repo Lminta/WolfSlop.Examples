@@ -155,7 +155,12 @@ and **Space** brakes without reversing. Opposing W/S inputs also brake. There is
 no jumping, crouching, strafing, damage, or rebound. The car coasts after throttle
 release; glancing collisions preserve motion along a barrier.
 
-The car uses a rotating **0.9 × 0.7 block** footprint and a 120 Hz simulation.
+The car uses a rotating **0.9 × 0.6 block** footprint and a 120 Hz simulation.
+Its directional sprite follows the configured footprint width and length.
+The 10° road-wheel steering limit and 0.65-block wheelbase give a low-speed
+turning radius of approximately **3.7 blocks**. Steering builds progressively;
+angular speed is limited by both travel speed and available tire grip, including
+while braking, so the car cannot keep pivoting as it slows to a stop.
 Engine acceleration tapers near the speed limit. Asphalt provides stronger grip
 and rolling friction than off-road terrain. Grass and mud share handling; the
 `surfacePenaltyCoefficient` progressively removes excess speed rather than

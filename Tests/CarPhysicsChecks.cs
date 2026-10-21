@@ -49,7 +49,7 @@ internal static class CarPhysicsChecks
         var noPull = new CarSettings { MudPullStrength = 0 };
         string Edge(Vector2 point) => point.Y >= 101 ? "mud" : "asphalt";
         var edgeRoad = Create(noPull, Edge, position: new(100.5f, 100.5f));
-        var shallow = Create(noPull, Edge, position: new(100.5f, 100.651f));
+        var shallow = Create(noPull, Edge, position: new(100.5f, 100.701f));
         var deep = Create(noPull, Edge, position: new(100.5f, 100.99f));
         var edgeMud = Create(noPull, Edge, position: new(100.5f, 101.5f));
         foreach (var rig in new[] { edgeRoad, shallow, deep, edgeMud })
@@ -61,7 +61,7 @@ internal static class CarPhysicsChecks
             "Partial mud penalty changed with the amount of footprint overlap.");
         Check(shallow.Controller.Speed > edgeMud.Controller.Speed && shallow.Controller.Speed < edgeRoad.Controller.Speed,
             "A partly off-road car did not receive an intermediate acceleration penalty.");
-        var firstPartial = Create(noPull, Edge, position: new(100.5f, 100.651f));
+        var firstPartial = Create(noPull, Edge, position: new(100.5f, 100.701f));
         firstPartial.Keys.KeyState = new() { Forward = true };
         firstPartial.Controller.Update(1000f / 120);
         Check(MathF.Abs(firstPartial.Controller.Speed * 120 - 5.2f) < .001f,
@@ -97,7 +97,7 @@ internal static class CarPhysicsChecks
         Advance(parkedEdge.Controller, .5f);
         Check(parkedEdge.Actor.Transform.Rotation == Vector2.UnitX && parkedEdge.Controller.AngularVelocity == 0,
             "Mud contact rotated a stationary car.");
-        var pullShallow = Create(surface: Edge, position: new(100.5f, 100.651f));
+        var pullShallow = Create(surface: Edge, position: new(100.5f, 100.701f));
         var pullDeep = Create(surface: Edge, position: new(100.5f, 100.99f));
         pullShallow.Keys.KeyState = pullDeep.Keys.KeyState = new() { Forward = true };
         pullShallow.Controller.Update(1000f / 120); pullDeep.Controller.Update(1000f / 120);
@@ -231,7 +231,7 @@ internal static class CarPhysicsChecks
         stationary.Keys.KeyState = new() { StrafeLeft = true, Crouch = true };
         Advance(stationary.Controller, .5f);
         Check(stationary.Actor.Transform.Position == stationaryPose.Position &&
-              stationary.Actor.Transform.Rotation == stationaryPose.Rotation && stationary.Controller.SteeringAngle > .5f,
+              stationary.Actor.Transform.Rotation == stationaryPose.Rotation && stationary.Controller.SteeringAngle > .17f,
             "A stationary car may turn its wheels but must neither strafe, crouch nor rotate its body.");
         stationary.Keys.KeyState = new() { Jump = true, Crouch = true };
         Advance(stationary.Controller, .5f);
@@ -262,6 +262,32 @@ internal static class CarPhysicsChecks
         Advance(reverseTurn.Controller, .25f);
         Check(reverseTurn.Controller.AngularVelocity < 0 && reverseTurn.Actor.Transform.Rotation.Y < 0,
             "Reverse steering must rotate the car in the opposite direction.");
+        Advance(reverseTurn.Controller, 4);
+        var reverseRadius = reverseTurn.Controller.Speed / MathF.Abs(reverseTurn.Controller.AngularVelocity);
+        Check(reverseRadius > 3.5f && reverseRadius < 5,
+            $"Full-lock low-speed steering still turns nearly in place: radius {reverseRadius}");
+
+        var brakingTurn = Create();
+        brakingTurn.Keys.KeyState = new() { Forward = true, StrafeLeft = true };
+        Advance(brakingTurn.Controller, 2);
+        brakingTurn.Keys.KeyState = new() { Jump = true, StrafeLeft = true };
+        var traveledWhileBraking = 0f;
+        var rotatedWhileBraking = 0f;
+        for (var step = 0; step < 240; step++)
+        {
+            var previous = brakingTurn.Actor.Transform;
+            brakingTurn.Controller.Update(1000f / 120);
+            var current = brakingTurn.Actor.Transform;
+            traveledWhileBraking += Vector2.Distance(previous.Position, current.Position);
+            rotatedWhileBraking += MathF.Abs(MathF.Atan2(
+                previous.Rotation.X * current.Rotation.Y - previous.Rotation.Y * current.Rotation.X,
+                Vector2.Dot(previous.Rotation, current.Rotation)));
+            Check(MathF.Abs(brakingTurn.Controller.AngularVelocity) <= brakingTurn.Controller.Speed / 3.5f + .001f,
+                "Braking retained a yaw rate incompatible with the car's remaining travel speed.");
+        }
+        Check(brakingTurn.Controller.Speed == 0 && brakingTurn.Controller.AngularVelocity == 0 &&
+            rotatedWhileBraking <= traveledWhileBraking / 3.5f + .001f,
+            "A braking turn pivoted the body without travelling the required turning arc.");
         var arrows = Create();
         arrows.Keys.KeyState = new() { Forward = true, Right = true };
         Advance(arrows.Controller, 1);
@@ -306,13 +332,13 @@ internal static class CarPhysicsChecks
             "Pausing/resetting time discarded car momentum or steering state.");
 
         var wallNavigation = new TestNavigation((x, _) => x < 10);
-        var collider = new OrientedBoxCollider(wallNavigation, .9f, .7f);
+        var collider = new OrientedBoxCollider(wallNavigation, .9f, .6f);
         Check(collider.CanOccupy(new(9.54f, 5.5f), Vector2.UnitX) &&
               !collider.CanOccupy(new(9.56f, 5.5f), Vector2.UnitX),
             "Car collision did not use its requested 0.9-block length.");
-        Check(collider.CanOccupy(new(9.64f, 5.5f), Vector2.UnitY) &&
-              !collider.CanOccupy(new(9.66f, 5.5f), Vector2.UnitY),
-            "Car collision did not use its requested 0.7-block width.");
+        Check(collider.CanOccupy(new(9.69f, 5.5f), Vector2.UnitY) &&
+              !collider.CanOccupy(new(9.71f, 5.5f), Vector2.UnitY),
+            "Car collision did not use its requested 0.6-block width.");
         var collision = collider.MoveAndSlide(new(5.5f, 5.5f), Vector2.UnitX, new(40, 0), 0, new(40, 0));
         Check(collision.Collided && MathF.Abs(collision.Position.X - 9.55f) < .0001f && collision.Velocity.X == 0 &&
               collider.CanOccupy(collision.Position, collision.Direction),
@@ -322,7 +348,7 @@ internal static class CarPhysicsChecks
         Check(slide.Collided && slide.Position.Y > 8.4f && slide.Velocity.Y > 0 && MathF.Abs(slide.Velocity.X) < .0001f &&
               collider.CanOccupy(slide.Position, slide.Direction),
             "Car contact did not preserve tangential sliding along a wall.");
-        var corridor = new OrientedBoxCollider(new TestNavigation((x, _) => x == 5), .9f, .7f);
+        var corridor = new OrientedBoxCollider(new TestNavigation((x, _) => x == 5), .9f, .6f);
         var throughCorridor = corridor.MoveAndSlide(new(5.5f, 2), Vector2.UnitY, new(0, 20), 0, new(0, 20));
         Check(Vector2.Distance(throughCorridor.Position, new(5.5f, 22)) < .001f,
             "The oriented car could not fit through a one-block-wide straight lane.");
@@ -330,7 +356,7 @@ internal static class CarPhysicsChecks
         Check(rotation.Collided && corridor.CanOccupy(rotation.Position, rotation.Direction) &&
               MathF.Abs(rotation.Direction.Y) > .5f,
             "Rotation swept the car through a wall in a tight corridor.");
-        var cornerCollider = new OrientedBoxCollider(new TestNavigation((x, y) => x != 10 || y != 10), .9f, .7f);
+        var cornerCollider = new OrientedBoxCollider(new TestNavigation((x, y) => x != 10 || y != 10), .9f, .6f);
         var diagonalHeading = Vector2.Normalize(Vector2.One);
         Check(cornerCollider.CanOccupy(new(9.5f, 9.5f), diagonalHeading) &&
               !cornerCollider.CanOccupy(new(9.7f, 9.7f), diagonalHeading),
@@ -340,6 +366,11 @@ internal static class CarPhysicsChecks
         Advance(wallCar.Controller, 10);
         Check(MathF.Abs(wallCar.Actor.Transform.Position.X - 9.55f) < .0001f && wallCar.Controller.Speed < .001f,
             "Repeated throttle against a barrier let the car overlap scenery or accumulate hidden speed.");
+        wallCar.Keys.KeyState = new() { Forward = true, StrafeLeft = true };
+        Advance(wallCar.Controller, 2);
+        Check(MathF.Abs(MathF.Atan2(wallCar.Actor.Transform.Rotation.Y, wallCar.Actor.Transform.Rotation.X)) < .01f &&
+            MathF.Abs(wallCar.Controller.AngularVelocity) < .002f,
+            "Steering accumulated yaw while forward motion was blocked by a barrier.");
 
         return assertions;
     }

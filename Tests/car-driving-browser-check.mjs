@@ -218,7 +218,7 @@ try {
     await tap('KeyV');
     await waitFor(`!document.querySelector('.car-cockpit') && window.__avatar?.frame === 4`);
     const avatar = await evaluate('window.__avatar');
-    assert(Math.abs(avatar.width - .7) < .001 && Math.abs(avatar.height - .45) < .001, 'Chase view used the wrong car sprite dimensions');
+    assert(Math.abs(avatar.width - .6) < .001 && Math.abs(avatar.height - .45) < .001, 'Chase view used the wrong car sprite dimensions');
     assert.equal(avatar.kind & 24, 24, 'Car character is still a camera-facing billboard');
     const chase = await camera();
     assert(Math.abs(Math.hypot(chase[0] - avatar.x, chase[1] - avatar.y) - 1.5) < .01, 'Chase view lost its follow distance');
