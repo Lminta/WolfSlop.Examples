@@ -1,0 +1,33 @@
+@using WolfNET.Game
+@implements IDisposable
+@inject Wolf Wolf
+
+<span class="fps-counter" aria-label="Frames per second">@(_fps?.ToString() ?? "—") FPS</span>
+
+@code {
+    private int? _fps;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        _fps = Wolf.FramesPerSecond;
+        Wolf.FramesPerSecondChanged += OnFrameRateChanged;
+    }
+
+    private void OnFrameRateChanged(int? fps)
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            _fps = fps;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Wolf.FramesPerSecondChanged -= OnFrameRateChanged;
+    }
+}

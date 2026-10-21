@@ -28,6 +28,8 @@ public sealed class Wolf : IDisposable
     private double _lastPoseNotification = double.NegativeInfinity;
     private double _lastDrivingNotification = double.NegativeInfinity;
     private readonly GameplaySettings _gameplay;
+    private double _fpsSampleStart = double.NaN;
+    private int _fpsFrameCount;
 
     public IControlledActor? Player => _scene?.Player;
     public DrivingViewState? DrivingState => _scene?.DrivingState;
@@ -36,9 +38,11 @@ public sealed class Wolf : IDisposable
     public IMap Map => _scene?.Map ?? throw new InvalidOperationException("No scene is running.");
     public RendererSettings RendererSettings { get; }
     public string? CurrentMapPath { get; private set; }
+    public int? FramesPerSecond { get; private set; }
     public event Action<string>? MapSwitchRequested;
     public event Action<PlayerPose>? PlayerPoseChanged;
     public event Action<DrivingViewState>? DrivingStateChanged;
+    public event Action<int?>? FramesPerSecondChanged;
 
     public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js, GameplaySettings gameplay)
     {
@@ -137,6 +141,7 @@ public sealed class Wolf : IDisposable
                 return;
             }
             _renderer.Render(_scene.CaptureFrame());
+            ReportFrameRate();
             if (_scene.DrivingState is { } driving && DrivingStateChanged != null &&
                 _clock.Elapsed.TotalMilliseconds - _lastDrivingNotification >= 1000d / 30)
             {
@@ -156,6 +161,21 @@ public sealed class Wolf : IDisposable
             Stop();
             Console.Error.WriteLine($"[GAME] Frame failed: {ex}");
         }
+    }
+
+    private void ReportFrameRate()
+    {
+        var now = _clock.Elapsed.TotalMilliseconds;
+        if (double.IsNaN(_fpsSampleStart)) { _fpsSampleStart = now; return; }
+        _fpsFrameCount++;
+        var elapsed = now - _fpsSampleStart;
+        if (elapsed < 500) return;
+        var fps = (int)Math.Round(_fpsFrameCount * 1000d / elapsed);
+        _fpsSampleStart = now;
+        _fpsFrameCount = 0;
+        if (FramesPerSecond == fps) return;
+        FramesPerSecond = fps;
+        FramesPerSecondChanged?.Invoke(fps);
     }
 
     // Edited maps can add textures. Serialize uploads with map switches.
@@ -192,6 +212,10 @@ public sealed class Wolf : IDisposable
         _pendingLoad?.Cancel();
         _frameGeneration++;
         _clock.Stop();
+        _fpsSampleStart = double.NaN;
+        _fpsFrameCount = 0;
+        FramesPerSecond = null;
+        FramesPerSecondChanged?.Invoke(null);
         _input?.Dispose();
         _scene?.Dispose();
         _input = null;

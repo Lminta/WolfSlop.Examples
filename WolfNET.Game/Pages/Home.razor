@@ -33,6 +33,11 @@
 }
 </div>
 
+@if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null)
+{
+    <WolfNET.Components.FpsCounter @key="Wolf.CurrentMapPath" />
+}
+
 @if (_loading)
 {
     <div class="loading-overlay" role="status" aria-live="polite" aria-atomic="true">

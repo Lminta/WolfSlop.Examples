@@ -4,6 +4,6 @@
   "targetFPS": 60,
   "maxAnisotropy": 4,
   "fovDegrees": 90,
-  "renderDistance": 80,
-  "fogStartDistance": 40
+  "renderDistance": 60,
+  "fogStartDistance": 35
 }

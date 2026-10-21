@@ -39,6 +39,21 @@ canvas {
     outline: none;
 }
 
+.fps-counter {
+    position: fixed;
+    left: 8px;
+    bottom: 8px;
+    z-index: 30;
+    padding: 3px 5px;
+    border-radius: 3px;
+    background: #111923b3;
+    color: #e0e8ee;
+    font: 11px/1.2 ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    user-select: none;
+}
+
 .map-switcher,
 .controls-hint {
     right: 16px;
