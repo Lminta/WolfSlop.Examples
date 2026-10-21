@@ -24,6 +24,8 @@ disabled only for maps containing race-minimap metadata.
 The overlay has no panel background or border, uses an 8-pixel road stroke,
 and is inset 12 pixels from the canvas's upper-left corner. It follows the
 canvas rather than the window when resizing or letterboxing.
+Its circular edge fades the course into the scene instead of cutting it off;
+the player arrow remains sharp.
 
 `raceMinimap` in the map JSON contains `route` (a closed polyline), `startFinish`
 (one point), and `shortcuts` (an array of polylines). Points are `[x,y]` world
