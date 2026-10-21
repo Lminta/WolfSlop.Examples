@@ -36,6 +36,7 @@
     <Compile Include="../WolfNET.Game/Game/Player/PlayerObject.cs" Link="Game/Player/PlayerObject.cs" />
     <Compile Include="../WolfNET.Game/Game/ICamera.cs" Link="Game/ICamera.cs" />
     <Compile Include="../WolfNET.Game/Game/GameScene.cs" Link="Game/GameScene.cs" />
+    <Compile Include="../WolfNET.Game/Game/MapInteraction.cs" Link="Game/MapInteraction.cs" />
     <Compile Include="../WolfNET.Game/Game/GameSceneLoader.cs" Link="Game/GameSceneLoader.cs" />
     <Compile Include="../WolfNET.Game/Graphics/RendererSettings.cs" Link="Graphics/RendererSettings.cs" />
     <Compile Include="../WolfNET.Game/Graphics/RenderFrame.cs" Link="Graphics/RenderFrame.cs" />

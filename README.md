@@ -24,7 +24,9 @@ pit boxes, and several spectator stands and landmarks. Continuous safety rails
 close the cuts except for one dirt shortcut. Animated flagpoles and
 cheering spectators join fake sponsor billboards and a starting signal. Separate
 tire stacks protect the bends, and long buffer sprites keep a fixed orientation.
-Choose it in the map selector or open `?map=pine-loop`. Its
+Find a parked car in the Glassworks east service room, the Brickyard motor yard,
+or the Showcase annex, face it from nearby, and press **F** to enter Pine Loop.
+Its
 [map notes](WolfNET.Game/wwwroot/maps/pine-loop.md) describe the route and assets.
 
 Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filtering

@@ -6,7 +6,11 @@ loops occupy the infield instead of repeating small switchbacks. Rounded bends
 have radii of 14–30 blocks, and the eastern side has a **384-block uninterrupted
 straight** between its corner arcs. Distances follow the tile centerline.
 
-Open `/?map=pine-loop` or choose **Pine Loop** in the existing map selector.
+Find a car on another map and press **F** while facing it from nearby to enter
+Pine Loop. Cars are in the Glassworks east service room at **(20,20)**, the
+Brickyard motor yard at **(29,5)**, and the Showcase annex at **(30,18)**. Pine
+Loop is omitted from the map selector. The direct `/?map=pine-loop` URL remains
+available for authoring and regression previews.
 The player starts at **(25.5,445.5)** facing north, behind the checkerboard.
 The existing movement and camera controls apply.
 

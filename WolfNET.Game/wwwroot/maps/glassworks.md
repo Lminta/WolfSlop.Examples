@@ -48,6 +48,10 @@ spilled planters at **(21,17)** between the east service room and herbarium.
 Both obstacles have clear approaches and landing space on either side. Line up
 with the gap before jumping; the jump direction stays fixed after takeoff.
 
+A parked car occupies **(20,20)** in the east service room. Face it from nearby
+and press **F** to enter the Pine Loop racing circuit. The car shares the same
+interaction key as doors.
+
 Coordinates use **`worldMap[x][y]`**, not conventional row-first indexing. The
 outer JSON arrays are X columns, and north is decreasing Y. The diagram above
 uses the conventional north-up view; do not read the JSON arrays as its rows.

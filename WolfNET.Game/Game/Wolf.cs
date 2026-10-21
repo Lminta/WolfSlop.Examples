@@ -32,6 +32,7 @@ public sealed class Wolf : IDisposable
     public IMap Map => _scene?.Map ?? throw new InvalidOperationException("No scene is running.");
     public RendererSettings RendererSettings { get; }
     public string? CurrentMapPath { get; private set; }
+    public event Action<string>? MapSwitchRequested;
 
     public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js)
     {
@@ -111,6 +112,11 @@ public sealed class Wolf : IDisposable
                 return;
             }
             _scene!.Update(deltaTime);
+            if (_scene.ConsumeMapRequest() is { } destination && destination != CurrentMapPath && MapSwitchRequested != null)
+            {
+                MapSwitchRequested.Invoke(destination);
+                return;
+            }
             if (!ReferenceEquals(_sceneTextures, _scene.Map.RendererMap.Textures))
             {
                 _ = RefreshSceneAsync(generation);

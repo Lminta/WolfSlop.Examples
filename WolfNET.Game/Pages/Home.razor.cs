@@ -53,6 +53,7 @@ public partial class Home
             return;
 
         Console.WriteLine("[APP] Component initialized");
+        Wolf.MapSwitchRequested += OnMapSwitchRequested;
 
         try
         {
@@ -117,9 +118,19 @@ public partial class Home
         }
     }
 
+    private void OnMapSwitchRequested(string mapPath)
+    {
+        if (!_disposed) _ = InvokeAsync(async () =>
+        {
+            await SelectMapAsync(mapPath);
+            if (!_disposed) StateHasChanged();
+        });
+    }
+
     public void Dispose()
     {
         _disposed = true;
+        Wolf.MapSwitchRequested -= OnMapSwitchRequested;
         if (_observedMouse != null) _observedMouse.CaptureStateChanged -= OnCaptureStateChanged;
         _lifetime.Cancel();
         Wolf.Stop();

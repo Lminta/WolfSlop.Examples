@@ -1032,6 +1032,7 @@ try
 finally { Directory.Delete(editorRoot, true); }
 assertions += SpriteAnimationChecks.Run();
 assertions += await EngineChecks.RunAsync(http);
+assertions += await CarInteractionChecks.RunAsync(http);
 assertions += await PineLoopChecks.RunAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
 

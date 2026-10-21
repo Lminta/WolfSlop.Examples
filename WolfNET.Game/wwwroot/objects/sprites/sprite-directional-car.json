@@ -62,5 +62,6 @@
         "height": 224
       }
     ]
-  }
+  },
+  "interactionMap": "maps/pine-loop.json"
 }

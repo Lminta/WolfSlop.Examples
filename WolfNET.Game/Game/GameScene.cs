@@ -11,6 +11,7 @@ public sealed class GameScene : IDisposable
 {
     private readonly ObjectCollection _objects = new();
     private readonly IKeyboardInput _input;
+    private string? _requestedMap;
     public IMap Map { get; }
     public PlayerObject Player { get; }
     public CharacterAppearance Character { get; }
@@ -35,8 +36,16 @@ public sealed class GameScene : IDisposable
     {
         _objects.Update(deltaMilliseconds);
         var transform = Player.Transform;
-        if (_input.ConsumeAction()) Map.Interact(transform.Position, transform.Rotation, Map.PlayerStart.CollisionRadius);
+        if (_input.ConsumeAction() && !Map.Interact(transform.Position, transform.Rotation, Map.PlayerStart.CollisionRadius))
+            _requestedMap ??= MapInteraction.FindDestination(Map, transform.Position, transform.Rotation);
         Map.UpdateDoors(deltaMilliseconds, transform.Position, Map.PlayerStart.CollisionRadius);
+    }
+
+    public string? ConsumeMapRequest()
+    {
+        var requested = _requestedMap;
+        _requestedMap = null;
+        return requested;
     }
 
     public RenderFrame CaptureFrame()

@@ -71,6 +71,7 @@ public sealed record SpriteAnimation
 
 public sealed record SpriteDefinition : MapObjectDefinition
 {
+    public string? InteractionMap { get; init; }
     public string? Texture { get; init; }
     public SpriteAtlas? Atlas { get; init; }
     public SpriteAnimation? Animation { get; init; }

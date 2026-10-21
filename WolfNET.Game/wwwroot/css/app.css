@@ -32,11 +32,15 @@ canvas {
     outline: none;
 }
 
+.map-switcher,
+.controls-hint {
+    right: 16px;
+    width: min(330px, calc(100vw - 32px));
+}
+
 .map-switcher {
     position: fixed;
     top: 16px;
-    right: 16px;
-    width: min(330px, calc(100vw - 32px));
     max-height: calc(100vh - 32px);
     overflow: auto;
     padding: 12px;
@@ -82,8 +86,6 @@ canvas {
 .controls-hint {
     position: fixed;
     bottom: 16px;
-    right: 16px;
-    width: min(400px, calc(100vw - 32px));
     padding: 12px;
     border: 1px solid #82919e;
     border-radius: 8px;

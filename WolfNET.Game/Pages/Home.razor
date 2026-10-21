@@ -34,8 +34,6 @@
 
 <aside class="map-switcher" aria-label="Map selection">
     <nav aria-label="Maps">
-        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == PineLoopMap))"
-                aria-pressed="@(_selectedMap == PineLoopMap ? "true" : "false")" @onclick="() => SelectMapAsync(PineLoopMap)">Pine Loop</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == GlassworksMap))"
                 aria-pressed="@(_selectedMap == GlassworksMap ? "true" : "false")" @onclick="() => SelectMapAsync(GlassworksMap)">The Glassworks</button>
         <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
@@ -77,7 +75,8 @@
 <aside class="controls-hint" aria-label="Game controls">
     <strong>Controls</strong>
     <p>W/S forward/back &middot; A/D strafe &middot; Mouse look</p>
-    <p>Space jump &middot; Alt crouch &middot; V camera &middot; F interact</p>
+    <p>Space jump &middot; Alt crouch &middot; V camera</p>
+    <p>Press "F" to interact with door or car.</p>
     <p role="status">@(_observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
 </aside>
 

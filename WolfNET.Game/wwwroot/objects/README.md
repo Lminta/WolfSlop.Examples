@@ -159,6 +159,18 @@ nonnegative. Animation and directional views cannot be combined in one sprite.
 The raceway flagpole and cheering-crowd presets each use three frames; the start
 signal and sponsor billboards are static scenery.
 
+### Car entrances to other maps
+
+A sprite can set `"interactionMap": "maps/pine-loop.json"`. The property also
+applies when that sprite belongs to a group. Pressing **F** while facing its cell
+from nearby requests the destination through the normal scene-loading flow.
+Closed doors, walls, and collision barriers block interaction; doors take priority
+on the same key. Interaction follows the player's position and facing in both
+camera modes. Destination paths must name a JSON file directly inside `maps/`.
+
+The parked cars in Glassworks, the Brickyard, and Showcase use this property.
+Pine Loop's pit display cars remain scenery.
+
 ### Sliding doors
 
 `type: "door"` uses a thin plane through the center of its tile. `axis: "x"`
