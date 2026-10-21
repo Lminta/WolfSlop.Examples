@@ -26,12 +26,25 @@ internal static class PineLoopChecks
         Check(collider.CanOccupy(map.PlayerStartPosition), "Pine Loop start overlaps scenery");
         Check(render.Sky != null && Cell(25, 440).Flags.HasFlag(RenderCellFlags.SkyCeiling),
             "Pine Loop starting straight must be outdoors");
-        Check(Enumerable.Range(24, 3).All(x => map.NavigationMap.IsWalkable(x, 440) &&
-            Floor(x, 440)?.EndsWith("/grid.svg") == true), "Pine Loop grid lost its three-wide starting zone");
+        Check(Enumerable.Range(24, 4).All(x => map.NavigationMap.IsWalkable(x, 440) &&
+            Floor(x, 440)?.EndsWith("/grid.svg") == true), "Pine Loop grid lost its four-wide starting zone");
         Check(Enumerable.Range(24, 2).All(x => map.NavigationMap.IsWalkable(x, 390) &&
             Floor(x, 390)?.EndsWith("/asphalt.png") == true) &&
             Floor(23, 390)?.EndsWith("/asphalt.png") != true && Floor(26, 390)?.EndsWith("/asphalt.png") != true,
             "Pine Loop starting zone does not narrow to two clear lanes");
+        foreach (var (x, y, vertical, expected) in new[] {
+            (232, 150, true, 3), (232, 220, true, 1),
+            (24, 360, true, 1), (150, 44, false, 1), (90, 478, false, 1) })
+        {
+            var lanes = Enumerable.Range(-4, 10).Count(offset =>
+                Floor(x + (vertical ? offset : 0), y + (vertical ? 0 : offset))?.EndsWith("/asphalt.png") == true);
+            Check(lanes == expected, $"Pine Loop road at {x},{y} should be {expected} blocks wide, got {lanes}");
+        }
+
+        foreach (var (x, y) in new[] { (27, 399), (28, 404), (28, 451), (28, 452), (92, 357), (98, 357) })
+            Check(collider.CanOccupy(new(x + .5f, y + .5f)) &&
+                render.Sprites.All(sprite => sprite.OwnerCell != y * render.Width + x + 1),
+                $"Pine Loop has leftover scenery in its road shoulder at {x},{y}");
 
         // Trace the full circuit with the production collision radius. The final
         // segment crosses the starting line, proving the route closes without

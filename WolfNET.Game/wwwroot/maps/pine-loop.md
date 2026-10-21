@@ -33,12 +33,17 @@ coordinates, validated to be finite and inside the map. The map generator author
 these from its lap anchors and shortcut endpoints. Editor load/export preserves
 them; regenerate the route metadata after changing the authored course layout.
 
-The starting straight has three full asphalt lanes at **X 24–26, Y 396–449**.
-The third lane tapers diagonally across **(26,395)**, leaving two lanes at
-**X 24–25** to the north. The checkerboard crosses the three starting lanes at
-**Y 442**; starting boxes repeat every four tiles from Y 400 to 448. The normal
-racing surface remains two tiles wide throughout the larger course, with extra
-space at the tiled corner joins and mud shoulders beside the asphalt.
+The starting grid has four full asphalt lanes at **X 24–27, Y 400–449**.
+The exit narrows through three lanes near Y 392–399 and two near Y 380–391.
+The checkerboard crosses all four starting lanes at **Y 442**; starting boxes
+repeat every four tiles from Y 400 to 448. Connecting straights throughout the
+lap alternate three-block passing sections and one-block narrow sections,
+with two-block transitions. The longest straight repeats this variation several
+times. Broad bends and the quarry tunnel retain two clear lanes, with mud
+shoulders and safety barriers following the changing asphalt width.
+Optional tire and buffer scenery leaves the road and its shoulder clear; the
+generator checks every racing-surface tile for stray objects before saving.
+The standalone buffer sample sits beside the paddock at **(35,404)**.
 
 From the grid, the route heads north into the meadow loop, curls through the
 woodland and central loops, passes the village on the inner eastern return,
@@ -47,7 +52,7 @@ straight leads to a wide southern sweep and back to the grid. There are no
 crossings or shared road sections.
 
 Continuous colliding safety rails enclose the racing surface, with a one-tile
-shoulder beside its two lanes. Mesh fences line the straights; individual black
+shoulder beside the asphalt. Mesh fences line the straights; individual black
 and white tire stacks at the same 0.62 scale as the existing grouped piles replace
 them around the turns and corners. These close the loop
 cuts, including diagonal gaps. The **Mud Express** is the one deliberate shortcut:
@@ -73,7 +78,7 @@ static car displays sit inside. The race control building is at X 34–40,
 Y 388–394. Seven stand modules face the starting straight, two face the village
 section, and three face the plaza section: **12 larger stand modules** in total.
 
-The forest uses **3,856 individually placed tree sprites** across three species:
+The forest uses **3,887 individually placed tree sprites** across three species:
 pines, oaks, and birches. Most trees occupy scenic corridors beside the racing
 surface or two perimeter belts. Sparse groves fill the deeper infield. A dedicated
 opaque forest texture closes the distant map boundary. Trees and undergrowth
@@ -133,7 +138,7 @@ The generator writes these review artifacts:
 
 `Tests/PineLoopChecks.cs` loads the map through the production compiler and traces
 a complete lap with the existing collision circle. It checks the explicit
-256 × 512 dimensions, route length, three-to-two lane transition, landmark
+256 × 512 dimensions, route length, four-wide start and variable road widths, landmark
 approaches, inline stands, tree species and sprite budget, tunnel roof, pit
 entrances, separate tire groups, fixed buffer views, all referenced assets,
 and expanded-map editor load/export. Navigation topology checks seal the shortcut
