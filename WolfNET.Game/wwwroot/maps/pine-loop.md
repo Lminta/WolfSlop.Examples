@@ -145,32 +145,17 @@ The generator writes these review artifacts:
 - `Tests/Fixtures/pine-loop-lap.json`: the complete lap, major corners, zone checkpoints,
   usable landmark approaches, and the same browser viewpoints.
 
-`Tests/PineLoopChecks.cs` loads the map through the production compiler and traces
-a complete lap with the existing collision circle. It checks the explicit
-256 × 512 dimensions, route length, four-wide start and variable road widths, landmark
-approaches, inline stands, tree species and sprite budget, tunnel roof, pit
-entrances, separate tire groups, fixed buffer views, all referenced assets,
-and expanded-map editor load/export. Navigation topology checks seal the shortcut
-and split the lap into 18 isolated corner sections; opening the shortcut connects
-exactly two of them. They also check that the rails cannot be jumped or crouched
-through and that the animated event props retain their grounded transforms.
+The compact regression suite loads Pine Loop through the production compiler.
+Browser sprite selection is compared with an independent native reference at all
+25 fixture viewpoints. Car behavior is covered by simulation and driving checks.
+Exact landmark placement, route topology, and minimap presentation need manual
+review after map edits.
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
+node --test Tests/sprite-sort.test.mjs
 ```
 
-With the game and a Chromium browser running with WebGPU and remote debugging,
-check rendered landmarks and both buffer views using actual player positions:
-
-```powershell
-node Tests/pine-loop-browser-check.mjs 9255 http://127.0.0.1:53719 start grandstand-row buffer-front buffer-side
-```
-
-The `start` and `spectator-plaza` browser views verify all three animation layers
-reach the GPU for every nearby flag and crowd without changing their geometry.
-Add `mud-express` to inspect the shortcut from its entry.
-
-`Tests/RaceMinimapChecks.cs` checks projection, heading, local range, metadata,
-and editor export. `node Tests/race-minimap-browser-check.mjs 9256 http://127.0.0.1:53721`
-checks real movement and rotation, camera modes, responsive layout, fog/scenery
-independence, and restoring the exploration minimap after leaving the race.
+For rendered views, use the performance runner's `--screenshots` option and the
+screenshot comparison tool described in the [root README](../../../README.md).
+The retained integration checks are listed in [Tests/README.md](../../../Tests/README.md).

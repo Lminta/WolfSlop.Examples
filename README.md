@@ -97,16 +97,15 @@ node Tests/compare-race-screenshots.mjs artifacts/performance/before.json artifa
 
 The image check excludes the FPS counter and allows a three-level RGB tolerance.
 
-Shader and pixel regression tests can run independently of the game loop:
+Run the regular regression checks from the repository root:
 
 ```powershell
-node Tests/gpu-browser-check.mjs 9252 http://127.0.0.1:5195
+dotnet run --project Tests/WolfNET.MapTests.csproj
+node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs
 ```
 
-Start the game at the specified address and Chromium with remote debugging on that
-port first. For headless GPU testing, use `--enable-unsafe-webgpu` and
-`--use-webgpu-adapter=swiftshader`. The pixel checks cover projection, sprite scaling,
-alpha blending, and camera movement over distant checkerboards with and without mipmaps.
+Run the C# suite first because it generates the sprite ordering reference files.
+The retained scenarios and optional browser checks are listed in [Tests/README.md](Tests/README.md).
 
 ## Map editor
 

@@ -41,19 +41,12 @@ Run the regression suite from the repository root:
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/editor-model.test.mjs
+node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs
 ```
 
 The C# suite compiles the production simulation, object, component, camera, input
 state, and scene code. Only device input is substituted in movement fixtures.
 `Tests/EngineChecks.cs` covers input transitions, timing, ownership, scene assembly,
-cancellation, and door state after edits. Browser and GPU checks are described in
-the repository's root README.
-
-With the game and a WebGPU-capable Chromium instance running, the focused lifecycle
-check also verifies recovery from failed GPU preparation and cancellation during
-texture upload:
-
-```powershell
-node Tests/scene-lifecycle-browser-check.mjs 9254 http://127.0.0.1:5195
-```
+cancellation, and door state after edits. Run the C# suite before the Node checks
+so the sprite ordering reference files are available. The retained browser smoke
+checks and performance tools are described in [Tests/README.md](../Tests/README.md).

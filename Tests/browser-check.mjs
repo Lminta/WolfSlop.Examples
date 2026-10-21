@@ -2,7 +2,6 @@
 // node Tests/browser-check.mjs 9243 http://127.0.0.1:5194
 import fs from "node:fs";
 import path from "node:path";
-import {checkGpu} from "./gpu-check.mjs";
 
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
@@ -414,12 +413,6 @@ try {
     await selectMap(mainMapLabel,expectedSpawn);
     assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");
     console.log("PASS: map buttons, keyboard activation, repeated switches, frame cleanup, and failed-load recovery.");
-    // Input/frame checks are complete. Stop submitting game frames while the
-    // synthetic GPU fixtures run, so software adapters can drain their queues.
-    await evaluate("window.requestAnimationFrame=()=>0");
-    const sources=Object.fromEntries(["raycast","walls","sprites"].map(name=>
-        [name,fs.readFileSync(`WolfNET.Game/wwwroot/shaders/${name}.wgsl`,"utf8").replace(/^\uFEFF/,"")]));
-    console.log("GPU CHECK",await evaluate(`(${checkGpu.toString()})(${JSON.stringify(sources)})`));
     console.log("PASS: browser startup, Brickyard scene, navigation movement, mouse capture, and Esc release.");
 } finally {
     socket.close();

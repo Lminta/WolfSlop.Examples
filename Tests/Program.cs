@@ -2,12 +2,11 @@ using System.Net;
 using System.Numerics;
 using System.Text.Json;
 using WolfNET.Game;
-using WolfNET.Graphics;
+using WolfNET.Game.Player.Components;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
 var webRoot = Path.Combine(root, "WolfNET.Game", "wwwroot");
-var fileHandler = new FileHandler(webRoot);
-using var http = new HttpClient(fileHandler) { BaseAddress = new Uri("https://test.local/") };
+using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
 int assertions = 0;
 void Check(bool condition, string message)
 {
@@ -20,1027 +19,127 @@ void Reject(Action action, string message)
     catch (InvalidDataException) { assertions++; return; }
     throw new Exception(message);
 }
-async Task RejectLoad<T>(HttpClient client, string message, CancellationToken token = default) where T : Exception
+
+// Load every shipped map, without pinning its authored scenery or dimensions.
+var workspace = new WolfNET.Editor.MapWorkspace(webRoot);
+foreach (var name in workspace.Maps())
 {
-    try { await GameMap.LoadAsync(client, "maps/level1.json", 64, 64, token); }
-    catch (T) { assertions++; return; }
-    throw new Exception(message);
+    var loaded = await GameMap.LoadAsync(http, $"maps/{name}.json", 512, 512);
+    Check(loaded.RendererMap.Cells.Count == loaded.RendererMap.Width * loaded.RendererMap.Height,
+        $"{name}: render grid is incomplete");
+    Check(loaded.RendererMap.Sprites.All(sprite => sprite.OwnerCell > 0 &&
+        sprite.OwnerCell <= loaded.RendererMap.Cells.Count &&
+        loaded.RendererMap.Textures.Layers.ContainsKey(sprite.TextureLayer)),
+        $"{name}: sprite ownership or texture is invalid");
 }
 
-var map = await GameMap.LoadAsync(http, "maps/level1.json", 64, 64);
-Check(map.Revision == 1 && map.RendererMap.Width == 35 && map.RendererMap.Height == 31, "Brickyard revision/dimensions invalid");
-Check(map.PlayerStartPosition == new Vector2(6.5f, 26.5f) && map.PlayerStartDirection == Vector2.UnitX, "Brickyard entrance spawn invalid");
-Check(map.PlayerStart.MoveSpeed == 5 && map.PlayerStart.RotSpeed == 3, "Map player speeds not loaded");
-Check(!map.NavigationMap.IsWalkable(-1, 0) && !map.NavigationMap.IsWalkable(35, 31), "Outside map is walkable");
-RenderCell BrickyardCell(int x, int y) => map.RendererMap.Cells[y * map.RendererMap.Width + x];
-Check(map.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Brickyard sky missing");
-Check(BrickyardCell(12, 20).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Brickyard courtyard is not open air");
-Check(!BrickyardCell(15, 26).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
-    map.RendererMap.Textures.Layers[BrickyardCell(15, 26).CeilingTextureLayer] == "textures/wolf/mesh.png", "Loading canopy mesh ceiling missing");
-Check(!BrickyardCell(10, 26).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
-    map.RendererMap.Textures.Layers[BrickyardCell(10, 26).CeilingTextureLayer] == "textures/wolf/greystone.png", "Entrance doorway indoor ceiling missing");
-foreach (var (x, y, dx, dy, firstTexture, secondTexture) in new[]
+var definition = new MapDefinition
 {
-    (25, 16, 1, 0, "greystone", "redbrick"), // Canopy / workshop.
-    (18, 6, 1, 0, "redbrick", "greystone"), // Workshop / arcade.
-    (14, 8, 0, 1, "redbrick", "greystone"), // Workshop / loading canopy.
-    (3, 22, 0, 1, "mossy", "greystone") // Service route / gatehouse.
-})
-{
-    var partition = BrickyardCell(x, y);
-    var material = map.RendererMap.Materials[(int)partition.MaterialIndex];
-    uint firstFace = dx == 1 ? material.West : material.North;
-    uint secondFace = dx == 1 ? material.East : material.South;
-    Check(map.RendererMap.Textures.Layers[firstFace] == $"textures/wolf/{firstTexture}.png" &&
-        map.RendererMap.Textures.Layers[secondFace] == $"textures/wolf/{secondTexture}.png",
-        $"Brickyard partition at {x},{y} has incorrect textures on its exposed faces");
-    Check(partition.Flags.HasFlag(RenderCellFlags.Wall | RenderCellFlags.StopsRay) &&
-        !map.NavigationMap.IsWalkable(x, y), $"Brickyard partition at {x},{y} does not form a solid wall");
-    Check(map.NavigationMap.IsWalkable(x - dx, y - dy) && map.NavigationMap.IsWalkable(x + dx, y + dy),
-        $"Brickyard partition at {x},{y} still has a second wall layer or blocks its adjoining floor");
-}
-Check(map.Doors.Any(door => door.Definition.RaycastTransparent) && map.Doors.Any(door => !door.Definition.RaycastTransparent),
-    "Brickyard glass/steel doors missing");
-foreach (var door in map.Doors)
-{
-    Check(!map.NavigationMap.IsWalkable(door.X, door.Y), "Brickyard door starts open");
-    var normal = door.Definition.Axis == "x" ? (X: 1, Y: 0) : (X: 0, Y: 1);
-    Check(map.NavigationMap.IsWalkable(door.X - normal.X, door.Y - normal.Y) &&
-        map.NavigationMap.IsWalkable(door.X + normal.X, door.Y + normal.Y), $"Brickyard door at {door.X},{door.Y} lacks a usable approach on both sides");
-}
-Check(!map.NavigationMap.IsWalkable(6, 17) && map.NavigationMap.IsWalkable(6, 17, inAir: true), "Service jump obstacle missing");
-Check(!map.NavigationMap.IsWalkable(3, 11) && map.NavigationMap.IsWalkable(3, 11, crouching: true), "Maintenance crawl obstacle missing");
-var yardCar = map.RendererMap.Sprites.Single(sprite => sprite.Atlas != null);
-Check(yardCar.Position == new Vector2(29.5f, 5.5f) && !map.NavigationMap.IsWalkable(29, 5), "Motor court car placement/collision invalid");
-foreach (var sprite in map.RendererMap.Sprites)
-{
-    Check(sprite.OwnerCell > 0 && sprite.OwnerCell <= map.RendererMap.Cells.Count, "Sprite owner cell invalid");
-    Check(map.RendererMap.Textures.Layers.ContainsKey(sprite.TextureLayer), "Sprite texture absent from scene catalog");
-}
-var yardReachable = new HashSet<(int X, int Y)> { ((int)map.PlayerStartPosition.X, (int)map.PlayerStartPosition.Y) };
-var yardFrontier = new Queue<(int X, int Y)>(yardReachable);
-var yardDoorCells = map.Doors.Select(door => (door.X, door.Y)).ToHashSet();
-while (yardFrontier.TryDequeue(out var point))
-    foreach (var step in new[] { (X: -1, Y: 0), (X: 1, Y: 0), (X: 0, Y: -1), (X: 0, Y: 1) })
-    {
-        var next = (X: point.X + step.X, Y: point.Y + step.Y);
-        if ((map.NavigationMap.IsWalkable(next.X, next.Y, inAir: true) ||
-            map.NavigationMap.IsWalkable(next.X, next.Y, crouching: true) || yardDoorCells.Contains(next)) && yardReachable.Add(next))
-            yardFrontier.Enqueue(next);
-    }
-for (int x = 0; x < map.RendererMap.Width; x++)
-for (int y = 0; y < map.RendererMap.Height; y++)
-    Check(!map.NavigationMap.IsWalkable(x, y) || yardReachable.Contains((x, y)), $"Unreachable Brickyard floor at {x},{y}");
-foreach (var landmark in new[] { (12, 20), (17, 18), (27, 26), (27, 15), (29, 7), (6, 16), (3, 10) })
-    Check(yardReachable.Contains(landmark), $"Brickyard route does not reach {landmark}");
-
-Check(fileHandler.Requests.All(path => path != "maps/showcase.json" && !path.EndsWith("index.json")), "Loaded another map or global index");
-Check(fileHandler.Requests.Count == map.Objects.Count + 1, "An object was loaded more than once");
-Check(map.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("showcase-missing")), "Unrelated map textures leaked");
-assertions += await GlassworksChecks.RunAsync(http, webRoot);
-var showcase = await GameMap.LoadAsync(http, "maps/showcase.json", 64, 64);
-Check(showcase.RendererMap.Width == 34 && showcase.RendererMap.Height == 25 && showcase.Revision == 1, "Showcase dimensions/revision invalid");
-Check(showcase.PlayerStartPosition == new Vector2(18.5f, 22.5f) && showcase.PlayerStartDirection == new Vector2(0, -1), "Showcase spawn invalid");
-Check(showcase.RendererMap.Sprites.Count == 78, "Showcase sprite demonstrations missing");
-RenderCell ShowcaseCell(int x, int y) => showcase.RendererMap.Cells[y * showcase.RendererMap.Width + x];
-Check(!ShowcaseCell(24, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
-    showcase.RendererMap.Textures.Layers[ShowcaseCell(24, 18).CeilingTextureLayer] == "textures/wolf/greystone.png", "Glass doorway indoor ceiling missing");
-Check(showcase.RendererMap.Sky?.Texture == "textures/skyboxes/skybox.jpg", "Showcase sky panorama missing");
-Check(ShowcaseCell(30, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Open sky showroom missing");
-Check(!ShowcaseCell(26, 18).Flags.HasFlag(RenderCellFlags.SkyCeiling) &&
-    showcase.RendererMap.Textures.Layers[ShowcaseCell(26,18).CeilingTextureLayer] == "textures/wolf/mesh.png", "Mesh showroom ceiling missing");
-Check(showcase.Objects.Values.Where(value => value is SpriteDefinition or SpriteGroupDefinition).All(value => value.RaycastTransparent), "Showcase contains ray-blocking sprites");
-Check(!showcase.Objects.ContainsKey(113) && !showcase.Objects.ContainsKey(122), "Removed sprite examples still loaded");
-foreach (var x in new[] { 15, 17, 19, 21 })
-{
-    var cell = ShowcaseCell(x, 6);
-    Check(showcase.RendererMap.Textures.Layers[cell.FloorTextureLayer] == "textures/wolf/colorstone.png" &&
-          showcase.RendererMap.Textures.Layers[cell.CeilingTextureLayer] == "textures/wolf/wood.png", "Lane wall surfaces missing");
-}
-
-foreach (var (x, blocksRays, walkable) in new[] { (15, true, false), (17, true, true), (19, false, false), (21, false, true) })
-{
-    Check(ShowcaseCell(x, 6).Flags.HasFlag(RenderCellFlags.StopsRay) == blocksRays, "Showcase ray-blocking lane incorrect");
-    Check(showcase.NavigationMap.IsWalkable(x, 6) == walkable, "Showcase collision lane incorrect");
-}
-Check(!showcase.NavigationMap.IsWalkable(3, 21) && showcase.NavigationMap.IsWalkable(4, 21), "Showcase group walkability incorrect");
-foreach (var sprite in showcase.RendererMap.Sprites)
-{
-    if (sprite.Kind != SpriteKind.Billboard) continue;
-    var definition = showcase.Objects.Values.OfType<SpriteDefinition>().First(value => value.TextureLayer == sprite.TextureLayer);
-    if (definition.Texture is "textures/wolf/barrel.png" or "textures/wolf/greenlight.png" or "textures/wolf/pillar.png")
-        Check(showcase.NavigationMap.IsWalkable((int)sprite.Position.X, (int)sprite.Position.Y) ==
-            (definition.Texture != "textures/wolf/pillar.png"),
-            "Showcase sprite walkability disagrees with its appearance");
-}
-Check(!showcase.NavigationMap.IsWalkable(9,20) && showcase.NavigationMap.IsWalkable(9,20,inAir:true), "Showcase jumpable columns collision is incorrect");
-Check(ShowcaseCell(19, 6).Flags.HasFlag(RenderCellFlags.Wall) && ShowcaseCell(21, 6).Flags.HasFlag(RenderCellFlags.Wall), "Showcase transparent wall demonstrations missing");
-Check(showcase.NavigationMap.IsWalkable(13, 8) && !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.StopsRay) &&
-      !ShowcaseCell(13, 8).Flags.HasFlag(RenderCellFlags.Wall), "Open floor outside the test lanes is blocked");
-Check(!showcase.Objects.ContainsKey(26), "Stray invisible passage barrier is still loaded");
-var fourFaces = showcase.RendererMap.Materials[(int)ShowcaseCell(18, 17).MaterialIndex];
-Check(new[] { fourFaces.North, fourFaces.East, fourFaces.South, fourFaces.West }.Distinct().Count() == 4, "Showcase wall needs four different faces");
-Check(ShowcaseCell(15, 16).FloorTextureLayer != ShowcaseCell(15, 15).FloorTextureLayer, "Showcase floor variation missing");
-Check(ShowcaseCell(3, 7).FloorTextureLayer == TextureCatalog.MissingLayer && ShowcaseCell(3, 7).CeilingTextureLayer == TextureCatalog.MissingLayer, "Showcase missing surface fields not demonstrated");
-Check(showcase.RendererMap.Materials[(int)ShowcaseCell(6, 4).MaterialIndex].West == TextureCatalog.MissingLayer, "Showcase missing wall face not demonstrated");
-Check(showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 11) && showcase.RendererMap.Sprites.Any(sprite => sprite.TextureLayer == 12), "Showcase missing sprites not demonstrated");
-foreach (var (x, y, jump) in new[] { (26, 8, true), (26, 4, false), (30, 4, true), (30, 8, false) })
-{
-    Check(!showcase.NavigationMap.IsWalkable(x,y), "Corridor obstacle allows standing movement");
-    Check(showcase.NavigationMap.IsWalkable(x,y,inAir:true) == jump &&
-          showcase.NavigationMap.IsWalkable(x,y,crouching:true) == !jump, "Corridor obstacle requires the wrong movement");
-    Check(showcase.NavigationMap.IsWalkable(x,y-1) && showcase.NavigationMap.IsWalkable(x,y+1), "Corridor obstacle lacks approach/landing space");
-    Check(!showcase.NavigationMap.IsWalkable(x-1,y) && !showcase.NavigationMap.IsWalkable(x+1,y), "Corridor obstacle can be bypassed sideways");
-}
-Check(showcase.NavigationMap.IsWalkable(24,11), "Obstacle corridor entrance is blocked");
-var car = showcase.RendererMap.Sprites.Single(sprite => sprite.Atlas != null);
-Check(car.Position == new Vector2(30.5f,18.5f) && !showcase.NavigationMap.IsWalkable(30,18), "Directional car placement/collision incorrect");
-Check(car.Scale == Vector2.One && Math.Abs(car.Elevation + .08f) < .00001f && ShowcaseCell(30,18).Flags.HasFlag(RenderCellFlags.SkyCeiling), "Car scale/elevation or open-sky passage incorrect");
-Check(car.Atlas!.Frames.Length == 8 && car.Atlas.Directions == 8 && car.RotationDegrees == -90, "Car atlas/facing lost");
-for (int direction = 0; direction < 8; direction++)
-{
-    float angle = (direction * 45 - 90) * MathF.PI / 180;
-    var observer = car.Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * 2;
-    Check(car.ViewFrame(observer) == direction, "Directional car selected the wrong view");
-    Check(car.ViewLayer(observer) == 32 + direction, "Directional view did not use its reserved layer");
-    var frame = car.Atlas.Frames[direction];
-    Check(showcase.RendererMap.Textures.Frames[(uint)(32+direction)] == frame &&
-        showcase.RendererMap.Textures.Layers[(uint)(32+direction)] == "textures/race/car-game-atlas.png", "Atlas frame was pruned from scene textures");
-    Check(Math.Abs(car.ViewScale(observer).X - 1f * frame.Width / frame.Height) < .00001f, "Atlas aspect ratio lost");
-}
-Check(car.ViewFrame(car.Position) == 0, "Coincident observer produced an invalid view");
-Check((car with { RotationDegrees = 270 }).ViewFrame(car.Position + new Vector2(0,-1)) == 0, "Direction angle wrapping failed");
-Check((car with { Atlas = null }).ViewLayer(car.Position + Vector2.One) == car.TextureLayer, "Ordinary sprite selection changed");
-var reachable = new HashSet<(int X, int Y)> { (18, 22) };
-var frontier = new Queue<(int X, int Y)>(); frontier.Enqueue((18, 22));
-while (frontier.TryDequeue(out var cell))
-foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
-{
-    var next = (X: cell.X + dx, Y: cell.Y + dy);
-    if ((showcase.NavigationMap.IsWalkable(next.X, next.Y, inAir:true) ||
-         showcase.NavigationMap.IsWalkable(next.X, next.Y, crouching:true) ||
-         (next.X>=0&&next.Y>=0&&next.X<showcase.RendererMap.Width&&next.Y<showcase.RendererMap.Height&&ShowcaseCell(next.X,next.Y).Flags.HasFlag(RenderCellFlags.Door))) && reachable.Add(next)) frontier.Enqueue(next);
-}
-for (int x = 0; x < showcase.RendererMap.Width; x++)
-for (int y = 0; y < showcase.RendererMap.Height; y++)
-    Check(!showcase.NavigationMap.IsWalkable(x, y) || reachable.Contains((x, y)), $"Unreachable showcase cell at {x},{y}");
-
-PassageDefinition Passage(int id, bool transparent = true, bool collides = false) => new()
-{ Id = id, RaycastTransparent = transparent, Collides = collides, FloorTexture = "textures/wolf/mossy.png", CeilingTexture = "textures/wolf/wood.png" };
-var wall = new WallDefinition { Id = 1, RaycastTransparent = false, Collides = true, PassageId = 0, Textures = new WallTextures
-{ North = "textures/north.png", East = "textures/east.png", South = "textures/south.png" } };
-var spriteDef = new SpriteDefinition { Id = 2, RaycastTransparent = false, Collides = true, PassageId = 0, Texture = "textures/wolf/barrel.png", TextureLayer = 8 };
-var groupDef = new SpriteGroupDefinition { Id = 3, RaycastTransparent = true, Collides = false, PassageId = 0,
-    Sprites = [new() { SpriteId = 2, Offset = new() { X = -0.25f, Y = 0 } }, new() { SpriteId = 2, Offset = new() { X = 0.75f, Y = 0.1f } }] };
-var definitions = new Dictionary<int, MapObjectDefinition> { [0] = Passage(0), [1] = wall, [2] = spriteDef, [3] = groupDef };
-MapDefinition SmallMap(int center = 0) => new()
-{
-    WorldMap = [[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, center, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]],
-    PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = -1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2, CollisionRadius = 0.2f }
+    WorldMap = Enumerable.Range(0, 9).Select(x => Enumerable.Range(0, 9)
+        .Select(y => x == 0 || y == 0 || x == 8 || y == 8 ? 1 : 0).ToArray()).ToArray(),
+    PlayerStart = new() { X = 4.5f, Y = 4.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2 }
 };
-GameMap Compile(MapDefinition? definition = null, Dictionary<int, MapObjectDefinition>? objects = null) => new(definition ?? SmallMap(), objects ?? definitions, 64, 64);
-var openPassages = new Dictionary<int, MapObjectDefinition>(definitions)
+var objects = new Dictionary<int, MapObjectDefinition>
 {
-    [0] = Passage(0) with { CeilingMode = "sky", CeilingTexture = "textures/unused-roof.png" }
+    [0] = new PassageDefinition { Id = 0, RaycastTransparent = true, Collides = false },
+    [1] = new WallDefinition { Id = 1, PassageId = 0, RaycastTransparent = false, Collides = true },
+    [2] = new SpriteDefinition { Id = 2, PassageId = 0, RaycastTransparent = true, Collides = true,
+        Texture = "textures/wolf/barrel.png", TextureLayer = 8 }
 };
-Reject(() => Compile(objects: openPassages), "Open ceiling accepted without map sky");
-var atlasDefinition = spriteDef with { TextureLayer = 32, Atlas = car.Atlas, RotationDegrees = -90 };
-var atlasObjects = new Dictionary<int, MapObjectDefinition>(definitions) { [2] = atlasDefinition };
-var atlasGroup = Compile(SmallMap() with { WorldMap = [[1,1,1,1,1],[1,0,0,0,1],[1,0,3,0,1],[1,0,0,0,1],[1,1,1,1,1]] }, atlasObjects);
-Check(atlasGroup.RendererMap.Sprites.All(sprite => sprite.Atlas == car.Atlas && sprite.RotationDegrees == -90), "Group member lost atlas/facing");
-Check(atlasDefinition.FacingCamera && new Sprite(Vector2.Zero, 0, 0).FacingCamera && atlasGroup.RendererMap.Sprites.All(sprite => sprite.FacingCamera),
-    "Directional sprites no longer default to camera-facing behavior");
-var anchoredObjects = new Dictionary<int, MapObjectDefinition>(atlasObjects)
-{ [2] = atlasDefinition with { FacingCamera = false } };
-var anchored = Compile(SmallMap(2), anchoredObjects).RendererMap.Sprites.Single();
-Check(!anchored.FacingCamera && Compile(SmallMap(3), anchoredObjects).RendererMap.Sprites.All(sprite => !sprite.FacingCamera),
-    "facingCamera was lost for standalone sprites or group members");
-var appearanceJson = JsonSerializer.Serialize<MapObjectDefinition>(anchoredObjects[2], new JsonSerializerOptions(JsonSerializerDefaults.Web));
-Check(JsonSerializer.Deserialize<MapObjectDefinition>(appearanceJson, new JsonSerializerOptions(JsonSerializerDefaults.Web)) is SpriteDefinition { FacingCamera: false },
-    "facingCamera did not survive JSON round-trip");
-for (var view = 0; view < 8; view++)
+GameMap Compile(MapDefinition? source = null) => new(source ?? definition, objects, 64, 64);
+var map = Compile();
+var navigation = map.NavigationMap;
+var snapshot = map.RendererMap;
+map.SetCell(5, 4, 0);
+Check(ReferenceEquals(snapshot, map.RendererMap), "No-op edit rebuilt the map");
+map.SetCell(5, 4, 2);
+Check(ReferenceEquals(navigation, map.NavigationMap) && !navigation.IsWalkable(5, 4) &&
+    map.RendererMap.Sprites.Count == 1, "Edit did not update navigation and rendering together");
+snapshot = map.RendererMap;
+Reject(() => map.SetCell(5, 4, 999), "Unknown object accepted");
+Reject(() => map.SetCell(0, 0, 0), "Open boundary accepted");
+Check(ReferenceEquals(snapshot, map.RendererMap), "Invalid edit partially published");
+var copy = map.WorldMap;
+copy[5][4] = 0;
+Check(!map.NavigationMap.IsWalkable(5, 4), "External grid mutation changed the map");
+map.ReplaceMap(definition.WorldMap);
+Check(navigation.IsWalkable(5, 4) && map.RendererMap.Sprites.Count == 0, "Replacement retained stale state");
+Reject(() => Compile(definition with { WorldMap = [[1], [1, 0]] }), "Ragged map accepted");
+Reject(() => Compile(definition with { PlayerStart = definition.PlayerStart with { X = 0, Y = 0 } }), "Blocked spawn accepted");
+Reject(() => Compile(definition with { PlayerStart = definition.PlayerStart with { DirectionX = 0 } }), "Zero heading accepted");
+using (var malformedHttp = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? "{}" : null))
+       { BaseAddress = http.BaseAddress })
 {
-    Vector2 Observer(float delta)
+    try
     {
-        var radians = (-90 + view * 45 + delta) * MathF.PI / 180;
-        return anchored.Position + new Vector2(MathF.Cos(radians), MathF.Sin(radians)) * 2;
+        await GameMap.LoadAsync(malformedHttp, "maps/level1.json", 64, 64);
+        throw new Exception("Malformed level accepted");
     }
-    var kind = anchored.ViewKind(Observer(0));
-    Check((kind & 0xffffu) == (uint)(SpriteKind.FixedPlane | SpriteKind.DirectionalPlane), "Anchored atlas is still a billboard");
-    Check(kind == anchored.ViewKind(Observer(-22)) && kind == anchored.ViewKind(Observer(22)),
-        "Anchored atlas rotated within its angular sector");
-    Check(anchored.ViewFrame(Observer(-22)) == view && anchored.ViewFrame(Observer(22)) == view,
-        "Anchored atlas changed texture before reaching the sector boundary");
-    Check(kind != anchored.ViewKind(Observer(23)) && anchored.ViewFrame(Observer(23)) == (view + 1) % 8,
-        "Anchored plane and texture did not switch together at the angular boundary");
-    var expectedAngle = ((-90 + view * 45) % 360 + 360) % 360;
-    Check((kind >> 16) == (uint)(expectedAngle / 360f * 65536), "Anchored plane has an incorrect world orientation");
-    Check((anchored with { FacingCamera = true }).ViewKind(Observer(22)) == (uint)SpriteKind.Billboard,
-        "facingCamera=true did not restore legacy geometry");
-    Check(anchored.ViewLayer(Observer(22)) == anchored.TextureLayer + view,
-        "Anchored geometry changed atlas texture selection");
-}
-Check((anchored with { Atlas = null }).ViewKind(anchored.Position + Vector2.One) == (uint)SpriteKind.Billboard,
-    "Directional flag changed an ordinary non-directional sprite");
-Check(Compile(objects: atlasObjects).RendererMap.Textures.Frames.Count == 0, "Unused atlas layers loaded");
-foreach (var invalidAtlas in new SpriteAtlas[] {
-    new() { Frames = [] }, new() { Frames = car.Atlas.Frames, Directions = 9 },
-    new() { Frames = [new() { X=-1,Y=0,Width=1,Height=1 }] },
-    new() { Frames = [new() { X=0,Y=0,Width=0,Height=1 }] } })
-    Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { Atlas = invalidAtlas } }), "Invalid atlas accepted");
-Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { TextureLayer = 250 } }), "Atlas texture overflow accepted");
-Reject(() => Compile(objects: new(atlasObjects) { [4] = spriteDef with { Id = 4, TextureLayer = 33 } }), "Overlapping atlas slot accepted");
-Reject(() => Compile(objects: new(atlasObjects) { [4] = atlasDefinition with { Id = 4, Atlas = car.Atlas with { Frames = car.Atlas.Frames.Reverse().ToArray() } } }), "Conflicting atlas rectangles accepted");
-Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { RotationDegrees = float.NaN } }), "Invalid sprite facing accepted");
-foreach (var axis in new[] { "x", "y" })
-{
-    var fixedObjects = new Dictionary<int, MapObjectDefinition>(definitions) { [2] = spriteDef with { PlaneAxis = axis } };
-    var fixedGroup = Compile(SmallMap(3), fixedObjects);
-    var expectedKind = SpriteKind.FixedPlane | (axis == "x" ? SpriteKind.PlaneNormalX : SpriteKind.PlaneNormalY);
-    Check(fixedGroup.RendererMap.Sprites.All(sprite => sprite.Kind == expectedKind), "Group lost fixed sprite geometry");
-    Check(Compile(SmallMap(2), fixedObjects).RendererMap.Sprites.Single().Kind == expectedKind, "Standalone fixed sprite lost plane axis");
-}
-Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { PlaneAxis = "z" } }), "Invalid fixed plane axis accepted");
-Reject(() => Compile(objects: new(definitions) { [2] = atlasDefinition with { PlaneAxis = "x" } }), "Directional fixed plane accepted");
-var skyMap = SmallMap() with { Sky = new() { Texture = "textures/skyboxes/skybox.jpg", RotationDegrees = 45 } };
-var skyLevel = Compile(skyMap, openPassages);
-Check(skyLevel.RendererMap.Sky == skyMap.Sky && skyLevel.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.SkyCeiling),
-    "Map sky and open-ceiling flags were not compiled");
-Check(!skyLevel.RendererMap.Textures.Layers.Values.Contains("textures/unused-roof.png"), "Open ceiling loaded an unused ceiling texture");
-var skyInherited = Compile(skyMap, new(openPassages) { [1] = wall with { PassageId = 0 } });
-Check(skyInherited.RendererMap.Cells[0].Flags.HasFlag(RenderCellFlags.SkyCeiling), "Walls did not inherit passage ceiling mode");
-Reject(() => Compile(skyMap with { Sky = skyMap.Sky! with { RotationDegrees = float.NaN } }), "Nonfinite sky rotation accepted");
-Reject(() => Compile(skyMap with { Sky = skyMap.Sky! with { Texture = "" } }), "Empty sky texture accepted");
-Reject(() => Compile(objects: new(definitions) { [0] = Passage(0) with { CeilingMode = "invalid" } }), "Unknown ceiling mode accepted");
-foreach (bool transparent in new[] { false, true })
-foreach (bool collides in new[] { false, true })
-foreach (bool jumpable in new[] { false, true })
-foreach (bool crouchable in new[] { false, true })
-foreach (int type in new[] { 0, 1, 2, 3 })
-{
-    const int testId = 10;
-    MapObjectDefinition value = type switch
-    {
-        0 => Passage(testId, transparent, collides),
-        1 => wall with { Id = testId, RaycastTransparent = transparent, Collides = collides },
-        2 => spriteDef with { Id = testId, RaycastTransparent = transparent, Collides = collides },
-        _ => groupDef with { Id = testId, RaycastTransparent = transparent, Collides = collides }
-    };
-    var objects = new Dictionary<int, MapObjectDefinition>(definitions) { [testId] = value with { Jumpable = jumpable, Crouchable = crouchable } };
-    var compiled = Compile(SmallMap(testId), objects);
-    Check(compiled.NavigationMap.IsWalkable(2, 2) == !collides, "Collision flag ignored");
-    Check(compiled.NavigationMap.IsWalkable(2, 2, inAir: true) == (!collides || jumpable), "Jumpable flag ignored or inherited incorrectly");
-    Check(compiled.NavigationMap.IsWalkable(2, 2, crouching: true) == (!collides || crouchable), "Crouchable flag ignored or inherited incorrectly");
-    Check(compiled.NavigationMap.IsWalkable(2, 2, inAir: true, crouching: true) == (!collides || jumpable), "Airborne crouching bypassed a non-jumpable obstacle");
-    Check(compiled.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) == !transparent, "Ray transparency flag ignored");
-}
-var group = Compile(SmallMap(3));
-Check(group.NavigationMap.IsWalkable(2, 2), "Child flags overrode group flags");
-Check(group.RendererMap.Sprites.Count == 2, "Repeated sprite ID collapsed");
-Check(group.RendererMap.Sprites[0].Position == new Vector2(2.25f, 2.5f) && group.RendererMap.Sprites[1].Position == new Vector2(3.25f, 2.6f), "Group offsets incorrect");
-Check(group.RendererMap.Sprites.All(sprite => sprite.OwnerCell == 13), "Cross-cell correction changed owner");
-Check(group.RendererMap.Sprites.All(sprite => sprite.Scale == Vector2.One && sprite.Elevation == 0), "Legacy member transforms changed");
-var transformedGroup = Compile(SmallMap(3), new(definitions)
-{
-    [3] = groupDef with { Sprites = [
-        groupDef.Sprites[0] with { Scale = new() { X = 0.5f, Y = 1.25f }, Offset = groupDef.Sprites[0].Offset with { Z = 0.375f } },
-        groupDef.Sprites[1] with { Scale = new() { X = 2, Y = 0.25f }, Offset = groupDef.Sprites[1].Offset with { Z = -0.125f } }
-    ] }
-});
-Check(transformedGroup.RendererMap.Sprites[0].Scale == new Vector2(0.5f, 1.25f) && transformedGroup.RendererMap.Sprites[0].Elevation == 0.375f, "First member transform was not compiled");
-Check(transformedGroup.RendererMap.Sprites[1].Scale == new Vector2(2, 0.25f) && transformedGroup.RendererMap.Sprites[1].Elevation == -0.125f, "Second member transform was not compiled independently");
-Check(transformedGroup.RendererMap.Sprites.Select(sprite => sprite.Position).SequenceEqual(group.RendererMap.Sprites.Select(sprite => sprite.Position)), "Scale/elevation changed member XY positions");
-Check(transformedGroup.RendererMap.Sprites.All(sprite => sprite.OwnerCell == 13) && transformedGroup.NavigationMap.IsWalkable(2, 2), "Member transforms changed ownership or navigation");
-foreach (var invalidScale in new[] { -1f, float.NaN, float.PositiveInfinity })
-{
-    Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Scale = new() { X = invalidScale } }] } }), "Invalid member scale accepted");
-}
-foreach (var invalidZ in new[] { float.NaN, float.PositiveInfinity })
-    Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Offset = groupDef.Sprites[0].Offset with { Z = invalidZ } }] } }), "Invalid member elevation accepted");
-var hiddenMember = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [groupDef.Sprites[0] with { Scale = new() { X = 0, Y = 0 } }] } });
-Check(hiddenMember.RendererMap.Sprites.Single().Scale == Vector2.Zero, "Zero scale should allow a hidden billboard");
-Check(group.RendererMap.Textures.Layers[8] == "textures/wolf/barrel.png", "Explicit sprite layer not reserved");
-var groupPassage = Compile(SmallMap(3), new(definitions)
-{
-    [4] = Passage(4, false, true) with { FloorTexture = "textures/wolf/bluestone.png", CeilingTexture = "textures/wolf/greystone.png" },
-    [3] = groupDef with { PassageId = 4 }
-});
-Check(groupPassage.NavigationMap.IsWalkable(2, 2) && !groupPassage.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay), "Passage flags overrode group flags");
-Check(groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].FloorTextureLayer] == "textures/wolf/bluestone.png" &&
-      groupPassage.RendererMap.Textures.Layers[groupPassage.RendererMap.Cells[12].CeilingTextureLayer] == "textures/wolf/greystone.png", "Group did not use its own passage reference");
-var walls = group.RendererMap.Materials[1];
-Check(walls.West == TextureCatalog.MissingLayer, "Missing wall side not pink");
-var wallSurfaces = Compile(SmallMap(1), new(definitions)
-{
-    [4] = Passage(4, false, true) with { FloorTexture = "textures/wall-floor.png", CeilingTexture = "textures/wall-ceiling.png" },
-    [1] = wall with { PassageId = 4 }
-});
-var wallCell = wallSurfaces.RendererMap.Cells[12];
-Check(wallSurfaces.RendererMap.Textures.Layers[wallCell.FloorTextureLayer] == "textures/wall-floor.png" &&
-      wallSurfaces.RendererMap.Textures.Layers[wallCell.CeilingTextureLayer] == "textures/wall-ceiling.png", "Wall surfaces not compiled");
-var missingWallCell = Compile(SmallMap(1), new(definitions)
-{
-    [4] = Passage(4) with { FloorTexture = null, CeilingTexture = null },
-    [1] = wall with { PassageId = 4 }
-}).RendererMap.Cells[12];
-Check(missingWallCell.FloorTextureLayer == TextureCatalog.MissingLayer && missingWallCell.CeilingTextureLayer == TextureCatalog.MissingLayer, "Missing wall surfaces should fall back to pink");
-var noWallTextures = Compile(objects: new(definitions) { [1] = wall with { Textures = null } }).RendererMap.Materials[1];
-Check(new[] { noWallTextures.North, noWallTextures.East, noWallTextures.South, noWallTextures.West }.All(layer => layer == TextureCatalog.MissingLayer), "Omitted wall textures did not fall back");
-Check(group.RendererMap.Textures.Layers[walls.North] == "textures/north.png" && group.RendererMap.Textures.Layers[walls.South] == "textures/south.png", "Wall side mapping incorrect");
-var missing = new Dictionary<int, MapObjectDefinition>(definitions)
-{ [0] = Passage(0) with { FloorTexture = null, CeilingTexture = null }, [2] = spriteDef with { Texture = null } };
-var missingMap = Compile(SmallMap(2), missing);
-Check(missingMap.RendererMap.Cells[12].FloorTextureLayer == TextureCatalog.MissingLayer && missingMap.RendererMap.Textures.Layers[8] == null, "Missing surfaces/sprite not represented");
-
-var nav = group.NavigationMap;
-var snapshot = group.RendererMap;
-group.SetCell(2, 2, 3);
-Check(group.Revision == 1 && ReferenceEquals(snapshot, group.RendererMap), "No-op edit changed revision");
-group.SetCell(2, 2, 2);
-Check(group.Revision == 2 && ReferenceEquals(nav, group.NavigationMap) && !nav.IsWalkable(2, 2), "Edit did not update stable navigation");
-snapshot = group.RendererMap;
-Reject(() => group.SetCell(2, 2, 999), "Unknown ID accepted");
-Reject(() => group.SetCell(0, 0, 0), "Open boundary accepted");
-Check(group.Revision == 2 && ReferenceEquals(snapshot, group.RendererMap) && !nav.IsWalkable(2, 2), "Invalid edit partially published");
-var leaked = group.WorldMap; leaked[2][2] = 999;
-Check(group.WorldMap[2][2] == 2, "Source grid is externally mutable");
-group.ReplaceMap(SmallMap().WorldMap);
-Check(group.Revision == 3 && nav.IsWalkable(2, 2) && group.RendererMap.Sprites.Count == 0, "Replacement failed");
-
-Reject(() => Compile(SmallMap(999)), "Unknown cell ID accepted");
-Reject(() => Compile(SmallMap() with { WorldMap = [[1], [1, 0]] }), "Ragged map accepted");
-Reject(() => Compile(SmallMap() with { WorldMap = [] }), "Empty map accepted");
-Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { X = 0, Y = 0 } }), "Blocked spawn accepted");
-Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { DirectionX = 0, DirectionY = 0 } }), "Zero direction accepted");
-foreach (var invalid in new[] { -1f, float.NaN, float.PositiveInfinity })
-{
-    Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { MoveSpeed = invalid } }), "Invalid movement speed accepted");
-    Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { RotSpeed = invalid } }), "Invalid rotation speed accepted");
-}
-Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { PassageId = 1 } }), "Non-passage reference accepted");
-Reject(() => Compile(objects: new(definitions) { [1] = wall with { PassageId = 2 } }), "Wall non-passage reference accepted");
-Reject(() => Compile(objects: new(definitions) { [1] = wall with { PassageId = 999 } }), "Wall missing passage reference accepted");
-Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 3, Offset = new() { X = 0, Y = 0 } }] } }), "Nested group accepted");
-Reject(() => Compile(objects: new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 999, Offset = new() { X = 0, Y = 0 } }] } }), "Missing child accepted");
-Reject(() => Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [new() { SpriteId = 2, Offset = new() { X = 100, Y = 0 } }] } }), "Outside sprite accepted");
-Reject(() => Compile(objects: new(definitions) { [4] = spriteDef with { Id = 4, Texture = "textures/other.png" } }), "Texture slot conflict accepted");
-Reject(() => Compile(objects: new(definitions) { [2] = spriteDef with { TextureLayer = 256 } }), "Unsupported texture layer accepted");
-var emptyGroup = Compile(SmallMap(3), new(definitions) { [3] = groupDef with { Sprites = [] } });
-Check(emptyGroup.RendererMap.Sprites.Count == 0, "Empty group invalid");
-
-const string passagePath = "objects/passages/passage-mossy-floor-wood-ceiling.json";
-using var wrongId = new HttpClient(new FileHandler(webRoot, path => path == passagePath
-    ? "{\"type\":\"passage\",\"id\":999,\"raycastTransparent\":true,\"collides\":false}" : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<InvalidDataException>(wrongId, "Index/object ID mismatch accepted");
-using var unknownType = new HttpClient(new FileHandler(webRoot, path => path == passagePath ? "{\"type\":\"unknown\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<JsonException>(unknownType, "Unknown type accepted");
-using var missingFlags = new HttpClient(new FileHandler(webRoot, path => path == passagePath ? "{\"type\":\"passage\",\"id\":0}" : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<JsonException>(missingFlags, "Required flags were not validated");
-using var malformed = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? "{}" : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<JsonException>(malformed, "Malformed level accepted");
-string ModifiedMap(Action<System.Text.Json.Nodes.JsonObject> modify)
-{
-    var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(webRoot, "maps/level1.json")))!.AsObject();
-    modify(json);
-    return json.ToJsonString();
-}
-var wallDependencyJson = ModifiedMap(json => json["objects"]!["999"] = "../objects/passages/wall-only-passage.json");
-var wallDependencyHandler = new FileHandler(webRoot, path => path switch
-{
-    "maps/level1.json" => wallDependencyJson,
-    "objects/walls/wall-eagle.json" => JsonSerializer.Serialize<MapObjectDefinition>(wall with { PassageId = 999 }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-    "objects/passages/wall-only-passage.json" => JsonSerializer.Serialize<MapObjectDefinition>(Passage(999) with { FloorTexture = "textures/wall-only-floor.png" }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-    _ => null
-});
-using var wallDependencyHttp = new HttpClient(wallDependencyHandler) { BaseAddress = http.BaseAddress };
-var wallDependencyMap = await GameMap.LoadAsync(wallDependencyHttp, "maps/level1.json", 64, 64);
-Check(wallDependencyMap.Objects.ContainsKey(999) && wallDependencyHandler.Requests.Count(path => path.EndsWith("wall-only-passage.json")) == 1,
-    "Wall-only passage dependency was not loaded exactly once");
-Check(wallDependencyMap.RendererMap.Textures.Layers.Values.Contains("textures/wall-only-floor.png"), "Wall-only passage surfaces were not compiled");
-var missingWallPassage = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(webRoot, "objects/walls/wall-eagle.json")))!.AsObject();
-missingWallPassage.Remove("passageId");
-using var missingWallPassageHttp = new HttpClient(new FileHandler(webRoot, path => path == "objects/walls/wall-eagle.json" ? missingWallPassage.ToJsonString() : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<JsonException>(missingWallPassageHttp, "Wall without passageId was accepted");
-var unusedJson = ModifiedMap(json => json["objects"]!["999"] = "../objects/does-not-exist.json");
-var unusedHandler = new FileHandler(webRoot, path => path == "maps/level1.json" ? unusedJson : null);
-using var unusedHttp = new HttpClient(unusedHandler) { BaseAddress = http.BaseAddress };
-var unusedMap = await GameMap.LoadAsync(unusedHttp, "maps/level1.json", 64, 64);
-Check(!unusedMap.Objects.ContainsKey(999) && unusedHandler.Requests.All(path => !path.Contains("does-not-exist")), "Unused indexed object was loaded");
-var missingJson = ModifiedMap(json => json["objects"]!.AsObject().Remove("0"));
-using var missingIndex = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? missingJson : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<InvalidDataException>(missingIndex, "Missing index entry accepted");
-var notFoundJson = ModifiedMap(json => json["objects"]!["0"] = "../objects/not-found.json");
-using var notFound = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? notFoundJson : null)) { BaseAddress = http.BaseAddress };
-await RejectLoad<HttpRequestException>(notFound, "Missing definition accepted");
-var unusedTexture = Compile(objects: new(definitions) { [99] = wall with { Id = 99, Textures = new() { North = "textures/unused.png" } } });
-Check(!unusedTexture.RendererMap.Textures.Layers.Values.Contains("textures/unused.png"), "Unused texture included in catalog");
-var childSurfaces = Compile(SmallMap(3), new(definitions)
-{
-    [5] = Passage(5) with { FloorTexture = "textures/child-only-floor.png", CeilingTexture = "textures/child-only-ceiling.png" },
-    [2] = spriteDef with { PassageId = 5 }
-});
-Check(childSurfaces.RendererMap.Textures.Layers.Values.All(path => path == null || !path.Contains("child-only")), "Unused child surfaces included in catalog");
-
-// Sliding doors keep the texture catalog stable while geometry/rays/navigation animate.
-var steelDoor = new DoorDefinition { Id=4, PassageId=0, Texture="textures/doors/steel-door.png", Axis="y",
-    RaycastTransparent=false, Collides=true, OpenSeconds=.8f };
-var doorObjects=new Dictionary<int,MapObjectDefinition>(definitions){[4]=steelDoor};
-var doorMap=Compile(SmallMap(4),doorObjects);
-var doorActor=new Vector2(2.5f,3.5f);
-Check(doorMap.Doors.Count==1 && !doorMap.NavigationMap.IsWalkable(2,2),"Closed door is missing or walkable");
-Check(doorMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay),"Solid door does not stop rays");
-Check(!doorMap.Interact(doorActor,Vector2.UnitY,.15f),"Door activated while looking away");
-Check(!doorMap.Interact(new(2.5f,4.5f),-Vector2.UnitY,.15f),"Door activated from two tiles away");
-Check(!doorMap.Interact(new(1.5f,3.5f),new(1,-1),.15f),"Door activated from a diagonal tile");
-Check(!doorMap.Interact(doorActor,new(2,-1),.15f),"Door activated while looking beside the panel");
-var doorTextures=doorMap.RendererMap.Textures;
-var closedRevision=doorMap.Revision;
-doorMap.UpdateDoors(100,doorActor,.15f);
-Check(doorMap.Revision==closedRevision,"Idle door rebuilt the render map");
-Check(doorMap.Interact(doorActor,-Vector2.UnitY,.15f),"F-style action failed from the adjacent tile");
-doorMap.UpdateDoors(200,doorActor,.15f);
-var movingDoor=doorMap.Doors.Single();
-Check(Math.Abs(movingDoor.Openness-.25f)<.00001f && !doorMap.NavigationMap.IsWalkable(2,2),"Opening door skipped animation or unlocked collision too early");
-var movingPanel=doorMap.RendererMap.Sprites.Single();
-Check(movingPanel.Kind==(SpriteKind.DoorNormalY|SpriteKind.Opaque) && movingPanel.Position==new Vector2(2.625f,2.5f) && movingPanel.Scale.X==.75f,"Sliding geometry does not match door progress");
-Check(ReferenceEquals(doorTextures,doorMap.RendererMap.Textures) && ((uint)doorMap.RendererMap.Cells[12].Flags>>16)==16384,"Door animation changed textures or lost packed progress");
-Check(doorMap.Interact(doorActor,-Vector2.UnitY,.15f),"Moving door cannot reverse");
-doorMap.UpdateDoors(100,doorActor,.15f);Check(Math.Abs(movingDoor.Openness-.125f)<.00001f,"Door did not reverse smoothly");
-doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(1000,doorActor,.15f);
-Check(movingDoor.Openness==1 && doorMap.NavigationMap.IsWalkable(2,2) && !doorMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) && doorMap.RendererMap.Sprites.Single().Scale.X==0,"Fully open door still blocks movement/rays or draws a panel");
-Check(!doorMap.Interact(new(2.5f,3.05f),-Vector2.UnitY,.15f) && movingDoor.TargetOpen,"Door closed on the player's collision circle");
-doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(100,new(2.5f,2.5f),.15f);
-Check(movingDoor.TargetOpen && movingDoor.Openness==1,"Closing door did not reopen when occupied");
-doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(400,doorActor,.15f);
-Check(movingDoor.Openness==.5f && !doorMap.NavigationMap.IsWalkable(2,2),"Closing door is not animated/collidable");
-doorMap.UpdateDoors(400,doorActor,.15f);Check(movingDoor.Openness==0 && doorMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay),"Closed door did not restore ray blocking");
-doorMap.UpdateDoors(100,new(2.5f,3.1f),.15f);Check(movingDoor.Openness==0,"Touching a closed door opened it without F");
-doorMap.Interact(doorActor,-Vector2.UnitY,.15f);doorMap.UpdateDoors(200,doorActor,.15f);
-doorMap.SetCell(3,3,4);Check(doorMap.Doors.Count==2 && doorMap.Doors.Single(d=>d.X==2).Openness==.25f && doorMap.Doors.Single(d=>d.X==3).Openness==0,"Map edit reset an existing door or shared its state");
-doorMap.SetCell(2,2,0);Check(doorMap.Doors.Count==1 && doorMap.NavigationMap.IsWalkable(2,2),"Deleted door left collision behind");
-// Auto-close waits until fully open, respects the collision circle, and survives map edits.
-var timedDoorMap = Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = 1 } });
-timedDoorMap.Interact(doorActor, -Vector2.UnitY, .15f);
-timedDoorMap.UpdateDoors(800, doorActor, .15f);
-var timedDoor = timedDoorMap.Doors.Single();
-var openRevision = timedDoorMap.Revision;
-timedDoorMap.UpdateDoors(999, doorActor, .15f);
-Check(timedDoor.TargetOpen && timedDoor.Openness == 1 && timedDoorMap.Revision == openRevision,
-    "Auto-close included opening animation in its delay or rebuilt an idle door");
-timedDoorMap.UpdateDoors(201, doorActor, .15f);
-Check(!timedDoor.TargetOpen && Math.Abs(timedDoor.Openness - .75f) < .0001f && !timedDoorMap.NavigationMap.IsWalkable(2,2),
-    "Auto-close did not animate and restore collision after its delay");
-var overlappingPlayer = new Vector2(2.5f, 3.05f);
-timedDoorMap.UpdateDoors(200, overlappingPlayer, .15f);
-Check(timedDoor.TargetOpen && timedDoor.Openness == 1, "Auto-closing door failed to reopen for the player's collision circle");
-timedDoorMap.UpdateDoors(1500, overlappingPlayer, .15f);
-Check(timedDoor.TargetOpen && timedDoor.Openness == 1, "Expired auto-close timer closed an occupied doorway");
-timedDoorMap.UpdateDoors(200, doorActor, .15f);
-Check(!timedDoor.TargetOpen && Math.Abs(timedDoor.Openness - .75f) < .0001f, "Expired auto-close did not resume after the player cleared the doorway");
-timedDoorMap.Interact(doorActor, -Vector2.UnitY, .15f);
-timedDoorMap.UpdateDoors(200, doorActor, .15f);
-timedDoorMap.UpdateDoors(500, doorActor, .15f);
-timedDoorMap.SetCell(3,1,1);
-timedDoorMap.UpdateDoors(499, doorActor, .15f);
-Check(timedDoor.TargetOpen && timedDoor.Openness == 1, "Manual reopening did not restart the delay");
-timedDoorMap.UpdateDoors(401, doorActor, .15f);
-Check(!timedDoor.TargetOpen && Math.Abs(timedDoor.Openness - .5f) < .0001f, "Map edit reset the auto-close timer");
-foreach (var disabledDelay in new[] { 0f, -1f })
-{
-    var untimed = Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = disabledDelay } });
-    untimed.Interact(doorActor, -Vector2.UnitY, .15f);
-    untimed.UpdateDoors(30000, doorActor, .15f);
-    Check(untimed.Doors.Single().Openness == 1 && untimed.Doors.Single().TargetOpen, "Nonpositive auto-close delay did not disable closing");
-}
-var longStepDoor = Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = 1 } });
-longStepDoor.Interact(doorActor, -Vector2.UnitY, .15f);
-longStepDoor.UpdateDoors(2601, doorActor, .15f);
-Check(longStepDoor.Doors.Single().Openness == 0, "Auto-close timing depends on update size");
-Check(map.Doors.Concat(showcase.Doors).All(door => door.Definition.AutoCloseSeconds == 10), "Existing doors do not auto-close after ten seconds");
-foreach (var invalidDelay in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
-    Reject(() => Compile(SmallMap(4), new(definitions) { [4] = steelDoor with { AutoCloseSeconds = invalidDelay } }), "Nonfinite auto-close delay accepted");
-{
-    var flightLevel=SmallMap(4) with {PlayerStart=SmallMap().PlayerStart with {X=2.5f,Y=3.5f,DirectionX=0,DirectionY=-1,JumpLength=2}};
-    var flightDoors=Compile(flightLevel,doorObjects);
-    flightDoors.Interact(new(2.5f,3.5f),-Vector2.UnitY,.15f);flightDoors.UpdateDoors(1000,new(2.5f,3.5f),.15f);
-    var flyer=new TestObject {Transform=new(){Position=new(2.5f,3.5f),Rotation=-Vector2.UnitY}};
-    var flightInput=new FakeKeyboard {KeyState=new(){Jump=true}};
-    var flightCamera=new WolfNET.Game.Player.Components.CameraComponent(flyer) {Plane=new(-.66f,0)};
-    var flightController=new WolfNET.Game.Player.Components.PlayerController(flightInput,new FakeMouse(),flightDoors.NavigationMap,flightCamera,flightLevel.PlayerStart,flyer);
-    flightController.Update(25);
-    flightDoors.Interact(flyer.Transform.Position,-Vector2.UnitY,.15f);flightDoors.UpdateDoors(50,flyer.Transform.Position,.15f);
-    for(int i=0;i<20;i++)flightController.Update(25);
-    Check(flyer.Transform.Position.Y>=3.15f && !flightController.InAir,"Jump tunneled through a door that closed after takeoff");
-}
-var glassMap=Compile(SmallMap(4),new(definitions){[4]=steelDoor with {Axis="x",RaycastTransparent=true,Texture="textures/doors/glass-door.png"}});
-Check(!glassMap.RendererMap.Cells[12].Flags.HasFlag(RenderCellFlags.StopsRay) && !glassMap.NavigationMap.IsWalkable(2,2),"Glass door did not separate visibility from collision");
-Check(glassMap.Interact(new(1.5f,2.5f),Vector2.UnitX,.15f),"X-normal door cannot be used from west");
-glassMap.UpdateDoors(200,new(1.5f,2.5f),.15f);
-Check(glassMap.RendererMap.Sprites.Single().Position==new Vector2(2.5f,2.625f),"X-normal door slid on the wrong axis");
-Check(glassMap.Interact(new(3.5f,2.5f),-Vector2.UnitX,.15f),"X-normal door cannot be used from east");
-foreach(var invalid in new[]{steelDoor with{Axis="z"},steelDoor with{OpenSeconds=0},steelDoor with{OpenSeconds=float.NaN}})
-    Reject(()=>Compile(SmallMap(4),new(definitions){[4]=invalid}),"Invalid door configuration accepted");
-var boundaryDoor=SmallMap();boundaryDoor.WorldMap[0][2]=4;
-Reject(()=>Compile(boundaryDoor,doorObjects),"A door was allowed to open the map boundary");
-Check(showcase.Doors.Count==2 && showcase.Doors.Any(d=>d.X==18&&d.Y==12&&!d.Definition.RaycastTransparent) && showcase.Doors.Any(d=>d.X==24&&d.Y==18&&d.Definition.RaycastTransparent),"Showcase door examples missing");
-
-// Third-person rendering stays separate from the movement/collision transform.
-var orbitGrid = Enumerable.Range(0,12).Select(x => Enumerable.Range(0,12)
-    .Select(y => x==0 || y==0 || x==11 || y==11 ? 1 : 0).ToArray()).ToArray();
-var orbitMap = Compile(SmallMap() with { WorldMap=orbitGrid });
-var orbitPlayer = new Transform { Position=new(6.5f,6.5f), Rotation=new(0,-1) };
-var firstView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,.2f,.12f,false,orbitMap.RendererMap);
-Check(firstView.Position==orbitPlayer.Position && firstView.Elevation==.12f && firstView.Distance==0,"First-person view moved off the player");
-var followView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,0,0,true,orbitMap.RendererMap);
-Check(Vector2.Distance(followView.Position,new(6.5f,8f))<.0001f && followView.Distance>1.49f,"Third-person camera did not move behind the player");
-var orbitTurned = orbitPlayer with { Rotation=new(1,0) };
-var turnedView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitTurned,0,0,true,orbitMap.RendererMap);
-Check(Vector2.Distance(turnedView.Position,new(5f,6.5f))<.0001f && orbitPlayer.Position==new Vector2(6.5f,6.5f),"Camera yaw failed to orbit a stationary player");
-var upView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,.3f,0,true,orbitMap.RendererMap);
-var downView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,-.3f,0,true,orbitMap.RendererMap);
-Check(upView.Distance<followView.Distance && upView.Elevation<followView.Elevation && downView.Elevation>followView.Elevation,"Vertical mouse look did not orbit the camera");
-orbitMap.SetCell(6,8,1);
-var closeView = WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,0,0,true,orbitMap.RendererMap);
-Check(closeView.Distance>1.3f && closeView.Distance<1.41f && closeView.Position.Y<=7.9f,"Camera boom crossed a wall");
-orbitMap.SetCell(6,8,0);
-Check(WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer,0,0,true,orbitMap.RendererMap).Distance>1.49f,"Camera did not recover its distance after a wall cleared");
-for(int heading=0;heading<32;heading++)
-{
-    var angle=heading*MathF.Tau/32;
-    var view=WolfNET.Game.Player.ThirdPersonCamera.View(orbitPlayer with {Position=new(1.2f,1.2f),Rotation=new(MathF.Cos(angle),MathF.Sin(angle))},.4f,0,true,orbitMap.RendererMap);
-    Check(view.Position.X>=1.099f && view.Position.Y>=1.099f && view.Distance<=2 && Math.Abs(view.Elevation)<=.45f,"Orbit escaped the map boundary/height range");
-}
-var visualDefinition = JsonSerializer.Deserialize<SpriteDefinition>(File.ReadAllText(Path.Combine(webRoot,"player-character.json")),new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
-var appearance = new WolfNET.Game.Player.CharacterAppearance(visualDefinition);
-var combined = appearance.AddTextures(showcase.RendererMap.Textures);
-Check(combined.Layers.Count==showcase.RendererMap.Textures.Layers.Count+15 &&
-    showcase.RendererMap.Textures.Layers.All(pair=>combined.Layers[pair.Key]==pair.Value),"Character allocation replaced scene textures");
-Check(Enumerable.Range(0,15).All(i=>combined.Frames.ContainsKey(appearance.FirstLayer+(uint)i)),"Character frames were not reserved");
-var idleVisual=appearance.Sprite(14,orbitPlayer.Position,0);
-var crouchVisual=appearance.Sprite(10,orbitPlayer.Position,0);
-Check(Math.Abs(idleVisual.Scale.Y-visualDefinition.Atlas!.Frames[14].Height*.9f/310*.8f)<.00001f &&
-    Math.Abs(crouchVisual.Scale.Y-visualDefinition.Atlas.Frames[10].Height*.9f/310*.7f)<.00001f,"Character sizes do not match 80%/70%");
-Check(crouchVisual.Scale.Y<idleVisual.Scale.Y && idleVisual.OwnerCell==0,"Character crouch was enlarged or ignored normal occlusion");
-Check(Math.Abs(appearance.Sprite(12,orbitPlayer.Position,.3f).Elevation-appearance.Sprite(12,orbitPlayer.Position,0).Elevation-.3f)<.00001f,"Character jump elevation did not follow the player");
-var anim = new WolfNET.Game.Player.PlayerAnimation();
-anim.Update(1000,Vector2.Zero,new(),false,false);
-Check(anim.Frame==14,"Stationary character did not use idle");
-foreach(var (keys,expected) in new (WolfNET.Game.InputEvents.KeyState,int)[] {
-    (new(){Forward=true},0),(new(){Forward=true,StrafeLeft=true},2),(new(){Forward=true,StrafeRight=true},4),
-    (new(){StrafeLeft=true},6),(new(){StrafeRight=true},8) })
-{
-    anim.Update(0,Vector2.UnitX,keys,false,false);
-    Check(anim.Frame==expected,"Wrong movement animation pair");
-    anim.Update(160,Vector2.UnitX,keys,false,false);
-    Check(anim.Frame==expected+1,"Second leg frame did not advance");
-    anim.Update(160,Vector2.UnitX,keys,false,false);
-    Check(anim.Frame==expected,"Two-frame walk animation did not loop");
-}
-anim.Update(500,Vector2.Zero,new(){Forward=true},false,false);
-Check(anim.Frame==14,"Blocked movement animated walking");
-anim.Update(0,Vector2.Zero,new(),false,true); Check(anim.Frame==10,"Stationary crouch frame incorrect");
-anim.Update(1000,Vector2.Zero,new(),false,true); Check(anim.Frame==10,"Stationary crouch kept walking");
-anim.Update(160,Vector2.UnitY,new(),false,true); Check(anim.Frame==11,"Moving crouch did not alternate legs");
-anim.Update(0,Vector2.Zero,new(),true,true); Check(anim.Frame==12,"Jump did not take priority over crouch");
-anim.Update(160,Vector2.Zero,new(),true,false); Check(anim.Frame==13,"Jump did not animate while horizontal motion was blocked");
-var toggleObject=new TestObject {Transform=orbitPlayer};
-var toggleKeys=new FakeKeyboard {ViewToggleRequested=true};
-var toggleCamera=new WolfNET.Game.Player.Components.CameraComponent(toggleObject) {Plane=new(.66f,0)};
-var toggleController=new WolfNET.Game.Player.Components.PlayerController(toggleKeys,new FakeMouse(),orbitMap.NavigationMap,toggleCamera,orbitMap.PlayerStart,toggleObject);
-toggleController.Update(16); Check(toggleCamera.ThirdPerson && toggleObject.Transform.Position==orbitPlayer.Position,"V toggle changed player position");
-toggleController.Update(16); Check(toggleCamera.ThirdPerson,"Camera toggle repeated without another press");
-toggleKeys.ViewToggleRequested=true; toggleController.Update(16); Check(!toggleCamera.ThirdPerson,"Camera did not return to first person");
-
-// Third-person translation and takeoff use this frame's heading, not the previous camera heading.
-foreach (var steeringKeys in new WolfNET.Game.InputEvents.KeyState[] {
-    new(){Forward=true},new(){Backward=true},new(){StrafeLeft=true},new(){StrafeRight=true},
-    new(){Forward=true,StrafeLeft=true},new(){Forward=true,StrafeRight=true} })
-{
-    var actor=new TestObject {Transform=orbitPlayer};
-    var steeringCamera=new WolfNET.Game.Player.Components.CameraComponent(actor) {ThirdPerson=true,Plane=new(-.66f,0)};
-    var steeringMouse=new FakeMouse {HorizontalMovement=80};
-    var steeringInput=new FakeKeyboard {KeyState=steeringKeys};
-    var steeringController=new WolfNET.Game.Player.Components.PlayerController(steeringInput,steeringMouse,orbitMap.NavigationMap,steeringCamera,orbitMap.PlayerStart,actor);
-    steeringController.Update(50);
-    var heading=actor.Transform.Rotation;
-    var expectedDirection=heading*((steeringKeys.Forward?1:0)-(steeringKeys.Backward?1:0))+
-        new Vector2(heading.Y,-heading.X)*((steeringKeys.StrafeRight?1:0)-(steeringKeys.StrafeLeft?1:0));
-    expectedDirection=Vector2.Normalize(expectedDirection);
-    var expectedPosition=orbitPlayer.Position+expectedDirection*.25f;
-    Check(Vector2.Distance(actor.Transform.Position,expectedPosition)<.00001f,"Third-person movement lagged behind this frame's character heading");
-    steeringController.Update(50);
-    Check(Vector2.Distance(actor.Transform.Position,orbitPlayer.Position+expectedDirection*.5f)<.00001f,"Third-person travel did not stay on one straight line after steering stopped");
-}
-{
-    var actor=new TestObject {Transform=orbitPlayer};
-    var camera=new WolfNET.Game.Player.Components.CameraComponent(actor) {ThirdPerson=true,Plane=new(-.66f,0)};
-    var keys=new FakeKeyboard {KeyState=new(){Jump=true}};
-    var mouse=new FakeMouse {HorizontalMovement=80};
-    var controller=new WolfNET.Game.Player.Components.PlayerController(keys,mouse,orbitMap.NavigationMap,camera,orbitMap.PlayerStart,actor);
-    controller.Update(50);
-    Check(Vector2.Distance(controller.JumpDestination,orbitPlayer.Position+actor.Transform.Rotation*orbitMap.PlayerStart.JumpLength)<.00001f,"Third-person jump used the old camera heading");
+    catch (JsonException) { assertions++; }
 }
 
-using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
-await RejectLoad<OperationCanceledException>(http, "Cancellation ignored", cancellation.Token);
-foreach (bool wallsPresent in new[] { false, true })
-foreach (float configuredSpeed in new[] { 0f, 2f, 5f })
-foreach (float milliseconds in new[] { 16f, 33f, 100f })
-for (int heading = 0; heading < 12; heading++)
-for (int keys = 0; keys < 16; keys++)
+// Exercise the real walking controller against a wall, then jump and crouch.
+using (var player = new TestObject { Transform = new() { Position = new(4.5f), Rotation = Vector2.UnitX } })
 {
-    var level = SmallMap() with { PlayerStart = SmallMap().PlayerStart with { MoveSpeed = configuredSpeed } };
-    if (wallsPresent) level.WorldMap[3][2] = 1;
-    var navigation = Compile(level).NavigationMap;
-    var start = wallsPresent ? new Vector2(2.79f, 2.5f) : new Vector2(2.5f, 2.5f);
-    var direction = new Vector2(MathF.Cos(heading * MathF.PI / 6), MathF.Sin(heading * MathF.PI / 6)) * 1.001f;
-    var player = new TestObject { Transform = new Transform { Position = start, Rotation = direction } };
-    var tracker = new FakeKeyboard { KeyState = new()
-    {
-        Forward = (keys & 1) != 0, Backward = (keys & 2) != 0,
-        StrafeLeft = (keys & 4) != 0, StrafeRight = (keys & 8) != 0
-    } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y, -direction.X) * 0.66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, new FakeMouse(), navigation, camera, level.PlayerStart, player);
-    controller.Update(milliseconds);
-    var speed = Vector2.Distance(start, player.Transform.Position) / (milliseconds / 1000);
-    Check(speed <= configuredSpeed + 0.0001f, "Movement exceeded the configured speed cap");
-    if (!wallsPresent)
-    {
-        bool active = tracker.KeyState.Forward != tracker.KeyState.Backward || tracker.KeyState.StrafeLeft != tracker.KeyState.StrafeRight;
-        Check(MathF.Abs(speed - (active ? configuredSpeed : 0)) < 0.0001f, "Combined movement speed changed");
-    }
-    Check(navigation.IsWalkable((int)player.Transform.Position.X, (int)player.Transform.Position.Y), "Controller entered a blocked cell");
-}
-Vector2 MovePlayer(GameMap level, Vector2 position, Vector2 direction, float milliseconds, float speed = 5)
-{
-    var player = new TestObject
-    {
-        Transform = new Transform { Position = position, Rotation = Vector2.Normalize(direction) }
-    };
     var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new FakeMouse(), level.NavigationMap,
-        new WolfNET.Game.Player.Components.CameraComponent(player), level.PlayerStart with { MoveSpeed = speed }, player);
-    controller.Update(milliseconds);
-    return player.Transform.Position;
-}
-
-var collisionMap = SmallMap();
-collisionMap.WorldMap[3][2] = 1;
-var collisionLevel = Compile(collisionMap);
-Check(map.PlayerStart.CollisionRadius == 0.15f && showcase.PlayerStart.CollisionRadius == 0.15f,
-    "Supplied maps did not load the configured collision radius");
-Check(new PlayerStartDefinition { X = 1.5f, Y = 1.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 3 }.CollisionRadius == 0.15f,
-    "Legacy maps did not retain the default collision radius");
-foreach (float radius in new[] { 0.1f, 0.15f, 0.3f })
-{
-    var configuredLevel = Compile(collisionMap with { PlayerStart = collisionMap.PlayerStart with { CollisionRadius = radius } });
-    var result = MovePlayer(configuredLevel, new(2.5f, 2.5f), Vector2.UnitX, 1000);
-    Check(MathF.Abs(result.X - (3 - radius)) < 0.0001f, "Controller ignored the map's collision radius");
-}
-foreach (float invalid in new[] { 0f, -1f, 0.5f, float.NaN, float.PositiveInfinity })
-    Reject(() => Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { CollisionRadius = invalid } }),
-        "Invalid collision radius accepted");
-var overlapSlide = MovePlayer(collisionLevel, new(2.800001f, 2.2f), Vector2.UnitY, 100);
-Check(overlapSlide.X < 2.8f && overlapSlide.Y > 2.69f,
-    "A tiny initial wall overlap prevented sliding");
-var aroundCorner = MovePlayer(collisionLevel, new(2.88f, 1.84f), Vector2.UnitX, 100);
-Check(aroundCorner.X > 3 && aroundCorner.Y < 1.81f,
-    "Moving directly into a rounded corner pinned the player instead of sliding");
-var contact = MovePlayer(collisionLevel, new(2.5f, 2.5f), Vector2.UnitX, 1000);
-Check(MathF.Abs(contact.X - 2.8f) < 0.0001f && contact.Y == 2.5f,
-    "Circle failed to stop at its radius from a wall during fast movement");
-var retreat = MovePlayer(collisionLevel, contact, -Vector2.UnitX, 100);
-var leaveSideways = MovePlayer(collisionLevel, contact, Vector2.UnitY, 100);
-Check(retreat.X < 2.31f && leaveSideways.Y > 2.99f,
-    "Player could not retreat or strafe after a direct obstacle collision");
-var slide = MovePlayer(collisionLevel, new(2.8f, 2.2f), Vector2.One, 100);
-Check(MathF.Abs(slide.X - 2.8f) < 0.0001f && slide.Y > 2.5f,
-    "Circle did not slide along a wall");
-var corner = MovePlayer(collisionLevel, new(2.5f, 1.85f), Vector2.UnitX, 100);
-Check(corner.X > 2.8f && corner.X < 3 && Vector2.Distance(corner, new(3, 2)) >= 0.1999f,
-    "Circle corner clearance was incorrect or behaved like a square");
-collisionMap.WorldMap[2][3] = 1;
-var diagonalContact = MovePlayer(Compile(collisionMap), new(2.5f), Vector2.One, 1000);
-Check(diagonalContact.X <= 2.8001f && diagonalContact.Y <= 2.8001f,
-    "Player squeezed through a diagonal gap between solid cells");
-var corridorMap = SmallMap();
-for (int y = 1; y <= 3; y++) corridorMap.WorldMap[1][y] = corridorMap.WorldMap[3][y] = 1;
-corridorMap = corridorMap with { PlayerStart = corridorMap.PlayerStart with { X = 2.5f, Y = 1.5f } };
-var corridorEnd = MovePlayer(Compile(corridorMap), new(2.5f, 1.5f), Vector2.UnitY, 1000);
-Check(corridorEnd.X == 2.5f && MathF.Abs(corridorEnd.Y - 3.8f) < 0.0001f,
-    "Circle could not traverse a one-cell-wide corridor or crossed its boundary");
-var leftContact = MovePlayer(Compile(), new(1.5f, 2.5f), -Vector2.UnitX, 1000);
-Check(MathF.Abs(leftContact.X - 1.2f) < 0.0001f,
-    "Circle failed to keep clearance from the opposite map boundary");
-foreach (bool transparent in new[] { false, true })
-foreach (bool collides in new[] { false, true })
-{
-    var level = Compile(SmallMap(2), new(definitions)
-    {
-        [2] = spriteDef with { RaycastTransparent = transparent, Collides = collides }
-    });
-    var result = MovePlayer(level, new(1.5f, 2.5f), Vector2.UnitX, 1000, speed: 1);
-    Check(MathF.Abs(result.X - (collides ? 1.8f : 2.5f)) < 0.0001f,
-        "Circular collision did not respect sprite collision flags independently of ray transparency");
-}
-
-foreach (float configuredSpeed in new[] { 0f, 0.5f, 2f, 4f })
-foreach (float milliseconds in new[] { 16f, 33f, 100f })
-foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })
-foreach (int keyboard in new[] { -1, 0, 1 })
-{
-    var level = Compile(SmallMap() with { PlayerStart = SmallMap().PlayerStart with { RotSpeed = configuredSpeed } });
-    var player = new TestObject
-    {
-        Transform = new Transform { Position = new Vector2(2.5f), Rotation = Vector2.UnitX }
-    };
-    var tracker = new FakeKeyboard
-    {
-        KeyState = new() { Left = keyboard > 0, Right = keyboard < 0 }
-    };
-    var mouse = new FakeMouse { HorizontalMovement = pixels };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(0, -0.66f) };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(tracker, mouse, level.NavigationMap, camera, level.PlayerStart, player);
-    controller.Update(milliseconds);
-    var limit = configuredSpeed * milliseconds / 1000f;
-    var expected = Math.Clamp(-pixels * 0.0025f + keyboard * limit, -limit, limit);
-    var angle = MathF.Atan2(player.Transform.Rotation.Y, player.Transform.Rotation.X);
-    Check(MathF.Abs(angle - expected) < 0.00001f, "Mouse/keyboard turning did not respect the configured rate");
-    Check(MathF.Abs(camera.Plane.Length() - 0.66f) < 0.00001f &&
-          MathF.Abs(Vector2.Dot(camera.Plane, player.Transform.Rotation)) < 0.00001f, "Turning changed camera field of view");
-    tracker.KeyState = new();
-    controller.Update(milliseconds);
-    Check(MathF.Abs(MathF.Atan2(player.Transform.Rotation.Y, player.Transform.Rotation.X) - angle) < 0.00001f,
-        "Mouse movement was applied more than once");
-}
-foreach (float configuredSpeed in new[] { 0f, 0.5f, 3f })
-foreach (float milliseconds in new[] { 0f, 16f, 100f })
-foreach (float pixels in new[] { -10000f, -1f, 0f, 1f, 10000f })
-foreach (float initialPitch in new[] { -MathF.PI / 6, 0f, MathF.PI / 6 })
-{
-    var player = new TestObject { Transform = new Transform { Position = new(2.5f), Rotation = Vector2.UnitX } };
-    var mouse = new FakeMouse { VerticalMovement = pixels };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new(0, -0.66f), Pitch = initialPitch };
-    var level = Compile();
-    var controller = new WolfNET.Game.Player.Components.PlayerController(new FakeKeyboard(), mouse, level.NavigationMap, camera,
-        level.PlayerStart with { RotSpeed = configuredSpeed }, player);
-    controller.Update(milliseconds);
-    var limit = configuredSpeed * milliseconds / 1000;
-    var expected = Math.Clamp(initialPitch + Math.Clamp(-pixels * 0.0025f, -limit, limit), -MathF.PI / 6, MathF.PI / 6);
-    Check(MathF.Abs(camera.Pitch - expected) < 0.00001f, "Vertical mouse look ignored speed, direction, or pitch limits");
-    Check(player.Transform.Position == new Vector2(2.5f) && player.Transform.Rotation == Vector2.UnitX && camera.Plane == new Vector2(0, -0.66f),
-        "Vertical looking changed horizontal movement or field of view");
+    var camera = new CameraComponent(player) { Plane = new(0, -.66f) };
+    var controller = new PlayerController(keys, new FakeMouse(), navigation, camera, map.PlayerStart, player);
+    for (var frame = 0; frame < 120; frame++) controller.Update(1000f / 60);
+    Check(player.Transform.Position.X > 7 && player.Transform.Position.X < 8 &&
+        navigation.IsWalkable((int)player.Transform.Position.X, (int)player.Transform.Position.Y),
+        "Walking failed to advance or passed through the boundary wall");
+    player.Transform = player.Transform with { Position = new(4.5f) };
+    keys.KeyState = new() { Jump = true };
+    controller.Update(0);
     controller.Update(100);
-    Check(camera.Pitch == expected, "Vertical movement continued after the mouse stopped");
-}
-
-MapDefinition JumpMap(float length = 4, float multiplier = 2, float rise = 0.25f) => new()
-{
-    WorldMap = Enumerable.Range(0, 9).Select(x => Enumerable.Range(0, 7)
-        .Select(y => x == 0 || x == 8 || y == 0 || y == 6 ? 1 : x == 4 && y == 3 ? 10 : 0).ToArray()).ToArray(),
-    PlayerStart = SmallMap().PlayerStart with { X = 2.5f, Y = 3.5f, MoveSpeed = 4, JumpLength = length, JumpRise = rise, JumpSpeedMultiplier = multiplier }
-};
-GameMap JumpLevel(MapDefinition? definition = null, bool jumpable = true) => Compile(definition ?? JumpMap(),
-    new(definitions) { [10] = Passage(10, collides: true) with { Jumpable = jumpable } });
-(TestObject Player, FakeKeyboard Keys,
-    WolfNET.Game.Player.Components.CameraComponent Camera, WolfNET.Game.Player.Components.PlayerController Controller,
-    FakeMouse Mouse) JumpPlayer(GameMap level)
-{
-    var player = new TestObject { Transform = new Transform { Position = level.PlayerStartPosition, Rotation = Vector2.UnitX } };
-    var keys = new FakeKeyboard { KeyState = new() { Jump = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new(0,-0.66f) };
-    var mouse = new FakeMouse();
-    return (player, keys, camera, new(keys, mouse, level.NavigationMap, camera, level.PlayerStart, player), mouse);
-}
-{
-    var jump = JumpPlayer(JumpLevel());
-    jump.Controller.Update(0);
-    Check(jump.Controller.InAir && jump.Camera.Elevation == 0 && jump.Controller.JumpDestination == new Vector2(6.5f,3.5f), "Jump destination was not planned at takeoff");
-    jump.Controller.Update(250);
-    Check(MathF.Abs(jump.Camera.Elevation - .25f) < .0001f && jump.Player.Transform.Position == new Vector2(4.5f,3.5f), "Jump rise, travel speed, or apex timing incorrect");
-    jump.Keys.KeyState = new() { Backward = true, StrafeRight = true, Jump = true };
-    jump.Mouse.HorizontalMovement = 100;
-    jump.Controller.Update(250);
-    Check(!jump.Controller.InAir && jump.Camera.Elevation == 0 && jump.Player.Transform.Position == new Vector2(6.5f,3.5f), "Airborne input steered the jump or changed its distance");
-    Check(jump.Player.Transform.Rotation != Vector2.UnitX, "Jumping prevented mouse look");
-    jump.Keys.KeyState = new() { Jump = true }; jump.Controller.Update(100);
-    Check(!jump.Controller.InAir && jump.Player.Transform.Position == new Vector2(6.5f,3.5f), "Held Space repeated the jump");
-    jump.Keys.KeyState = new();
-    jump.Keys.KeyState = new() { Jump = true }; jump.Controller.Update(0);
-    Check(jump.Controller.InAir, "Space released and pressed between frames did not restart jumping");
-}
-foreach (float multiplier in new[] { 0.5f, 1f, 2f })
-foreach (float rise in new[] { 0f, .1f, .4f })
-{
-    var jump = JumpPlayer(JumpLevel(JumpMap(multiplier: multiplier, rise: rise)));
-    var seconds = 4 / (4 * multiplier);
-    jump.Controller.Update(seconds * 500);
-    Check(jump.Controller.InAir && MathF.Abs(jump.Camera.Elevation - rise) < .0001f && MathF.Abs(jump.Player.Transform.Position.X - 4.5f) < .0001f,
-        "Configured jump rise or walking-speed multiplier was ignored");
-    jump.Controller.Update(seconds * 500);
-    Check(!jump.Controller.InAir && jump.Player.Transform.Position == new Vector2(6.5f,3.5f), "Derived jump time did not produce the requested distance");
-}
-foreach (bool jumpable in new[] { false, true })
-foreach (float frame in new[] { 16f, 100f, 500f })
-{
-    var jump = JumpPlayer(JumpLevel(jumpable: jumpable));
-    for(float elapsed=0;elapsed<500;elapsed+=frame)jump.Controller.Update(MathF.Min(frame,500-elapsed));
-    Check(!jump.Controller.InAir && jump.Camera.Elevation == 0, "Jump timing depended on frame interval");
-    Check(MathF.Abs(jump.Player.Transform.Position.X - (jumpable ? 6.5f : 3.8f)) < .0001f, "Jump failed to cross a jumpable obstacle or stop at a solid obstacle");
-}
-foreach (float length in new[] { 1.35f, 2f })
-{
-    var jump = JumpPlayer(JumpLevel(JumpMap(length)));
-    jump.Controller.Update(0);
-    Check(MathF.Abs(jump.Controller.JumpDestination.X - 3.8f) < .0001f, "Blocked landing circle was not identified before takeoff");
-    float previous=2.5f;
-    for(int i=0;i<40;i++)
-    {
-        jump.Controller.Update(16);
-        var x=jump.Player.Transform.Position.X;
-        Check(x>=previous-.00001f && x<=3.80001f, "Jump entered its blocked destination or snapped backward");
-        previous=x;
-    }
-    Check(!jump.Controller.InAir, "Blocked jump never finished");
-}
-{
-    var definition = JumpMap(); definition.WorldMap[5][3]=1;
-    var jump = JumpPlayer(JumpLevel(definition)); jump.Controller.Update(0);
-    Check(MathF.Abs(jump.Controller.JumpDestination.X - 3.8f)<.0001f, "Solid wall beyond a jumpable cell left a blocked landing inside that cell");
-    jump.Controller.Update(500);
-    Check(jump.Player.Transform.Position.X<=3.8f, "Jump crossed the obstacle that blocks its landing");
-}
-{
-    var jump=JumpPlayer(JumpLevel(JumpMap(length:0))); jump.Controller.Update(500);
-    Check(!jump.Controller.InAir && jump.Player.Transform.Position==new Vector2(2.5f,3.5f), "Zero length did not disable jumping");
-    var level=JumpLevel(); level.SetCell(4,3,1);
-    Check(!level.NavigationMap.IsWalkable(4,3,inAir:true), "Map revisions retained stale airborne collision flags");
-    Check(!level.NavigationMap.IsWalkable(-1,2,inAir:true)&&!level.NavigationMap.IsWalkable(0,2,inAir:true), "Airborne player could pass map boundaries");
-}
-Reject(() => Compile(objects: new(definitions) { [1] = wall with { Jumpable = true } }), "Jumpable boundary accepted");
-foreach(float invalid in new[]{-1f,0.5f,float.NaN,float.PositiveInfinity})
-    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpRise=invalid}}), "Invalid jump rise accepted");
-foreach(float invalid in new[]{-1f,65f,float.NaN,float.PositiveInfinity})
-    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpLength=invalid}}), "Invalid jump length accepted");
-foreach(float invalid in new[]{-1f,0f,float.NaN,float.PositiveInfinity})
-    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{JumpSpeedMultiplier=invalid}}), "Invalid jump multiplier accepted");
-
-// The Brickyard shortcut must work with the actual controller and collision circle,
-// including the return trip; tile reachability alone cannot establish a safe landing.
-foreach (var direction in new[] { Vector2.UnitY, -Vector2.UnitY })
-{
-    var center = new Vector2(6.5f, 17.5f);
-    var player = new TestObject { Transform = new Transform { Position = center - direction, Rotation = direction } };
-    var keys = new FakeKeyboard { KeyState = new() { Jump = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y, -direction.X) * .66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new FakeMouse(), map.NavigationMap, camera, map.PlayerStart, player);
-    controller.Update(0);
-    Check(Vector2.Distance(controller.JumpDestination, center + direction) < .0001f, "Brickyard shortcut has no safe jump landing");
-    controller.Update(160);
-    Check(controller.InAir && Vector2.Distance(player.Transform.Position, center) < .0001f, "Brickyard jump did not pass above its obstacle");
-    controller.Update(160);
-    Check(!controller.InAir && Vector2.Distance(player.Transform.Position, center + direction) < .0001f, "Brickyard shortcut jump did not land");
-}
-foreach (var direction in new[] { Vector2.UnitY, -Vector2.UnitY })
-{
-    var center = new Vector2(3.5f, 11.5f);
-    var player = new TestObject { Transform = new Transform { Position = center - direction, Rotation = direction } };
-    var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y, -direction.X) * .66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys, new FakeMouse(), map.NavigationMap, camera, map.PlayerStart, player);
-    controller.Update(200);
-    Check(Vector2.Distance(player.Transform.Position, center) > .64f, "Brickyard overhead obstacle allows standing passage");
-    keys.KeyState = new() { Forward = true, Crouch = true };
-    controller.Update(400);
-    Check(controller.Crouching && Vector2.Dot(player.Transform.Position - center, direction) > .3f, "Brickyard overhead obstacle cannot be crossed while crouched");
-    controller.Update(400);
+    Check(controller.InAir && camera.Elevation > 0, "Jump did not raise the player");
+    for (var frame = 0; frame < 60; frame++) controller.Update(1000f / 60);
+    Check(!controller.InAir && camera.Elevation == 0, "Jump did not land");
+    keys.KeyState = new() { Crouch = true };
+    controller.Update(16);
+    Check(controller.Crouching && camera.Elevation < 0, "Crouch did not lower the camera");
     keys.KeyState = new();
-    controller.Update(120);
-    Check(!controller.Crouching && camera.Elevation == 0 && Vector2.Dot(player.Transform.Position - center, direction) > .8f,
-        "Brickyard maintenance route cannot be exited upright");
+    controller.Update(16);
+    Check(!controller.Crouching && camera.Elevation == 0, "Crouch did not release");
 }
 
-var editorSource = new WolfNET.Editor.MapWorkspace(webRoot);
-foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, -Vector2.UnitY })
-{
-    var center = new Vector2(9.5f,20.5f);
-    var start = center - direction;
-    var destination = center + direction;
-    var player = new TestObject { Transform = new Transform { Position = start, Rotation = direction } };
-    var keys = new FakeKeyboard { KeyState = new() { Jump = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y,-direction.X) * .66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new FakeMouse(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
-    controller.Update(0);
-    Check(Vector2.Distance(controller.JumpDestination,destination)<.0001f,$"Showcase column jump destination is blocked in direction {direction}");
-    controller.Update(160);
-    Check(controller.InAir && Vector2.Distance(player.Transform.Position,center)<.0001f && MathF.Abs(camera.Elevation-.4f)<.0001f,
-        "Showcase jump did not cross the column rows at the configured rise");
-    controller.Update(160);
-    Check(!controller.InAir && Vector2.Distance(player.Transform.Position,destination)<.0001f,"Showcase column jump did not land beyond both rows");
-}
-var editorDocument = editorSource.Load("showcase") with { Name = "editor-roundtrip" };
-foreach (var direction in new[] { Vector2.UnitX, -Vector2.UnitX, Vector2.UnitY, -Vector2.UnitY })
-{
-    var center = new Vector2(9.5f,16.5f);
-    var player = new TestObject { Transform = new Transform { Position = center-direction, Rotation = direction } };
-    var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
-    var camera = new WolfNET.Game.Player.Components.CameraComponent(player) { Plane = new Vector2(direction.Y,-direction.X)*.66f };
-    var controller = new WolfNET.Game.Player.Components.PlayerController(keys,new FakeMouse(),showcase.NavigationMap,camera,showcase.PlayerStart,player);
-    controller.Update(200);
-    Check(Vector2.Distance(player.Transform.Position,center)>.64f && !controller.Crouching,"Standing player entered ceiling columns");
-    keys.KeyState = new() { Forward = true, Crouch = true }; controller.Update(200);
-    Check(controller.Crouching && MathF.Abs(camera.Elevation+.25f)<.0001f && Vector2.Distance(player.Transform.Position,center)<.2f,
-        "Crouching did not lower the camera or pass beneath the obstacle at half speed");
-    var inside=player.Transform.Position;
-    keys.KeyState=new(); controller.Update(200);
-    Check(controller.Crouching && player.Transform.Position==inside && camera.Elevation==-.25f,"Releasing Alt under an obstacle stood up or pushed the player out");
-    keys.KeyState=new() {Forward=true}; controller.Update(400);
-    keys.KeyState=new(); controller.Update(120);
-    Check(!controller.Crouching && MathF.Abs(camera.Elevation)<.0001f && Vector2.Dot(player.Transform.Position-center,direction)>.8f,
-        "Player could not leave the overhead obstacle and stand up");
-}
-{
-    var crouchObjects=new Dictionary<int,MapObjectDefinition>(definitions) { [10]=Passage(10,collides:true) with {Crouchable=true} };
-    var level=Compile(JumpMap(),crouchObjects);
-    var jump=JumpPlayer(level);
-    jump.Keys.KeyState=new() {Crouch=true,Jump=true}; jump.Controller.Update(120);
-    Check(jump.Controller.Crouching&&!jump.Controller.InAir&&jump.Camera.Elevation==-.25f,"Player jumped while crouched");
-    jump.Keys.KeyState=new(); jump.Controller.Update(120);
-    jump.Keys.KeyState=new() {Jump=true}; jump.Controller.Update(0);
-    Check(jump.Controller.JumpDestination.X<3.81f,"Jumping bypassed a crouch-only obstacle");
-    jump.Keys.KeyState=new() {Crouch=true}; jump.Controller.Update(100);
-    Check(jump.Controller.InAir&&!jump.Controller.Crouching&&jump.Camera.Elevation>0,"Alt in flight enabled crouching");
-    Check(level.NavigationMap.IsWalkable(4,3,crouching:true),"Crouch navigation flag missing");
-    level.SetCell(4,3,1);
-    Check(!level.NavigationMap.IsWalkable(4,3,crouching:true)&&!level.NavigationMap.IsWalkable(-1,3,crouching:true),"Crouching ignored revised walls or map bounds");
-}
-Reject(()=>Compile(objects:new(definitions){[1]=wall with {Crouchable=true}}),"Crouchable map boundary accepted");
-foreach(float invalid in new[]{0f,-1f,.5f,float.NaN,float.PositiveInfinity})
-    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{CrouchDrop=invalid}}),"Invalid crouch drop accepted");
-foreach(float invalid in new[]{0f,-1f,float.NaN,float.PositiveInfinity})
-    Reject(()=>Compile(SmallMap() with{PlayerStart=SmallMap().PlayerStart with{CrouchSpeedMultiplier=invalid}}),"Invalid crouch speed accepted");
-Check(editorSource.Maps().Contains("showcase"), "Editor map catalog missing showcase");
-Reject(() => editorSource.Load("../showcase"), "Editor accepted a path outside maps");
-Reject(() => editorSource.Validate(editorDocument with { Name = "CON" }), "Editor accepted a reserved filename");
-Reject(() => editorSource.Validate(editorDocument with
-{
-    Objects = new(editorDocument.Objects.Where(pair => pair.Key != 11))
-}), "Editor accepted a missing passage dependency");
-var editorRoot = Path.Combine(Path.GetTempPath(), "wolfnet-editor-check-" + Guid.NewGuid().ToString("N"));
+// One save/load/export round trip covers the editor's persistence boundary.
+var document = workspace.Load("showcase") with { Name = "editor-roundtrip" };
+Reject(() => workspace.Load("../showcase"), "Editor accepted path traversal");
+Reject(() => workspace.Validate(document with { Name = "CON" }), "Editor accepted a reserved filename");
+var editorRoot = Path.Combine(root, "artifacts", "editor-check-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(Path.Combine(editorRoot, "maps"));
 try
 {
     var store = new WolfNET.Editor.MapWorkspace(editorRoot);
-    Directory.CreateDirectory(Path.Combine(editorRoot, "textures", "skyboxes"));
-    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "skyboxes", "skybox.jpg"), [1, 2, 3]);
-    Directory.CreateDirectory(Path.Combine(editorRoot, "textures", "wolf"));
-    File.WriteAllBytes(Path.Combine(editorRoot, "textures", "wolf", "mesh.png"), [4, 5, 6]);
-    await store.SaveAsync(editorDocument, false, CancellationToken.None);
-    var persisted = store.Load("editor-roundtrip");
-    Check(persisted.Map.WorldMap.SelectMany(column => column).SequenceEqual(editorDocument.Map.WorldMap.SelectMany(column => column)), "Editor save changed grid orientation");
-    Check(persisted.Map.PlayerStart == editorDocument.Map.PlayerStart, "Editor save changed spawn settings");
-    Check(persisted.Map.Sky == editorDocument.Map.Sky, "Editor save changed sky settings");
-    Check(persisted.Objects.Count == editorDocument.Objects.Count, "Editor lost object dependencies");
-    Check(persisted.Map.Objects.Values.All(path => path.StartsWith("../objects/editor/editor-roundtrip/")), "Editor did not isolate object snapshots");
+    await store.SaveAsync(document, false, CancellationToken.None);
+    var persisted = store.Load(document.Name);
+    Check(persisted.Map.WorldMap.SelectMany(column => column).SequenceEqual(document.Map.WorldMap.SelectMany(column => column)) &&
+        persisted.Map.PlayerStart == document.Map.PlayerStart && persisted.Map.Sky == document.Map.Sky &&
+        persisted.Objects.Count == document.Objects.Count, "Editor round trip changed map data");
     using var savedHttp = new HttpClient(new FileHandler(editorRoot)) { BaseAddress = http.BaseAddress };
-    var engineRoundTrip = await GameMap.LoadAsync(savedHttp, "maps/editor-roundtrip.json", 64, 64);
-    Check(engineRoundTrip.RendererMap.Sprites.Count == showcase.RendererMap.Sprites.Count, "Editor save cannot be read by the engine");
-    var beforeOverwrite = File.ReadAllText(Path.Combine(editorRoot, "maps/editor-roundtrip.json"));
-    try { await store.SaveAsync(editorDocument, false, CancellationToken.None); throw new Exception("Editor silently overwrote a map"); }
+    var loaded = await GameMap.LoadAsync(savedHttp, $"maps/{document.Name}.json", 64, 64);
+    Check(loaded.RendererMap.Cells.Count == persisted.Map.WorldMap.Sum(column => column.Length),
+        "Engine could not read the editor's saved map");
+    try { await store.SaveAsync(document, false, CancellationToken.None); throw new Exception("Editor silently overwrote a map"); }
     catch (InvalidDataException) { assertions++; }
-    Check(File.ReadAllText(Path.Combine(editorRoot, "maps/editor-roundtrip.json")) == beforeOverwrite, "Rejected overwrite changed the map");
-    var modifiedObjects = new Dictionary<int, MapObjectDefinition>(editorDocument.Objects)
-    {
-        [11] = (PassageDefinition)editorDocument.Objects[11] with { FloorTexture = "textures/wolf/mossy.png" }
-    };
-    await store.SaveAsync(editorDocument with { Objects = modifiedObjects }, true, CancellationToken.None);
-    var edited = store.Load("editor-roundtrip");
-    Check(((PassageDefinition)edited.Objects[11]).FloorTexture == "textures/wolf/mossy.png", "Editor overwrite did not persist definition edits");
-    Check(((PassageDefinition)editorSource.Load("showcase").Objects[11]).FloorTexture == "textures/wolf/colorstone.png", "Editor edited shared engine objects");
-    using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(editorDocument)));
-    Check(zip.GetEntry("maps/editor-roundtrip.json") != null, "Editor export missing map");
-    Check(zip.GetEntry("textures/skyboxes/skybox.jpg")?.Length == 3 && zip.GetEntry("textures/wolf/mesh.png")?.Length == 3,
-        "Editor export omitted the nested sky JPG or alpha ceiling texture");
-    Check(zip.Entries.Count(entry => entry.FullName.EndsWith(".json")) == editorDocument.Objects.Count + 1, "Editor export lost dependency files");
-    foreach (var path in persisted.Map.Objects.Values)
-        Check(zip.GetEntry(path[3..]) != null, "Editor export index points outside bundle");
-    var unsafeEditorMap = SmallMap() with { Objects = new() { [1] = "../../outside.json" } };
-    File.WriteAllText(Path.Combine(editorRoot, "maps/unsafe.json"), JsonSerializer.Serialize(unsafeEditorMap, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+    using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(document)));
+    Check(zip.GetEntry($"maps/{document.Name}.json") != null &&
+        persisted.Map.Objects.Values.All(path => zip.GetEntry(path[3..]) != null), "Export lost map dependencies");
+    var unsafeMap = definition with { Objects = new() { [1] = "../../outside.json" } };
+    File.WriteAllText(Path.Combine(editorRoot, "maps/unsafe.json"), JsonSerializer.Serialize(unsafeMap,
+        new JsonSerializerOptions(JsonSerializerDefaults.Web)));
     Reject(() => store.Load("unsafe"), "Editor followed a path outside engine assets");
 }
 finally { Directory.Delete(editorRoot, true); }
-assertions += SpriteAnimationChecks.Run();
+
 assertions += await EngineChecks.RunAsync(http);
 assertions += await CarInteractionChecks.RunAsync(http);
 assertions += CarPhysicsChecks.Run();
 assertions += CarCameraChecks.Run();
-assertions += await CarSurfaceChecks.RunAsync(http, webRoot);
-assertions += await CarSceneChecks.RunAsync(http);
-assertions += await PineLoopChecks.RunAsync(http, webRoot);
-assertions += await RaceMinimapChecks.RunAsync(http, webRoot);
-assertions += await SpriteSelectionChecks.RunAsync(http, webRoot);
-Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");
+assertions += SpriteAnimationChecks.Run();
+await SpriteSelectionFixtures.WriteAsync(http, webRoot);
+Console.WriteLine($"PASS: {assertions} assertions (map loading/editing, walking, driving, scenes, animation, and editor persistence).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler
 {

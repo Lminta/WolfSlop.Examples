@@ -102,9 +102,8 @@ The glass roof, plaster ceiling, service pipe, and room signs are hand-authored
 SVG assets. Sign typography is editable SVG text for exact room names and
 wayfinding. The map reuses the existing sky panorama and glass/steel door textures.
 
-Run the production compiler, connectivity, doorway, and asset checks with
-`dotnet run --project Tests/WolfNET.MapTests.csproj`. With the game running and a
-WebGPU-capable Chromium instance exposing debugging port 9252, run
-`node Tests/glassworks-browser-check.mjs 9252 http://127.0.0.1:5195` to check default
-startup, texture uploads, entry interaction, crossing, and switching maps. The
-browser check also saves eleven views to `artifacts/glassworks/` for visual review.
+The compact regression suite loads Glassworks through the production compiler:
+`dotnet run --project Tests/WolfNET.MapTests.csproj`. Car-entry checks cover every
+shipped walking map. Review room layout, signage, glass, and doorway presentation
+manually after map edits. The retained browser smoke checks are documented in
+[Tests/README.md](../../../Tests/README.md).
