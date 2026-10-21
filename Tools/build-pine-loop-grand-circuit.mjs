@@ -91,7 +91,7 @@ for (let y = 0; y < height; y++) grid[0][y] = grid[width - 1][y] = 510;
 
 // Large interlocking infield loops, a northern bowl, and one uninterrupted
 // eastern straight. This simple polygon has no crossings or repeated chicanes.
-// The western straight keeps the four-wide grid and pit facilities.
+// The western straight keeps the five-wide grid and pit facilities.
 const corners = [[24, 478], [24, 280], [100, 280], [100, 360],
     [64, 360], [64, 408], [140, 408], [140, 248], [64, 248],
     [64, 184], [176, 184], [176, 344], [208, 344], [208, 116],
@@ -103,7 +103,7 @@ const bendEntries = [], bendMidpoints = [], bendExits = [];
 function appendRoundedPoint(point) {
     const target = point.map(Math.round);
     if (!anchors.length) { anchors.push(target); return; }
-    // Connected tile steps retain two clear lanes even on the round arcs.
+    // Connected tile steps retain three clear lanes even on the round arcs.
     const previous = anchors.at(-1);
     let [x, y] = previous;
     while (x !== target[0] || y !== target[1]) {
@@ -133,13 +133,13 @@ for (let i = 0; i < corners.length; i++) {
 }
 appendRoundedPoint(anchors[0]);
 // Alternate passing sections and narrow lanes along the straights. Keep broad
-// bends and the fixed quarry tunnel two blocks wide, with staged transitions.
+// bends and the fixed quarry tunnel three blocks wide, with staged transitions.
 const straights = bendExits.map((from, i) => ({ from, to: bendEntries[(i + 1) % corners.length] }));
 function roadWidth(x, y) {
-    if (x === 24 && y >= 400 && y <= 449) return 4;
-    if (x === 24 && y >= 392 && y < 400) return 3;
-    if (x === 24 && y >= 380 && y < 392) return 2;
-    if (y === 44 && x >= 70 && x <= 115) return 2;
+    if (x === 24 && y >= 400 && y <= 449) return 5;
+    if (x === 24 && y >= 392 && y < 400) return 4;
+    if (x === 24 && y >= 380 && y < 392) return 3;
+    if (y === 44 && x >= 70 && x <= 115) return 3;
     for (const { from, to } of straights) {
         const length = Math.abs(to[0] - from[0]) + Math.abs(to[1] - from[1]);
         if (length < 64) continue;
@@ -148,9 +148,9 @@ function roadWidth(x, y) {
         if (along + remaining !== length || along < 12 || remaining < 12) continue;
         const repeats = Math.max(1, Math.floor((length - 24) / 120));
         const phase = ((along - 12) / (length - 24) * repeats) % 1;
-        return phase < .12 ? 2 : phase < .43 ? 3 : phase < .55 ? 2 : phase < .83 ? 1 : 2;
+        return phase < .12 ? 3 : phase < .43 ? 4 : phase < .55 ? 3 : phase < .83 ? 2 : 3;
     }
-    return 2;
+    return 3;
 }
 for (let i = 1; i < anchors.length; i++) {
     const [ax, ay] = anchors[i - 1], [bx, by] = anchors[i];
@@ -159,8 +159,10 @@ for (let i = 1; i < anchors.length; i++) {
         for (let y = Math.min(ay, by); y <= Math.max(ay, by); y++)
             {
                 const lanes = roadWidth(x, y);
-                const offsets = lanes === 1 ? [1] : Array.from({ length: lanes }, (_, offset) => offset);
-                for (const ox of offsets) for (const oy of offsets) track.add(key(x + ox, y + oy));
+                const offsets = Array.from({ length: lanes }, (_, offset) => offset);
+                // Widen the grid toward the stands, preserving the mud divider
+                // between its fifth lane and the existing pit apron.
+                for (const ox of offsets) for (const oy of offsets) track.add(key(x + ox - (lanes === 5 ? 1 : 0), y + oy));
             }
 }
 for (const point of track) {
@@ -169,8 +171,8 @@ for (const point of track) {
         if (!track.has(key(x + dx, y + dy))) grid[x + dx][y + dy] = 502;
 }
 for (const point of track) { const [x, y] = point.split(',').map(Number); grid[x][y] = 500; }
-for (let x = 24; x <= 27; x++) grid[x][442] = 505;
-for (let y = 400; y <= 448; y += 4) for (let x = 24; x <= 27; x++) grid[x][y] = 506;
+for (let x = 23; x <= 27; x++) grid[x][442] = 505;
+for (let y = 400; y <= 448; y += 4) for (let x = 23; x <= 27; x++) grid[x][y] = 506;
 
 const terrain = id => [501, 502, 593, 594].includes(id);
 function rect(left, top, right, bottom, id, onlyTerrain = false) {
@@ -200,19 +202,22 @@ for (const [bay, first] of [[1, 411], [2, 415], [3, 419]]) {
 }
 rect(34, 388, 40, 394, 513); rect(35, 389, 39, 393, 618); grid[34][391] = 618; grid[34][390] = 616;
 for (const y of [402, 410, 418, 426, 434, 442, 450]) {
-    rect(13, y - 3, 20, y + 3, 507); grid[17][y] = 590;
+    rect(12, y - 3, 19, y + 3, 507); grid[16][y] = 590;
 }
-place(546, lineY(23, 396, 454));
+place(546, lineY(22, 396, 454));
 place(598, [[31, 394]]);
 // A clear paddock-side buffer supports reproducible front/side visual review.
 placeTrackside(544, [[35, 404]]);
 
 // Stone Cut: pale quarry floor, rock piles, and a long covered rock tunnel.
-rect(70, 33, 112, 59, 594, true);
-for (let x = 82; x <= 103; x++) {
-    grid[x][44] = grid[x][45] = 503; grid[x][43] = grid[x][46] = 511;
+const tunnel = { left: 71, right: 114, top: 44, bottom: 46 };
+const quarry = [69, 33, 116, 59];
+rect(...quarry, 594, true);
+for (let x = tunnel.left; x <= tunnel.right; x++) {
+    for (let y = tunnel.top; y <= tunnel.bottom; y++) grid[x][y] = 503;
+    grid[x][tunnel.top - 1] = grid[x][tunnel.bottom + 1] = 511;
 }
-for (const x of [81, 104]) grid[x][43] = grid[x][46] = 512;
+for (const x of [tunnel.left - 1, tunnel.right + 1]) grid[x][tunnel.top - 1] = grid[x][tunnel.bottom + 1] = 512;
 for (const bounds of [[73, 52, 76, 54], [107, 35, 110, 38], [108, 53, 111, 56]]) rect(...bounds, 511);
 place(600, [[77, 51]]);
 
@@ -262,16 +267,16 @@ placeTrackside(582, [[43, 449]]);
 // One deliberate mud link is the only way to skip an infield loop. All other
 // scenery stays visible behind continuous rails rather than being driveable
 // open grass. Landmark pockets have a single side open to their own road leg.
-const shortcut = { name: 'Mud Express', left: 102, right: 139, top: 320, bottom: 321,
+const shortcut = { name: 'Mud Express', left: 102, right: 139, top: 320, bottom: 322,
     from: [101, 321], to: [141, 321], seal: [120, 317, 120, 324] };
-rect(shortcut.left, shortcut.top, shortcut.right, shortcut.bottom, 502);
+rect(shortcut.left, shortcut.top, shortcut.right, shortcut.bottom, 502, true);
 const drivingCore = new Set(track);
 function allowDriving(left, top, right, bottom) {
     for (let x = left; x <= right; x++) for (let y = top; y <= bottom; y++) drivingCore.add(key(x, y));
 }
 allowDriving(shortcut.left, shortcut.top, shortcut.right, shortcut.bottom);
 allowDriving(24, 388, 41, 453); // Grid, pit apron, garages, and race control.
-allowDriving(70, 33, 112, 59); // Quarry runoff contains only this road section.
+allowDriving(...quarry); // Quarry runoff contains only this road section.
 allowDriving(182, 180, 207, 215); // Village opens onto X208, separated from X176.
 allowDriving(179, 261, 203, 279); // Plaza opens onto X176, separated from X208.
 allowDriving(178, 268, 184, 270);
@@ -423,7 +428,7 @@ const fixture = { dimensions: [width, height], lap: anchors.map(([x, y]) => [x +
     majorCorners: corners, bendRadii, zones, shortcut, topologyGates, eventPlacements, bendRailCells,
     cornerCheckpoints: bendMidpoints.map(([x, y]) => [x + 1, y + 1]),
     safetyRailCells: [...railCells].map(point => point.split(',').map(Number)),
-    tunnel: { left: 82, right: 103, top: 44, bottom: 45 },
+    tunnel,
     pitEntrances: [[34, 412], [34, 416], [34, 420]], bufferCoordinate: [35, 404], bufferSpriteId: 525,
     poiApproaches: [
         { name: 'Covered pit box', from: [31.5, 416.5], to: [35.5, 416.5] },
@@ -437,7 +442,7 @@ const views = [['start', [25.5, 445.5, 0, -1]], ['narrowing', [25.5, 399.5, 0, -
     ['grandstand-row', [25.5, 438.5, -.8, -.6]], ['grandstand-front', [25.5, 418.5, -1, 0]],
     ['pits', [31.5, 416.5, 1, 0]], ['race-control', [25.5, 391.5, 1, 0]],
     ['meadow-loop', [101, 320, 0, 1]], ['mud-express', [101, 321, 1, 0]], ['woodland-loop', [65, 215, 0, -1]],
-    ['quarry', [76.5, 45, 0, 1]], ['tunnel-entry', [79.5, 45, 1, 0]], ['tunnel-interior', [92.5, 45, 1, 0]],
+    ['quarry', [76.5, 50, 0, -1]], ['tunnel-entry', [68.5, 45, 1, 0]], ['tunnel-interior', [92.5, 45, 1, 0]],
     ['northern-bowl', [150, 45, 1, 0]], ['village', [183.5, 187.5, 1, 0]],
     ['village-stand', [201.5, 213, 0, -1]], ['spectator-plaza', [177, 270, 1, 0]],
     ['plaza-courtyard', [185.5, 269.5, .8, -.6]], ['maintenance-yard', [233.5, 384.5, -1, 0]],
@@ -461,6 +466,6 @@ for (const column of grid) for (const id of column) {
 }
 const lapLength = fixture.lap.slice(1).reduce((sum, [x, y], i) => sum + Math.hypot(x - fixture.lap[i][0], y - fixture.lap[i][1]), 0);
 const shortcutLine = `<path d="M202 642H282" stroke="#e6bb68" stroke-width="5" stroke-dasharray="6 4"/><text x="208" y="630" font-family="Arial" font-size="12" fill="#ffe4a6">Mud Express</text>`;
-const overview = `<svg xmlns="http://www.w3.org/2000/svg" width="930" height="1080" viewBox="0 0 930 1080"><rect width="930" height="1080" fill="#182f2a"/><rect x="1" y="1" width="510" height="1022" fill="#345441" stroke="#6b8266"/><polyline points="${linePoints}" fill="none" stroke="#a88d5b" stroke-width="8" stroke-linejoin="round"/><polyline points="${linePoints}" fill="none" stroke="#3b4444" stroke-width="4" stroke-linejoin="round"/>${shortcutLine}<path d="M48 884H54" stroke="#f4e9cf" stroke-width="6"/>${labels}<text x="540" y="42" fill="#f3ead1" font-family="Arial" font-size="28" font-weight="bold">PINE LOOP</text><text x="540" y="69" fill="#b3c4b5" font-family="Arial" font-size="16">256 × 512 · ${lapLength} unit lap</text><text x="540" y="530" fill="#c4d1c1" font-family="Arial" font-size="16">${corners.length} major bends · ${treeCount} trees</text><text x="540" y="558" fill="#c4d1c1" font-family="Arial" font-size="16">${grandstands} larger grandstand modules</text><text x="540" y="586" fill="#c4d1c1" font-family="Arial" font-size="16">${eventPlacements.length} event props · continuous safety rails</text><text x="540" y="630" fill="#e6bb68" font-family="Arial" font-size="15">Dashed gold: the only loop shortcut.</text><text x="540" y="665" fill="#c4d1c1" font-family="Arial" font-size="15">North is up. Road width varies: 1–3 blocks.</text><text x="540" y="691" fill="#c4d1c1" font-family="Arial" font-size="15">Start: 4 lanes, narrowing in stages.</text></svg>\n`;
+const overview = `<svg xmlns="http://www.w3.org/2000/svg" width="930" height="1080" viewBox="0 0 930 1080"><rect width="930" height="1080" fill="#182f2a"/><rect x="1" y="1" width="510" height="1022" fill="#345441" stroke="#6b8266"/><polyline points="${linePoints}" fill="none" stroke="#a88d5b" stroke-width="8" stroke-linejoin="round"/><polyline points="${linePoints}" fill="none" stroke="#3b4444" stroke-width="4" stroke-linejoin="round"/>${shortcutLine}<path d="M48 884H54" stroke="#f4e9cf" stroke-width="6"/>${labels}<text x="540" y="42" fill="#f3ead1" font-family="Arial" font-size="28" font-weight="bold">PINE LOOP</text><text x="540" y="69" fill="#b3c4b5" font-family="Arial" font-size="16">256 × 512 · ${lapLength} unit lap</text><text x="540" y="530" fill="#c4d1c1" font-family="Arial" font-size="16">${corners.length} major bends · ${treeCount} trees</text><text x="540" y="558" fill="#c4d1c1" font-family="Arial" font-size="16">${grandstands} larger grandstand modules</text><text x="540" y="586" fill="#c4d1c1" font-family="Arial" font-size="16">${eventPlacements.length} event props · continuous safety rails</text><text x="540" y="630" fill="#e6bb68" font-family="Arial" font-size="15">Dashed gold: the only loop shortcut.</text><text x="540" y="665" fill="#c4d1c1" font-family="Arial" font-size="15">North is up. Road width varies: 2–4 blocks.</text><text x="540" y="691" fill="#c4d1c1" font-family="Arial" font-size="15">Start: 5 lanes, narrowing in stages.</text></svg>\n`;
 fs.writeFileSync(path.join(repository, 'artifacts/pine-loop-overview.svg'), overview);
 console.log(`Pine Loop: ${width}x${height}, ${track.size} main-road cells, ${lapLength}-unit lap, ${corners.length} major bends, ${treeCount} trees, ${spriteCount} sprites, ${grandstands} grandstand modules.`);

@@ -210,7 +210,12 @@ try {
     await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);
     await key('KeyW'); await key('KeyA'); await tap('KeyV');
     await delay(300);
-    assert.deepEqual(await camera(), parked, 'Countdown allowed driving or camera changes');
+    await waitFor(`!document.querySelector('.car-cockpit') && !!window.__avatar`);
+    const countdownCar = await evaluate('window.__avatar');
+    assert(distance([countdownCar.x, countdownCar.y], parked) < .001, 'Countdown camera switch allowed driving');
+    await tap('KeyV');
+    await waitFor(`!!document.querySelector('.car-cockpit')`);
+    assert.deepEqual(await camera(), parked, 'Countdown camera switch changed the car pose');
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
     await key('KeyW', false); await key('KeyA', false);
     await snapshot('countdown');
@@ -226,7 +231,7 @@ try {
     assert.deepEqual(await camera(), parked, 'Car moved before GO');
     await snapshot('go');
     await waitFor(`!document.querySelector('.race-countdown')`);
-    console.log('PASS start: click-to-start countdown, frozen controls and timers, pause/resume, animated GO.');
+    console.log('PASS start: click-to-start countdown, camera switching with driving locked, frozen timers, pause/resume, animated GO.');
 
     await key('KeyA');
     await waitFor(`parseFloat(document.querySelector('.car-cockpit-wheel').style.getPropertyValue('--wheel-rotation')) < -100`);

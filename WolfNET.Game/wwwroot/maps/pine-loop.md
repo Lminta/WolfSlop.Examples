@@ -51,13 +51,13 @@ coordinates, validated to be finite and inside the map. The map generator author
 these from its lap anchors and shortcut endpoints. Editor load/export preserves
 them; regenerate the route metadata after changing the authored course layout.
 
-The starting grid has four full asphalt lanes at **X 24–27, Y 400–449**.
-The exit narrows through three lanes near Y 392–399 and two near Y 380–391.
-The checkerboard crosses all four starting lanes at **Y 442**; starting boxes
+The starting grid has five full asphalt lanes at **X 23–27, Y 400–449**.
+The exit narrows through four lanes near Y 392–399 and three near Y 380–391.
+The checkerboard crosses all five starting lanes at **Y 442**; starting boxes
 repeat every four tiles from Y 400 to 448. Connecting straights throughout the
-lap alternate three-block passing sections and one-block narrow sections,
-with two-block transitions. The longest straight repeats this variation several
-times. Broad bends and the quarry tunnel retain two clear lanes, with mud
+lap alternate four-block passing sections and two-block narrow sections,
+with three-block transitions. The longest straight repeats this variation several
+times. Broad bends and the quarry tunnel retain three clear lanes, with mud
 shoulders and safety barriers following the changing asphalt width.
 Optional tire and buffer scenery leaves the road and its shoulder clear; the
 generator checks every racing-surface tile for stray objects before saving.
@@ -74,16 +74,16 @@ shoulder beside the asphalt. Mesh fences line the straights; individual black
 and white tire stacks at 0.31 scale, half their previous size, replace
 them around the turns and corners. These close the loop
 cuts, including diagonal gaps. The **Mud Express** is the one deliberate shortcut:
-a two-tile dirt lane at **Y 320–321, X 102–139**, linking the Meadow loop at X 100
+a three-tile dirt lane at **Y 320–322, X 102–139**, linking the Meadow loop at X 100
 to the central return at X 140, without signs at either end. Quarry,
 village, plaza, and service-yard pockets keep access from their own road section.
 
 | Region | Layout and scenery |
 | --- | --- |
-| Paddock and spectator straight | Seven larger grandstand modules line the west side of the start at X 17, Y 402–450. The fenced pit apron, three roofed garages, and race control building sit opposite them. |
+| Paddock and spectator straight | Seven larger grandstand modules line the west side of the start at X 16, Y 402–450. The fenced pit apron, three roofed garages, and race control building sit opposite them. |
 | Meadow loop | A large lower infield loop winds between X 24–140 and Y 280–408, with rounded turns, tire stacks, approach buffers, and meadow scenery. |
 | Woodland loop | Broad curves between X 64–176 and Y 184–248 turn through the central forest. |
-| Stone Cut quarry | Pale stone ground, rock piles, portal stripes, and a 22-tile covered tunnel at X 82–103, Y 44–45. Both tunnel lanes stay clear. |
+| Stone Cut quarry | Pale stone ground, rock piles, portal stripes, and a 44-tile covered tunnel at X 71–114, Y 44–46. All three tunnel lanes stay clear. |
 | Northern bowl | A broad loop between Y 44 and 116 crosses the quarry and feeds the long eastern straight. |
 | Marshal Village | Two accessible timber and plaster huts, tiled approaches, a village sign, and two additional grandstand modules beside the inner return at X 208. |
 | Spectator Plaza / central loop | A tiled forecourt at X 179–205, Y 261–279 opens onto the central loop at X 176. Three larger stands line its north side. |
@@ -96,12 +96,12 @@ static car displays sit inside. The race control building is at X 34–40,
 Y 388–394. Seven stand modules face the starting straight, two face the village
 section, and three face the plaza section: **12 larger stand modules** in total.
 
-The forest uses **3,887 individually placed tree sprites** across three species:
+The forest uses **3,894 individually placed tree sprites** across three species:
 pines, oaks, and birches. Most trees occupy scenic corridors beside the racing
 surface or two perimeter belts. Sparse groves fill the deeper infield. A dedicated
 opaque forest texture closes the distant map boundary. Trees and undergrowth
 keep clear setbacks around the course, pit entrances, huts, and public areas.
-The complete map contains **14,829 scenery sprites**, including the continuous
+The complete map contains **14,687 scenery sprites**, including the continuous
 safety rails. The existing 60-block render distance culls distant scenery.
 
 **79 event props** populate the grid, spectator areas, quarry, infield loops,

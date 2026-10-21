@@ -20,8 +20,8 @@ find the maintenance shortcut that links the rooms. See the
 from the map selector. Open `?map=level1` to load The Brickyard directly; its
 [level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
 
-**Pine Loop** is a 256 × 512 outdoor racing circuit with a four-tile starting grid
-and road sections varying from one to three tiles, large infield loops, a long eastern straight, a tunnel,
+**Pine Loop** is a 256 × 512 outdoor racing circuit with a five-tile starting grid
+and road sections varying from two to four tiles, large infield loops, a long eastern straight, a 44-block tunnel,
 pit boxes, and several spectator stands and landmarks. Continuous safety rails
 close the cuts except for one dirt shortcut. Animated flagpoles and
 cheering spectators join fake sponsor billboards and a starting signal. Separate

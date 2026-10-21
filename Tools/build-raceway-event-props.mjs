@@ -123,12 +123,12 @@ export function writeRacewayEventProps() {
 
     const placements = [];
     const add = (id, x, y, label, searchRadius = 4) => placements.push({ id, x, y, label, searchRadius });
-    add(645, 21, 440, 'Starting signal', 3);
-    // Four-wide start and pit aisle stay clear; spectators face the racing line
+    add(645, 20, 438, 'Starting signal', 3);
+    // Five-wide start and pit aisle stay clear; spectators face the racing line
     // from behind its barriers and around the larger spectator facilities.
     for (const [index, y] of [397, 413, 429, 447].entries()) {
         add([641, 656, 657][index % 3], 34, y, 'Paddock flag', 6);
-        add([642, 643, 644][index % 3], 21, y + 3, 'Paddock spectators', 2);
+        add([642, 643, 644][index % 3], 20, y + 3, 'Paddock spectators', 2);
     }
     add(646, 20, 391, 'Grip Happens / paddock');
     add(648, 29, 459, 'BRAKE-ish / grid approach');

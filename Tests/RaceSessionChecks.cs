@@ -160,6 +160,14 @@ internal static class RaceSessionChecks
         scene.SetPaused(true); scene.Update(1000);
         Check(scene.RaceState == countdown, "Countdown continued while paused.");
         scene.SetPaused(false);
+        keys.ViewToggleRequested = true;
+        scene.Update(0);
+        Check(scene.Player.Camera.ThirdPerson && scene.PlayerPose == startingPose && scene.RaceState == countdown,
+            "Countdown camera switch did not enter chase view while preserving the car and race state.");
+        keys.ViewToggleRequested = true;
+        scene.Update(0);
+        Check(!scene.Player.Camera.ThirdPerson && scene.PlayerPose == startingPose && scene.RaceState == countdown,
+            "Countdown camera switch did not return to cockpit view while preserving the car and race state.");
         for (var i = 0; i < 18; i++) scene.Update(250);
         Check(scene.PlayerPose == startingPose && scene.RaceState?.CountdownNumber == 1, "Countdown allowed the car to move.");
         scene.Update(250);

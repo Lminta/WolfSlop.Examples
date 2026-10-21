@@ -66,7 +66,7 @@ public sealed class GameScene : IDisposable
             if (_race.Status.Phase != RacePhase.Racing)
             {
                 _input.ConsumeJump();
-                _input.ConsumeViewToggle();
+                if (_input.ConsumeViewToggle()) Player.Camera.ThirdPerson = !Player.Camera.ThirdPerson;
                 _input.ConsumeAction();
                 _mouse.ConsumeMovement();
                 return;
