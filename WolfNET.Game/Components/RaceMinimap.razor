@@ -24,6 +24,10 @@
             <path d="M8 1L15 18L8 14L1 18Z" fill="#45bfff" stroke="#f2f8ff" stroke-width="1.5" stroke-linejoin="round" />
         </svg>
     </div>
+    @if (Wolf.RaceState != null)
+    {
+        <RaceTiming />
+    }
 </aside>
 
 @code {

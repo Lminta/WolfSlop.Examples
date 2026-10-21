@@ -10,7 +10,8 @@ node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs
 
 The C# runner loads every shipped map and checks map edits, validation, walking,
 jumping, crouching, input, frame timing, scene ownership, doors, car interaction,
-car physics and cameras, sprite animation, and editor persistence/export.
+car physics and cameras, ordered checkpoint/lap timing, pause behavior,
+sprite animation, and editor persistence/export.
 The Node checks cover editor operations and browser sprite selection/order.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
 references in `artifacts/performance` for the browser implementation to compare.

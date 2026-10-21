@@ -239,6 +239,17 @@ the simulated steering angle. Switching to the cockpit resets orbit and pitch.
 clicking the canvas resumes. Asset prompts are in
 [cockpit-assets.md](WolfNET.Game/wwwroot/textures/race/cockpit-assets.md).
 
+The panel beneath the race minimap shows completed laps, total elapsed time,
+current lap time, and the last completed lap. Timing starts on the first forward
+crossing of the start/finish line and pauses with driving. Later finish crossings
+count only after passing all invisible checkpoints in order. Reversing over the
+line or repeatedly crossing it cannot add laps. An incomplete finish clears
+checkpoint progress while time continues. Leaving the map resets the session.
+Pine Loop's checkpoint sequence permits its existing Mud Express shortcut.
+The map's optional `race` metadata stores a `startFinish` gate and ordered
+`checkpoints`; each gate has `center`, forward `direction`, and `halfWidth`.
+These gates create no sprites, collision geometry, or visible checkpoint markers.
+
 Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
 With the game and a WebGPU browser running, use
 `node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual

@@ -16,10 +16,12 @@ public sealed class GameScene : IDisposable
     private readonly IKeyboardInput _input;
     private string? _requestedMap;
     private bool _disposed;
+    private readonly RaceSession? _race;
     public IMap Map { get; }
     public IControlledActor Player { get; }
     public ICharacterAppearance Character { get; }
     public bool Paused { get; private set; }
+    public RaceStatus? RaceState => _race?.Status;
     public DrivingViewState? DrivingState => Player is CarObject car
         ? new(car.Camera.ThirdPerson, Paused, car.Controller.SteeringAngle, car.Controller.Speed, car.Look.Yaw) : null;
     public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
@@ -38,6 +40,7 @@ public sealed class GameScene : IDisposable
         Player.Transform = new Transform { Position = new(start.X, start.Y), Rotation = direction };
         Player.Camera.Plane = new Vector2(direction.Y, -direction.X) * settings.CameraPlaneScale;
         _objects.Add((ObjectBase)Player);
+        if (Player is CarObject && map.RendererMap.Race is { } race) _race = new RaceSession(race);
     }
 
     public void SetPaused(bool paused)
@@ -51,8 +54,10 @@ public sealed class GameScene : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (Paused) return;
+        var previousPosition = Player.Transform.Position;
         _objects.Update(deltaMilliseconds);
         var transform = Player.Transform;
+        _race?.Update(previousPosition, transform.Position, Math.Clamp(deltaMilliseconds, 0, 250));
         if (_input.ConsumeAction() && !Map.Interact(transform.Position, transform.Rotation, Player.InteractionRadius))
             _requestedMap ??= MapInteraction.FindDestination(Map, transform.Position, transform.Rotation);
         Map.UpdateDoors(deltaMilliseconds, transform.Position, Player.InteractionRadius);

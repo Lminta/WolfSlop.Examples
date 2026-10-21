@@ -387,7 +387,18 @@ for (const point of track) {
     if (!definition || definition.collides || ![500, 503, 505, 506, 508].includes(definition.id))
         throw new Error(`Scenery intrudes into the racing surface at ${point}: ${grid[x][y]}`);
 }
-const map = { objects, worldMap: grid, playerStart: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
+// Timing gates are invisible metadata. Skip the Meadow-loop section bypassed
+// by Mud Express so the deliberately authored shortcut remains a valid lap.
+const race = {
+    startFinish: { center: [25.5, 442.5], direction: [0, -1], halfWidth: 3.5 },
+    checkpoints: bendExits.flatMap((exit, index) => {
+        if (index >= 2 && index <= 6) return [];
+        const entry = bendEntries[(index + 1) % corners.length];
+        return [{ center: [(exit[0] + entry[0]) / 2 + 1, (exit[1] + entry[1]) / 2 + 1],
+            direction: direction(exit, entry), halfWidth: 3.5 }];
+    })
+};
+const map = { objects, race, worldMap: grid, playerStart: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
     moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15, jumpRise: .4, jumpLength: 2,
     jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
     sky: { texture: 'textures/skyboxes/countryside_sky.jpg', rotationDegrees: 110 },

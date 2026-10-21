@@ -47,4 +47,5 @@ public sealed record RenderMap(
 {
     public SkyDefinition? Sky { get; init; }
     public RaceMinimapDefinition? RaceMinimap { get; init; }
+    public RaceDefinition? Race { get; init; }
 }

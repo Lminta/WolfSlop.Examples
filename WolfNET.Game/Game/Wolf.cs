@@ -31,9 +31,11 @@ public sealed class Wolf : IDisposable
     private readonly GameplaySettings _gameplay;
     private double _fpsSampleStart = double.NaN;
     private int _fpsFrameCount;
+    private double _lastRaceNotification = double.NegativeInfinity;
 
     public IControlledActor? Player => _scene?.Player;
     public DrivingViewState? DrivingState => _scene?.DrivingState;
+    public RaceStatus? RaceState => _scene?.RaceState;
     public KeyTracker KeyTracker => _input?.Keyboard ?? throw new InvalidOperationException("No scene is running.");
     public MouseTracker MouseTracker => _input?.Mouse ?? throw new InvalidOperationException("No scene is running.");
     public IMap Map => _scene?.Map ?? throw new InvalidOperationException("No scene is running.");
@@ -44,6 +46,7 @@ public sealed class Wolf : IDisposable
     public event Action<PlayerPose>? PlayerPoseChanged;
     public event Action<DrivingViewState>? DrivingStateChanged;
     public event Action<int?>? FramesPerSecondChanged;
+    public event Action<RaceStatus>? RaceStateChanged;
 
     public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js, GameplaySettings gameplay)
     {
@@ -93,6 +96,7 @@ public sealed class Wolf : IDisposable
             _clock.Restart();
             _lastPoseNotification = double.NegativeInfinity;
             _lastDrivingNotification = double.NegativeInfinity;
+            _lastRaceNotification = double.NegativeInfinity;
             _timing.Reset();
             _frameClockOrigin = double.NaN;
             int generation = ++_frameGeneration;
@@ -147,6 +151,12 @@ public sealed class Wolf : IDisposable
             }
             _renderer.Render(_scene.CaptureFrame());
             ReportFrameRate();
+            if (_scene.RaceState is { } race && RaceStateChanged != null &&
+                _clock.Elapsed.TotalMilliseconds - _lastRaceNotification >= 100)
+            {
+                _lastRaceNotification = _clock.Elapsed.TotalMilliseconds;
+                RaceStateChanged.Invoke(race);
+            }
             if (_scene.DrivingState is { } driving && DrivingStateChanged != null &&
                 _clock.Elapsed.TotalMilliseconds - _lastDrivingNotification >= 1000d / 30)
             {

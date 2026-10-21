@@ -134,6 +134,22 @@ canvas {
     overflow: hidden;
     border-radius: 50%;
 }
+.race-minimap:has(.race-timing) {
+    width: min(240px, 35cqw, max(64px, calc(100cqh - 240px)));
+}
+.race-timing {
+    width: max-content;
+    margin: 8px 0 0;
+    padding: 0;
+    color: #fff;
+    font: 44px/1.15 ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    -webkit-text-stroke: 3px #000;
+    paint-order: stroke fill;
+}
+.race-timing > div { display: grid; grid-template-columns: 5ch auto; gap: .5ch; }
+.race-timing dt { color: inherit; }
+.race-timing dd { margin: 0; }
 .race-minimap-viewport > svg:first-child {
     display: block;
     width: 100%;

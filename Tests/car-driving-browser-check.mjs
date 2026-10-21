@@ -137,6 +137,9 @@ try {
     await waitFor(`Array.from(document.querySelectorAll('.car-cockpit img')).every(image => image.complete && image.naturalWidth > 0)`);
     fs.mkdirSync('artifacts/car-driving', {recursive: true});
     assert.equal(await evaluate('window.__avatar'), null, 'Race first person uploaded a world avatar');
+    await waitFor(`document.querySelector('.race-timing')`);
+    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0');
+    assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('W accelerate')`));
     assert(![...requests].some(url => /player-character|main-character-atlas/.test(url)), 'Race map loaded the human character');
     for (const asset of ['/textures/race/cockpit.png', '/textures/race/steering-wheel.png'])
@@ -167,6 +170,19 @@ try {
         assert.equal(layout.overflow, 'hidden');
         assert(Math.abs(layout.wheelCenter[0] - .42) < .005 && Math.abs(layout.wheelCenter[1] - .86) < .005,
             'Wheel alignment changed at ' + width + 'x' + height);
+        const timing = await evaluate(`(() => {
+            const map=document.querySelector('.race-minimap-viewport').getBoundingClientRect();
+            const hud=document.querySelector('.race-timing').getBoundingClientRect();
+            const style=getComputedStyle(document.querySelector('.race-timing'));
+            return {below:hud.top-map.bottom,left:hud.left-map.left,right:hud.right,viewportWidth:innerWidth,
+                fontSize:style.fontSize,color:style.color,background:style.backgroundColor,stroke:style.webkitTextStrokeWidth};
+        })()`);
+        assert(timing.below >= 7 && Math.abs(timing.left) < .1 && timing.right <= timing.viewportWidth,
+            'Race timers do not align beneath the minimap at ' + width + 'x' + height);
+        assert.equal(timing.fontSize, '44px');
+        assert.equal(timing.color, 'rgb(255, 255, 255)');
+        assert.equal(timing.background, 'rgba(0, 0, 0, 0)');
+        assert.equal(timing.stroke, '3px');
     }
     await snapshot('narrow-paused');
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 850, deviceScaleFactor: 1, mobile: false});
@@ -205,6 +221,9 @@ try {
     await delay(400); const coast = await camera();
     assert(distance(late, coast) > .7, 'Car stopped instead of coasting after throttle release');
     assert(Math.abs(coast[0] - start[0]) < .01, 'Straight acceleration changed the body heading');
+    await waitFor(`document.querySelector('.race-total').textContent.trim() !== '0:00.00'`);
+    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0',
+        'Initial start-line crossing counted a complete lap');
     await key('Space'); await delay(1100); const stopped = await camera();
     await delay(250);
     assert(distance(stopped, await camera()) < .002, 'Space did not bring the car to rest');
@@ -247,10 +266,14 @@ try {
     await tap('Escape');
     await waitFor(`!document.pointerLockElement && !!document.querySelector('.car-paused')`);
     const paused = await camera();
+    await delay(150); // Let the throttled HUD publish the final pre-pause time.
+    const pausedRaceTime = await evaluate(`document.querySelector('.race-total').textContent`);
     await key('KeyW'); await key('KeyA'); await key('Space');
     await evaluate(`document.dispatchEvent(new MouseEvent('mousemove', {movementX: 200, movementY: 100, bubbles: true}))`);
     await delay(650);
     assert.deepEqual(await camera(), paused, 'Escape did not freeze the complete race camera pose');
+    assert.equal(await evaluate(`document.querySelector('.race-total').textContent`), pausedRaceTime,
+        'Race timer advanced while driving was paused');
     assert.equal(await evaluate('document.querySelectorAll(".car-cockpit").length'), 0, 'Paused chase view displayed the cockpit');
     await key('KeyW', false); await key('KeyA', false); await key('Space', false);
     await snapshot('third-person-paused');
@@ -258,6 +281,7 @@ try {
     const resumed = await camera(); await delay(350); const afterResume = await camera();
     assert(distance(resumed, afterResume) > rollingSpeed * .15, 'Resuming lost the car momentum');
     assert(distance(resumed, afterResume) < rollingSpeed * .6 + .3, 'Paused time fast-forwarded the car on resume');
+    await waitFor(`document.querySelector('.race-total').textContent !== ${JSON.stringify(pausedRaceTime)}`);
     assert(Math.abs(afterResume[2] - paused[2]) < .001 && Math.abs(afterResume[8] - paused[8]) < .001,
         'Inactive mouse or steering input leaked into the resumed race');
     await tap('KeyV');
@@ -268,6 +292,7 @@ try {
     await evaluate('document.exitPointerLock()');
     await waitFor('!document.pointerLockElement');
     await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button => button.textContent.trim() === 'Showcase').click()`);
+    await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-timing')`);
     await waitFor(`window.__mapInfo?.[0] === 34 && !document.querySelector('.loading-overlay') && document.querySelector('.controls-hint').textContent.includes('Space jump')`);
     assert.equal(await evaluate('document.querySelectorAll(".car-cockpit, .car-paused, .race-minimap").length'), 0,
         'Race overlays survived leaving the race map');

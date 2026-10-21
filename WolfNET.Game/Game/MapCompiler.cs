@@ -178,6 +178,7 @@ public sealed class MapCompiler
         if (width > _maxWidth || height > _maxHeight)
             throw new InvalidDataException($"Map dimensions exceed {_maxWidth}x{_maxHeight}.");
         definition.RaceMinimap?.Validate(width, height);
+        definition.Race?.Validate(width, height);
         var cells = new RenderCell[checked(width * height)];
         var walkable = new bool[width][];
         var jumpable = new bool[width][];
@@ -233,6 +234,6 @@ public sealed class MapCompiler
         if (definition.Sky == null && cells.Any(cell => cell.Flags.HasFlag(RenderCellFlags.SkyCeiling)))
             throw new InvalidDataException("A sky ceiling requires a sky configuration on the map.");
         return (new RenderMap(width, height, Array.AsReadOnly(cells), Array.AsReadOnly(_materials),
-            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky, RaceMinimap = definition.RaceMinimap }, walkable, jumpable, crouchable, surfaces);
+            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky, RaceMinimap = definition.RaceMinimap, Race = definition.Race }, walkable, jumpable, crouchable, surfaces);
     }
 }

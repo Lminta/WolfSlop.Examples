@@ -21,6 +21,13 @@ crouching are disabled. Esc or losing capture pauses driving until recaptured.
 Tune handling and cameras in `gameplay-settings.json`; the walking maps retain
 their existing character and movement.
 
+Lap timing starts at the first forward start-line crossing. The panel beneath
+the minimap shows completed laps, total time, current lap time, and last lap.
+Thirteen invisible ordered checkpoints validate a complete circuit; none lie
+inside the Meadow section bypassed by Mud Express, so that shortcut remains
+valid. Gates are metadata in `race`, independent of map objects and collisions.
+Timers pause with the car and reset on leaving/reloading the race map.
+
 The race minimap shows **120 blocks across**, with the player at **50% across and
 70% down** its square viewport: 84 blocks ahead and 36 behind. The course scrolls
 and rotates beneath an upward-pointing cyan arrow. White lines show the road,
