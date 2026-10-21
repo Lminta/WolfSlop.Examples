@@ -1,0 +1,47 @@
+{
+  "type": "spriteGroup",
+  "id": 755,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 502,
+  "sprites": [
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": -0.32,
+        "y": 0.5,
+        "z": -0.345
+      },
+      "scale": {
+        "x": 0.31,
+        "y": 0.31
+      }
+    },
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": 0,
+        "y": 0.5,
+        "z": -0.345
+      },
+      "scale": {
+        "x": 0.31,
+        "y": 0.31
+      }
+    },
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": 0.32,
+        "y": 0.5,
+        "z": -0.345
+      },
+      "scale": {
+        "x": 0.31,
+        "y": 0.31
+      }
+    }
+  ]
+}

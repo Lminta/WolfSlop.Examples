@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeRacewayEventProps } from './build-raceway-event-props.mjs';
 import { writeRacewayTireProps } from './build-raceway-tire-props.mjs';
+import { alignRacewayBoundaries } from './build-raceway-boundary-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web = path.join(repository, 'WolfNET.Game/wwwroot');
@@ -380,6 +381,7 @@ for (let x = 5; x < width - 5; x += 6) for (let y = 5; y < height - 5; y += 6)
     if (grid[x][y] === 501 && distances[x][y] >= 3 && distances[x][y] <= 14 && hash(x, y) % 5 === 0 && !reserved(x, y) && !drivingArea.has(key(x, y)))
         grid[x][y] = hash(x, y) % 2 ? 542 : 550;
 
+alignRacewayBoundaries(grid, definitions, drivingArea);
 const objects = {};
 for (const name of fs.readdirSync(objectDirectory).filter(name => name.endsWith('.json')).sort()) {
     const value = JSON.parse(fs.readFileSync(path.join(objectDirectory, name), 'utf8'));

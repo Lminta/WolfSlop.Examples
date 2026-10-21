@@ -72,7 +72,9 @@ crossings or shared road sections.
 Continuous colliding safety rails enclose the racing surface, with a one-tile
 shoulder beside the asphalt. Mesh fences line the straights; individual black
 and white tire stacks at 0.31 scale, half their previous size, replace
-them around the turns and corners. These close the loop
+them around the turns and corners. Fence planes and tire rows sit on the
+track-facing edges of their blocked tiles, matching the collision boundary.
+Corner tiles carry a section on each exposed face. These close the loop
 cuts, including diagonal gaps. The **Mud Express** is the one deliberate shortcut:
 a three-tile dirt lane at **Y 320–322, X 102–139**, linking the Meadow loop at X 100
 to the central return at X 140, without signs at either end. Quarry,
@@ -101,7 +103,7 @@ pines, oaks, and birches. Most trees occupy scenic corridors beside the racing
 surface or two perimeter belts. Sparse groves fill the deeper infield. A dedicated
 opaque forest texture closes the distant map boundary. Trees and undergrowth
 keep clear setbacks around the course, pit entrances, huts, and public areas.
-The complete map contains **14,687 scenery sprites**, including the continuous
+The complete map contains **17,819 scenery sprites**, including the continuous
 safety rails. The existing 60-block render distance culls distant scenery.
 
 **79 event props** populate the grid, spectator areas, quarry, infield loops,
@@ -118,8 +120,8 @@ reusable billboard presets in both fixed-plane orientations:
 - **MUD CLUB** — Free dirt. Strict dress code.
 - **APEX ACADEMY** — Cut tuition. Not corners.
 
-Tire barriers use separate, symmetric black and white stack sprites. Each boundary
-object contains three smaller stacks in a row, aligned along X or Y to follow
+Tire barriers use separate, symmetric black and white stack sprites. Each exposed
+tile edge carries three smaller stacks in a row, aligned along X or Y to follow
 the boundary. Larger pile presets use rows and clusters of half-size stacks.
 Reusable groups place individual stacks at different world positions in rows,
 corner clusters, elbows, and double rows. Each buffer uses **one long sprite**
