@@ -5,8 +5,8 @@ namespace WolfNET.Game;
 public sealed record RaceSettings
 {
     public int LapCount { get; init; } = 3;
-    public float OpponentMaxSpeed { get; init; } = 14;
-    public float OpponentCornerSpeed { get; init; } = 7;
+    public float OpponentMaxSpeed { get; init; } = 18;
+    public float OpponentCornerSpeed { get; init; } = 13;
 
     public void Validate()
     {
