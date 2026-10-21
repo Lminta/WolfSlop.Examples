@@ -190,7 +190,7 @@ for (const name of fs.readdirSync(objectDirectory).filter(name => name.endsWith(
     objects[definition.id] = `../objects/raceway/${name}`;
     ownedObjects.set(definition.id, definition);
 }
-const map = { objects, worldMap: grid, playerStart: { x: 13.5, y: 47.5,
+const map = { objects, worldMap: grid, playerStart: { controller: 'car', x: 13.5, y: 47.5,
     directionX: 0, directionY: -1, moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15,
     jumpRise: .4, jumpLength: 2, jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
     sky: { texture: 'textures/skyboxes/countryside_sky.jpg', rotationDegrees: 110 } };

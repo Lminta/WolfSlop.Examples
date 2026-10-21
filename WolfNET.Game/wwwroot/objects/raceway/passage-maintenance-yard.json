@@ -6,5 +6,6 @@
   "jumpable": false,
   "crouchable": false,
   "floorTexture": "textures/raceway/asphalt.png",
+  "surface": "asphalt",
   "ceilingMode": "sky"
 }

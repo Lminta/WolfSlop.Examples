@@ -27,6 +27,10 @@
     <WolfNET.Components.RaceMinimap @key="raceMinimap" Definition="raceMinimap"
         InitialPose="@(new PlayerPose(player.Transform.Position, player.Transform.Rotation))" />
 }
+@if (!_loading && !_errorPresent && Wolf.Player is WolfNET.Game.Player.CarObject)
+{
+    <WolfNET.Components.CarCockpit @key="Wolf.CurrentMapPath" />
+}
 </div>
 
 @if (_loading)
@@ -82,8 +86,16 @@
 
 <aside class="controls-hint" aria-label="Game controls">
     <strong>Controls</strong>
-    <p>W/S forward/back &middot; A/D strafe &middot; Mouse look</p>
-    <p>Space jump &middot; Alt crouch &middot; V camera</p>
+    @if (Wolf.Player is WolfNET.Game.Player.CarObject)
+    {
+        <p>W accelerate &middot; A/D or arrows steer &middot; Mouse look</p>
+        <p>S brake/reverse &middot; Space brake &middot; V camera</p>
+    }
+    else
+    {
+        <p>W/S forward/back &middot; A/D strafe &middot; Mouse look</p>
+        <p>Space jump &middot; Alt crouch &middot; V camera</p>
+    }
     <p>Press "F" to interact with door or car.</p>
     <p role="status">@(_observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
 </aside>

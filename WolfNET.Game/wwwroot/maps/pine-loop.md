@@ -12,7 +12,12 @@ Brickyard motor yard at **(29,5)**, and the Showcase annex at **(30,18)**. Pine
 Loop is omitted from the map selector. The direct `/?map=pine-loop` URL remains
 available for authoring and regression previews.
 The player starts at **(25.5,445.5)** facing north, behind the checkerboard.
-The existing movement and camera controls apply.
+The car uses acceleration and momentum: W accelerates, A/D or arrows steer,
+S brakes then reverses, Space brakes, and V toggles cockpit/chase views. Mouse
+look is independent of steering and recenters after one second. Jumping and
+crouching are disabled. Esc or losing capture pauses driving until recaptured.
+Tune handling and cameras in `gameplay-settings.json`; the walking maps retain
+their existing character and movement.
 
 The race minimap shows **120 blocks across**, with the player at **50% across and
 70% down** its square viewport: 84 blocks ahead and 36 behind. The course scrolls

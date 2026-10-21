@@ -24,6 +24,8 @@ export function checkDefinition(definition, objects) {
         throw Error("passageId must reference a passage in the object library.");
     if (d.type === "passage" && d.ceilingMode !== undefined && !["texture", "sky"].includes(d.ceilingMode))
         throw Error("ceilingMode must be texture or sky.");
+    if (d.type === "passage" && d.surface !== undefined && !["asphalt", "mud", "grass"].includes(d.surface))
+        throw Error("surface must be asphalt, mud, or grass.");
     if (d.type === "wall" && ("floorTexture" in d || "ceilingTexture" in d))
         throw Error("Wall surfaces use passageId. Put floorTexture and ceilingTexture on the passage.");
     if (d.type === "door" && (!["x", "y"].includes(d.axis ?? "y") ||
@@ -82,6 +84,8 @@ export function checkGrid(map) {
     if (!p || [p.x, p.y, p.directionX, p.directionY, p.moveSpeed, p.rotSpeed].some(value => !Number.isFinite(value)) ||
         p.moveSpeed < 0 || p.rotSpeed < 0 || Math.hypot(p.directionX, p.directionY) === 0)
         throw Error("playerStart needs finite coordinates, a nonzero direction, and nonnegative movement/turn speeds.");
+    if (p.controller !== undefined && !["player", "car"].includes(p.controller))
+        throw Error("Player controller must be player or car.");
     if (p.collisionRadius !== undefined && (!Number.isFinite(p.collisionRadius) || p.collisionRadius <= 0 || p.collisionRadius >= 0.5))
         throw Error("collisionRadius must be greater than zero and less than 0.5.");
     if ((p.jumpRise !== undefined && (!Number.isFinite(p.jumpRise) || p.jumpRise < 0 || p.jumpRise >= 0.5)) ||

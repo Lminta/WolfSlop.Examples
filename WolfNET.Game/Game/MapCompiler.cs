@@ -6,7 +6,7 @@ namespace WolfNET.Game;
 public sealed class MapCompiler
 {
     private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard, bool FacingCamera = true, SpriteAnimation? Animation = null, string? InteractionMap = null);
-    private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, SpriteTemplate[] Sprites);
+    private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, string Surface, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
     private readonly WallMaterial[] _materials;
@@ -153,19 +153,21 @@ public sealed class MapCompiler
             }
             if (passage != null)
             {
+                if (passage.Surface is not ("asphalt" or "mud" or "grass"))
+                    throw new InvalidDataException($"Passage {passage.Id} surface must be asphalt, mud, or grass.");
                 floor = Resolve(passage.FloorTexture);
                 if (passage.CeilingMode is not ("texture" or "sky"))
                     throw new InvalidDataException($"Passage {passage.Id} ceilingMode must be texture or sky.");
                 if (passage.CeilingMode == "sky") flags |= RenderCellFlags.SkyCeiling;
                 else ceiling = Resolve(passage.CeilingTexture);
             }
-            _objects.Add(id, new CompiledObject(new RenderCell(material, floor, ceiling, flags), !definition.Collides, definition.Jumpable, definition.Crouchable, sprites));
+            _objects.Add(id, new CompiledObject(new RenderCell(material, floor, ceiling, flags), !definition.Collides, definition.Jumpable, definition.Crouchable, passage?.Surface ?? "mud", sprites));
         }
         _materials = materials.ToArray();
         _textures = new TextureCatalog(layers, frames);
     }
 
-    public (RenderMap Renderer, bool[][] Walkable, bool[][] Jumpable, bool[][] Crouchable) Compile(MapDefinition definition, ulong revision)
+    public (RenderMap Renderer, bool[][] Walkable, bool[][] Jumpable, bool[][] Crouchable, string[][] Surfaces) Compile(MapDefinition definition, ulong revision)
     {
         if (definition.Sky is { } sky && (string.IsNullOrWhiteSpace(sky.Texture) || !float.IsFinite(sky.RotationDegrees)))
             throw new InvalidDataException("Sky needs a texture path and a finite rotationDegrees.");
@@ -180,6 +182,7 @@ public sealed class MapCompiler
         var walkable = new bool[width][];
         var jumpable = new bool[width][];
         var crouchable = new bool[width][];
+        var surfaces = new string[width][];
         var sprites = new List<Sprite>();
         for (int x = 0; x < width; x++)
         {
@@ -188,6 +191,7 @@ public sealed class MapCompiler
             walkable[x] = new bool[height];
             jumpable[x] = new bool[height];
             crouchable[x] = new bool[height];
+            surfaces[x] = new string[height];
             for (int y = 0; y < height; y++)
             {
                 if (!_objects.TryGetValue(map[x][y], out var obj))
@@ -200,6 +204,7 @@ public sealed class MapCompiler
                 walkable[x][y] = obj.Walkable;
                 jumpable[x][y] = obj.Jumpable;
                 crouchable[x][y] = obj.Crouchable;
+                surfaces[x][y] = obj.Surface;
                 foreach (var sprite in obj.Sprites)
                 {
                     var position = new Vector2(x + 0.5f + sprite.Offset.X, y + 0.5f + sprite.Offset.Y);
@@ -228,6 +233,6 @@ public sealed class MapCompiler
         if (definition.Sky == null && cells.Any(cell => cell.Flags.HasFlag(RenderCellFlags.SkyCeiling)))
             throw new InvalidDataException("A sky ceiling requires a sky configuration on the map.");
         return (new RenderMap(width, height, Array.AsReadOnly(cells), Array.AsReadOnly(_materials),
-            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky, RaceMinimap = definition.RaceMinimap }, walkable, jumpable, crouchable);
+            sprites.AsReadOnly(), _sceneTextures, revision) { Sky = definition.Sky, RaceMinimap = definition.RaceMinimap }, walkable, jumpable, crouchable, surfaces);
     }
 }

@@ -62,6 +62,30 @@ internal static class PineLoopChecks
                 Vector2.Distance(collider.Trace(lap[i - 1], lap[i]), lap[i]) < .0001f,
                 $"Pine Loop circuit is blocked between {lap[i - 1]} and {lap[i]}");
         }
+        // The race vehicle has a rotating rectangular footprint. Check the
+        // complete sweep, including each heading change, instead of relying on
+        // the much smaller walking player's circle or center-point clearance.
+        var carSettings = new WolfNET.Game.Player.CarSettings();
+        var carCollider = new OrientedBoxCollider(map.NavigationMap, carSettings.Length, carSettings.Width);
+        Vector2 CarHeading(int index)
+        {
+            var previous = lap[(index + lap.Length - 2) % (lap.Length - 1)];
+            var next = lap[(index + 1) % (lap.Length - 1)];
+            return Vector2.Normalize(next - previous);
+        }
+        var previousHeading = CarHeading(0);
+        for (var i = 1; i < lap.Length; i++)
+        {
+            var heading = CarHeading(i % (lap.Length - 1));
+            var turn = MathF.Atan2(previousHeading.X * heading.Y - previousHeading.Y * heading.X,
+                Vector2.Dot(previousHeading, heading));
+            var movement = lap[i] - lap[i - 1];
+            var swept = carCollider.MoveAndSlide(lap[i - 1], previousHeading, movement, turn, movement);
+            Check(carCollider.CanOccupy(lap[i], heading) && Vector2.Distance(swept.Position, lap[i]) < .0001f &&
+                  Vector2.Dot(swept.Direction, heading) > .99999f,
+                $"Pine Loop's oriented race car is blocked between {lap[i - 1]} and {lap[i]} (ended {swept.Position}, facing {swept.Direction}, expected {heading})");
+            previousHeading = heading;
+        }
         Check(lapLength >= 1500, "Expanded Pine Loop lost its much longer route");
         Check(fixture.RootElement.GetProperty("majorCorners").GetArrayLength() is >= 12 and <= 22,
             "Pine Loop must use a few large loops instead of repeated small corners");

@@ -18,8 +18,8 @@ find the maintenance shortcut that links the rooms. See the
 from the map selector. Open `?map=level1` to load The Brickyard directly; its
 [level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
 
-**Pine Loop** is a 256 × 512 outdoor racing circuit with a three-tile starting grid
-that narrows to two tiles, large infield loops, a long eastern straight, a tunnel,
+**Pine Loop** is a 256 × 512 outdoor racing circuit with a four-tile starting grid
+and road sections varying from one to three tiles, large infield loops, a long eastern straight, a tunnel,
 pit boxes, and several spectator stands and landmarks. Continuous safety rails
 close the cuts except for one dirt shortcut. Animated flagpoles and
 cheering spectators join fake sponsor billboards and a starting signal. Separate
@@ -145,6 +145,42 @@ Player movement is configured in each map's `playerStart` object alongside the s
 ```
 
 `moveSpeed` is measured in map squares per second. `rotSpeed` is the maximum mouse rotation in radians per second. Mouse movement uses 0.0025 radians per pixel, capped at `rotSpeed` times the frame duration; excess movement is discarded. Both speeds are required, must be finite and nonnegative, and can be zero to disable that motion. Reload the map after editing its settings.
+
+## Driving on Pine Loop
+
+Entering Pine Loop selects `playerStart.controller: "car"`; omitted controller
+metadata keeps the walking character on other maps. **W** accelerates,
+**A/D** or **left/right arrows** steer, **S** brakes and then reverses while held,
+and **Space** brakes without reversing. Opposing W/S inputs also brake. There is
+no jumping, crouching, strafing, damage, or rebound. The car coasts after throttle
+release; glancing collisions preserve motion along a barrier.
+
+The car uses a rotating **0.9 × 0.7 block** footprint and a 120 Hz simulation.
+Engine acceleration tapers near the speed limit. Asphalt provides stronger grip
+and rolling friction than off-road terrain. Grass and mud share handling; the
+`surfacePenaltyCoefficient` progressively removes excess speed rather than
+snapping the car to a lower limit. Defaults are **18 blocks/s** forward and
+**4 blocks/s** reverse on asphalt, **8** and **2** off-road.
+
+Edit [gameplay-settings.json](WolfNET.Game/wwwroot/gameplay-settings.json) and
+reload to tune dimensions, engine acceleration, speed limits, braking, lateral
+grip, rolling resistance, terrain penalty, steering, and cameras. Distances use
+blocks, speeds blocks/second, accelerations blocks/second², response coefficients
+1/second, and settings named `Degrees` use degrees. Passage `surface` metadata
+(`asphalt`, `mud`, `grass`; default `mud`) supplies physics independently of floor
+artwork, so painted grid tiles and the covered tunnel retain asphalt handling.
+
+**V** toggles the transparent cockpit and chase view without changing motion.
+Mouse look is independent of steering and recenters after one second without
+mouse movement. The cockpit wheel follows the simulated steering angle.
+**Esc**, capture loss, or window blur pauses the car and retains momentum;
+clicking the canvas resumes. Asset prompts are in
+[cockpit-assets.md](WolfNET.Game/wwwroot/textures/race/cockpit-assets.md).
+
+Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
+With the game and a WebGPU browser running, use
+`node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual
+driving input, both views, pause/resume, cockpit alignment, and walking-map restoration.
 
 ## Run on the local network
 

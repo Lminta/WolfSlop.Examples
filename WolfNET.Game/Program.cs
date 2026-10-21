@@ -27,6 +27,10 @@ var graphicsSettings = await http.GetFromJsonAsync<RendererSettings>("graphics-s
 
 builder.Services.AddSingleton(graphicsSettings);
 graphicsSettings.Validate();
+var gameplaySettings = await http.GetFromJsonAsync<GameplaySettings>("gameplay-settings.json")
+    ?? throw new InvalidDataException("Gameplay settings must contain a JSON object.");
+gameplaySettings.Validate();
+builder.Services.AddSingleton(gameplaySettings);
 builder.Services.AddSingleton<WebGpuRenderer>();
 builder.Services.AddSingleton<ISceneRenderer>(services => services.GetRequiredService<WebGpuRenderer>());
 builder.Services.AddSingleton<GameSceneLoader>();

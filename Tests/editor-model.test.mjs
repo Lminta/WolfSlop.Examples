@@ -82,6 +82,14 @@ assert.throws(() => checkGrid({ ...map, sky: { texture: "", rotationDegrees: 0 }
 assert.throws(() => checkGrid({ ...map, sky: { texture: "sky.jpg", rotationDegrees: Infinity } }));
 assert.equal(checkDefinition({ ...passage, ceilingMode: "sky" }, objects).ceilingMode, "sky");
 assert.throws(() => checkDefinition({ ...passage, ceilingMode: "unknown" }, objects));
+for (const surface of ["asphalt", "mud", "grass"])
+    assert.equal(checkDefinition({ ...passage, surface }, objects).surface, surface);
+for (const surface of [null, "sand", "Asphalt", 1])
+    assert.throws(() => checkDefinition({ ...passage, surface }, objects));
+for (const controller of ["player", "car"])
+    assert.equal(checkGrid({ ...map, playerStart: { ...map.playerStart, controller } }).playerStart.controller, controller);
+for (const controller of [null, "truck", "Car", 1])
+    assert.throws(() => checkGrid({ ...map, playerStart: { ...map.playerStart, controller } }));
 assert.equal(checkGrid({ ...map, playerStart: { ...map.playerStart, collisionRadius: 0.15 } }).playerStart.collisionRadius, 0.15);
 for (const collisionRadius of [0, -1, 0.5, NaN, Infinity])
     assert.throws(() => checkGrid({ ...map, playerStart: { ...map.playerStart, collisionRadius } }));

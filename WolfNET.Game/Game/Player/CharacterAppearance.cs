@@ -3,7 +3,7 @@ using WolfNET.Graphics;
 
 namespace WolfNET.Game.Player;
 
-public sealed class CharacterAppearance
+public sealed class CharacterAppearance : ICharacterAppearance
 {
     private readonly SpriteDefinition _definition;
     public uint FirstLayer { get; private set; }
@@ -47,4 +47,7 @@ public sealed class CharacterAppearance
             Elevation = (scale.Y - 1) * .5f - .005f + jumpElevation
         };
     }
+
+    public Sprite CreateSprite(IControlledActor actor, Vector2 observer) =>
+        Sprite(actor.AnimationFrame, actor.Transform.Position, actor.InAir ? actor.Camera.Elevation : 0);
 }

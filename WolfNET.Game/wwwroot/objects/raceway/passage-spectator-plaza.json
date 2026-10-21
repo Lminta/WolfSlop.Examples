@@ -6,5 +6,6 @@
   "jumpable": false,
   "crouchable": false,
   "floorTexture": "textures/glassworks/limestone-floor.png",
+  "surface": "mud",
   "ceilingMode": "sky"
 }

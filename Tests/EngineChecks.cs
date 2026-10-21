@@ -122,7 +122,7 @@ internal static class EngineChecks
         keyboard.Release("KeyW");
         Check(scene.Player.Camera.ThirdPerson && scene.Player.Transform.Position.X > 4.8f,
             "Scene did not update the real player controller.");
-        Check(scene.CaptureFrame().Character != null && scene.Player.Animation.Frame != 14,
+        Check(scene.CaptureFrame().Character != null && scene.Player.AnimationFrame != 14,
             "Scene did not connect movement, animation, and third-person rendering.");
         keyboard.Press("KeyF");
         scene.Update(1000);

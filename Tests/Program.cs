@@ -1033,6 +1033,10 @@ finally { Directory.Delete(editorRoot, true); }
 assertions += SpriteAnimationChecks.Run();
 assertions += await EngineChecks.RunAsync(http);
 assertions += await CarInteractionChecks.RunAsync(http);
+assertions += CarPhysicsChecks.Run();
+assertions += CarCameraChecks.Run();
+assertions += await CarSurfaceChecks.RunAsync(http, webRoot);
+assertions += await CarSceneChecks.RunAsync(http);
 assertions += await PineLoopChecks.RunAsync(http, webRoot);
 assertions += await RaceMinimapChecks.RunAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (levels, flags, groups, surfaces, navigation, revisions, loading failures, movement, rotation, and editor round trips).");

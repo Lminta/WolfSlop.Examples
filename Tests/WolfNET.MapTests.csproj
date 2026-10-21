@@ -6,6 +6,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../WolfNET.Game/Game/GameplaySettings.cs" Link="Game/GameplaySettings.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/CarSettings.cs" Link="Game/CarSettings.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/IControlledActor.cs" Link="Game/IControlledActor.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/CarObject.cs" Link="Game/CarObject.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/CarAppearance.cs" Link="Game/CarAppearance.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/CarCamera.cs" Link="Game/CarCamera.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/Components/CarController.cs" Link="Game/CarController.cs" />
+    <Compile Include="../WolfNET.Game/Game/Physics/OrientedBoxCollider.cs" Link="Game/OrientedBoxCollider.cs" />
     <Compile Include="../WolfNET.Game/Game/MapDefinition.cs" Link="Game/MapDefinition.cs" />
     <Compile Include="../WolfNET.Game/Game/MapObjects.cs" Link="Game/MapObjects.cs" />
     <Compile Include="../WolfNET.Game/Game/MapObjectLoader.cs" Link="Game/MapObjectLoader.cs" />

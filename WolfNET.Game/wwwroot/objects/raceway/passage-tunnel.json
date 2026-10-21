@@ -1,6 +1,7 @@
 {
   "type": "passage",
   "id": 503,
+  "surface": "asphalt",
   "raycastTransparent": true,
   "collides": false,
   "jumpable": false,

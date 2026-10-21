@@ -39,6 +39,7 @@ public sealed record SkyDefinition
 
 public sealed record PlayerStartDefinition
 {
+    public string Controller { get; init; } = "player";
     public required float X { get; init; }
     public required float Y { get; init; }
     public required float DirectionX { get; init; }
@@ -56,6 +57,8 @@ public sealed record PlayerStartDefinition
 
     public void Validate()
     {
+        if (Controller is not ("player" or "car"))
+            throw new InvalidDataException("Player controller must be player or car.");
         var direction = new Vector2(DirectionX, DirectionY);
         if (!float.IsFinite(CrouchDrop) || CrouchDrop <= 0 || CrouchDrop >= 0.5f ||
             !float.IsFinite(CrouchSpeedMultiplier) || CrouchSpeedMultiplier <= 0 ||

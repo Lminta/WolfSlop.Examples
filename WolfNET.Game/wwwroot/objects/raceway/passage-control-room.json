@@ -6,6 +6,7 @@
   "jumpable": false,
   "crouchable": false,
   "floorTexture": "textures/glassworks/checker-floor.png",
+  "surface": "mud",
   "ceilingMode": "texture",
   "ceilingTexture": "textures/glassworks/plaster-ceiling.svg"
 }

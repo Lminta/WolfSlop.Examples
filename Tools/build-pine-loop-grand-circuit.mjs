@@ -31,8 +31,8 @@ const faces = texture => Object.fromEntries(['north', 'east', 'south', 'west'].m
 function wall(name, id, texture, passageId = 501) {
     object(name, id, 'wall', { collides: true, raycastTransparent: false, passageId, textures: faces(texture) });
 }
-function passage(name, id, floorTexture, ceilingTexture = null) {
-    object(name, id, 'passage', { floorTexture, ceilingMode: ceilingTexture ? 'texture' : 'sky',
+function passage(name, id, floorTexture, ceilingTexture = null, surface = 'mud') {
+    object(name, id, 'passage', { floorTexture, surface, ceilingMode: ceilingTexture ? 'texture' : 'sky',
         ...(ceilingTexture ? { ceilingTexture } : {}) });
 }
 object('group-grandstand-large-x', 590, 'spriteGroup', { collides: true, passageId: 501, sprites: [member(527, 0, 0, 6.4)] });
@@ -43,7 +43,7 @@ passage('passage-quarry', 594, 'textures/wolf/greystone.png');
 passage('passage-village', 595, 'textures/wolf/wood.png', 'textures/wolf/wood.png');
 wall('wall-village-wood', 596, 'textures/wolf/wood.png', 595);
 wall('wall-yard-metal', 597, 'textures/glassworks/teal-wall.png', 504);
-passage('passage-maintenance-yard', 615, 'textures/raceway/asphalt.png');
+passage('passage-maintenance-yard', 615, 'textures/raceway/asphalt.png', null, 'asphalt');
 passage('passage-control-room', 618, 'textures/glassworks/checker-floor.png', 'textures/glassworks/plaster-ceiling.svg');
 wall('wall-village-plaster', 617, 'textures/glassworks/limestone-wall.png', 595);
 object('sprite-service-barrel', 609, 'sprite', { passageId: 501, texture: 'textures/wolf/barrel.png', textureLayer: 124 });
@@ -388,7 +388,7 @@ for (const point of track) {
     if (!definition || definition.collides || ![500, 503, 505, 506, 508].includes(definition.id))
         throw new Error(`Scenery intrudes into the racing surface at ${point}: ${grid[x][y]}`);
 }
-const map = { objects, worldMap: grid, playerStart: { x: 25.5, y: 445.5, directionX: 0, directionY: -1,
+const map = { objects, worldMap: grid, playerStart: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
     moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15, jumpRise: .4, jumpLength: 2,
     jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
     sky: { texture: 'textures/skyboxes/countryside_sky.jpg', rotationDegrees: 110 },

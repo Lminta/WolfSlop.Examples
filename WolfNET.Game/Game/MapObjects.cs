@@ -19,6 +19,8 @@ public abstract record MapObjectDefinition
 
 public sealed record PassageDefinition : MapObjectDefinition
 {
+    // Driving behavior is independent of the floor's artwork.
+    public string Surface { get; init; } = "mud";
     public string? FloorTexture { get; init; }
     public string? CeilingTexture { get; init; }
     public string CeilingMode { get; init; } = "texture";

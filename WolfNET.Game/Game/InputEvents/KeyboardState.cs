@@ -14,12 +14,14 @@ public sealed class KeyboardState : IKeyboardInput
         Backward = _held.Contains("KeyS"),
         StrafeLeft = _held.Contains("KeyA"),
         StrafeRight = _held.Contains("KeyD"),
+        Left = _held.Contains("ArrowLeft"),
+        Right = _held.Contains("ArrowRight"),
         Jump = _held.Contains("Space"),
         Crouch = _held.Contains("AltLeft") || _held.Contains("AltRight")
     };
 
     public static bool Handles(string code) => code is
-        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "Space" or "AltLeft" or "AltRight" or "KeyV" or "KeyF";
+        "KeyW" or "KeyS" or "KeyA" or "KeyD" or "ArrowLeft" or "ArrowRight" or "Space" or "AltLeft" or "AltRight" or "KeyV" or "KeyF";
 
     public void Press(string code, bool repeat = false)
     {

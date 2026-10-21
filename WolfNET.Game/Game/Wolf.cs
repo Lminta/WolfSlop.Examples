@@ -26,8 +26,11 @@ public sealed class Wolf : IDisposable
     private bool _disposed;
     private int _frameGeneration;
     private double _lastPoseNotification = double.NegativeInfinity;
+    private double _lastDrivingNotification = double.NegativeInfinity;
+    private readonly GameplaySettings _gameplay;
 
-    public PlayerObject? Player => _scene?.Player;
+    public IControlledActor? Player => _scene?.Player;
+    public DrivingViewState? DrivingState => _scene?.DrivingState;
     public KeyTracker KeyTracker => _input?.Keyboard ?? throw new InvalidOperationException("No scene is running.");
     public MouseTracker MouseTracker => _input?.Mouse ?? throw new InvalidOperationException("No scene is running.");
     public IMap Map => _scene?.Map ?? throw new InvalidOperationException("No scene is running.");
@@ -35,13 +38,15 @@ public sealed class Wolf : IDisposable
     public string? CurrentMapPath { get; private set; }
     public event Action<string>? MapSwitchRequested;
     public event Action<PlayerPose>? PlayerPoseChanged;
+    public event Action<DrivingViewState>? DrivingStateChanged;
 
-    public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js)
+    public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js, GameplaySettings gameplay)
     {
         settings.Validate();
         RendererSettings = settings;
         _renderer = renderer;
         _loader = loader;
+        _gameplay = gameplay;
         _js = js;
         _timing = new FrameTiming(settings.TargetFPS);
         _window = js.Get<Window>("window");
@@ -72,7 +77,8 @@ public sealed class Wolf : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             input = new BrowserInput(canvas, _js);
-            scene = new GameScene(loaded.Map, loaded.Character, input.Keyboard, input.Mouse, RendererSettings);
+            scene = new GameScene(loaded.Map, loaded.Character, input.Keyboard, input.Mouse, RendererSettings, _gameplay);
+            scene.SetPaused(!input.Mouse.IsLocked);
             _input = input;
             _scene = scene;
             input = null;
@@ -81,6 +87,7 @@ public sealed class Wolf : IDisposable
             CurrentMapPath = mapPath;
             _clock.Restart();
             _lastPoseNotification = double.NegativeInfinity;
+            _lastDrivingNotification = double.NegativeInfinity;
             _timing.Reset();
             int generation = ++_frameGeneration;
             Console.WriteLine($"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
@@ -114,7 +121,11 @@ public sealed class Wolf : IDisposable
                 ScheduleFrame(generation);
                 return;
             }
-            _scene!.Update(deltaTime);
+            var wasPaused = _scene!.Paused;
+            _scene.SetPaused(!_input!.Mouse.IsLocked);
+            // Recapture resumes from the preserved pose, without spending the
+            // fraction of this frame that elapsed before controls were active.
+            _scene.Update(wasPaused != _scene.Paused ? 0 : deltaTime);
             if (_scene.ConsumeMapRequest() is { } destination && destination != CurrentMapPath && MapSwitchRequested != null)
             {
                 MapSwitchRequested.Invoke(destination);
@@ -126,6 +137,12 @@ public sealed class Wolf : IDisposable
                 return;
             }
             _renderer.Render(_scene.CaptureFrame());
+            if (_scene.DrivingState is { } driving && DrivingStateChanged != null &&
+                _clock.Elapsed.TotalMilliseconds - _lastDrivingNotification >= 1000d / 30)
+            {
+                _lastDrivingNotification = _clock.Elapsed.TotalMilliseconds;
+                DrivingStateChanged.Invoke(driving);
+            }
             if (_scene.Map.RendererMap.RaceMinimap != null && PlayerPoseChanged != null &&
                 _clock.Elapsed.TotalMilliseconds - _lastPoseNotification >= 50)
             {

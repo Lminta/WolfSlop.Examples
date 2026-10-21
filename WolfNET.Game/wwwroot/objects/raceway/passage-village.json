@@ -6,6 +6,7 @@
   "jumpable": false,
   "crouchable": false,
   "floorTexture": "textures/wolf/wood.png",
+  "surface": "mud",
   "ceilingMode": "texture",
   "ceilingTexture": "textures/wolf/wood.png"
 }

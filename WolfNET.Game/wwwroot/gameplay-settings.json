@@ -1,0 +1,42 @@
+{
+  "car": {
+    "length": 0.9,
+    "width": 0.7,
+    "wheelbase": 0.65,
+    "stopSpeed": 0.05,
+    "maxSteeringDegrees": 30,
+    "steeringRateDegrees": 150,
+    "steeringReturnDegrees": 200,
+    "angularResponse": 8,
+    "cameraFollowDistance": 1.5,
+    "cameraElevation": 0.25,
+    "mouseSensitivity": 0.0025,
+    "cameraRecenterDelay": 1,
+    "cameraRecenterRate": 4,
+    "cameraMaxYawDegrees": 100,
+    "cameraMaxPitchDegrees": 30,
+    "steeringWheelDegrees": 180,
+    "asphalt": {
+      "maxForwardSpeed": 18,
+      "maxReverseSpeed": 4,
+      "acceleration": 8,
+      "reverseAcceleration": 4,
+      "brakeDeceleration": 12,
+      "rollingResistance": 0.35,
+      "lateralGrip": 9,
+      "maxLateralAcceleration": 14,
+      "surfacePenaltyCoefficient": 2
+    },
+    "offRoad": {
+      "maxForwardSpeed": 8,
+      "maxReverseSpeed": 2,
+      "acceleration": 2.4,
+      "reverseAcceleration": 1.2,
+      "brakeDeceleration": 6,
+      "rollingResistance": 0.2,
+      "lateralGrip": 3,
+      "maxLateralAcceleration": 5,
+      "surfacePenaltyCoefficient": 2
+    }
+  }
+}

@@ -1,0 +1,56 @@
+@using System.Globalization
+@using WolfNET.Game
+@implements IDisposable
+@inject Wolf Wolf
+@inject GameplaySettings Settings
+
+@if (_state is { } state)
+{
+    @if (!state.ThirdPerson)
+    {
+        <div class="car-cockpit" aria-hidden="true">
+            <img class="car-cockpit-interior" src="textures/race/cockpit.png" alt="" draggable="false" />
+            <img class="car-cockpit-wheel" src="textures/race/steering-wheel.png" alt="" draggable="false"
+                 style="--wheel-rotation: @WheelRotation(state.SteeringAngle)deg;" />
+        </div>
+    }
+    @if (state.Paused)
+    {
+        <p class="car-paused" role="status">Click the game to resume driving.</p>
+    }
+}
+
+@code {
+    private DrivingViewState? _state;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        _state = Wolf.DrivingState;
+        Wolf.DrivingStateChanged += OnDrivingStateChanged;
+    }
+
+    private string WheelRotation(float angle)
+    {
+        var limit = Settings.Car.MaxSteeringDegrees * MathF.PI / 180;
+        var rotation = -Math.Clamp(angle / limit, -1, 1) * Settings.Car.SteeringWheelDegrees;
+        return rotation.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    private void OnDrivingStateChanged(DrivingViewState state)
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            _state = state;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Wolf.DrivingStateChanged -= OnDrivingStateChanged;
+    }
+}

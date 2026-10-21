@@ -6,5 +6,6 @@
   "jumpable": false,
   "crouchable": false,
   "floorTexture": "textures/wolf/greystone.png",
+  "surface": "mud",
   "ceilingMode": "sky"
 }

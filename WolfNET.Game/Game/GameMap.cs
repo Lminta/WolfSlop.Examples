@@ -28,7 +28,7 @@ public sealed class GameMap : IMap
         _definition = definition with { WorldMap = Copy(definition.WorldMap) };
         var compiled = _compiler.Compile(_definition, 1);
         RendererMap = compiled.Renderer;
-        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
+        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable, compiled.Surfaces);
         _doors.Rebuild(_definition.WorldMap, Objects);
         RendererMap = _doors.Apply(RendererMap, NavigationMap);
     }
@@ -56,7 +56,7 @@ public sealed class GameMap : IMap
         // Compile everything before publishing anything. Failed edits preserve both maps.
         var compiled = _compiler.Compile(next, checked(Revision + 1));
         _definition = next;
-        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable);
+        NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable, compiled.Surfaces);
         _doors.Rebuild(_definition.WorldMap, Objects);
         RendererMap = _doors.Apply(compiled.Renderer, NavigationMap);
     }

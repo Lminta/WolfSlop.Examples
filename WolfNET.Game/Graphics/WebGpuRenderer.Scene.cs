@@ -9,7 +9,7 @@ namespace WolfNET.Graphics;
 public sealed partial class WebGpuRenderer
 {
     public async Task PrepareSceneAsync(RenderMap map, CancellationToken cancellationToken = default,
-        Func<string, Task>? reportProgress = null, CharacterAppearance? character = null)
+        Func<string, Task>? reportProgress = null, ICharacterAppearance? character = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_initialized) throw new InvalidOperationException("Initialize the GPU before preparing a scene.");
