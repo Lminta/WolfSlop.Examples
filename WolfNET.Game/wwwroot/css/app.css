@@ -149,7 +149,7 @@ canvas {
 }
 .race-timing > div { display: grid; grid-template-columns: 5ch auto; gap: .5ch; }
 .race-timing dt { color: inherit; }
-.race-timing dd { margin: 0; }
+.race-timing dd { margin: 0; font-weight: 700; font-style: italic; }
 .race-minimap-viewport > svg:first-child {
     display: block;
     width: 100%;
