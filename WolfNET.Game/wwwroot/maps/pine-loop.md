@@ -107,7 +107,9 @@ Generated materials, forest scenery, tire stacks, buffer atlas, and transparent
 props live in [`../textures/raceway`](../textures/raceway/), with their generation
 prompts. Landmark signs, container fronts, road paint, pit fronts, and portal
 stripes are editable SVG assets. Painted-floor SVGs embed the seamless source
-material to match the surrounding asphalt. The map reuses the existing sky,
+material to match the surrounding asphalt. Its countryside sky panorama lives
+in `textures/skyboxes/countryside_sky.jpg`; other maps keep their existing sky.
+The map reuses the existing
 stone, limestone, wood, teal wall, plaster ceiling, and eight-view car atlas.
 
 Run **`node Tools/build-pine-loop-map.mjs`** from the repository root to rebuild

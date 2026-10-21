@@ -393,7 +393,7 @@
     "crouchSpeedMultiplier": 0.5
   },
   "sky": {
-    "texture": "textures/skyboxes/skybox.jpg",
+    "texture": "textures/skyboxes/countryside_sky.jpg",
     "rotationDegrees": 110
   },
   "raceMinimap": {

@@ -54,7 +54,7 @@ export async function checkGpu(sources) {
     const wallGroup = bind(walls, [entry(0,hits),entry(1,camera),textureEntry,entry(3,cells),entry(4,info),entry(6,materials),
         {binding:7,resource:clampSampler},{binding:8,resource:repeatSampler},...skyEntries]);
     let activeWallGroup = wallGroup;
-    const spriteGroup = bind(spritePipeline, [entry(0,hits),entry(1,camera),textureEntry,entry(3,sprites),{binding:4,resource:clampSampler}]);
+    const spriteGroup = bind(spritePipeline, [entry(0,hits),entry(1,camera),textureEntry,entry(3,sprites),{binding:4,resource:clampSampler},entry(5,cells),entry(6,info)]);
     const minimapGroup = bind(minimap, [entry(0,hits),entry(1,camera),entry(3,cells),entry(4,info),entry(5,sprites)]);
     const target = device.createTexture({size: [128,128], format: "rgba8unorm", usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC});
     const readback = device.createBuffer({size: 512 * 128, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
@@ -149,6 +149,36 @@ export async function checkGpu(sources) {
     map.set([0,4,5,1],13*4);
     assert((await draw(1,0)).cell === 14, "Opaque non-wall did not stop DDA");
     resetMap();
+    // Outdoor trees/flags behind a building remain visible above its roof.
+    // Keep the wall solid: ray-transparent walls disappear from the wall pass.
+    resetMap(); setMaterial([0,0,0,0]);
+    for(let cell=0;cell<25;cell++)map[cell*4+3]|=4;
+    map.set([1,4,5,7],13*4);
+    setSprites([[3.75,2.5,2,15,1,3,1]]);
+    for(const [pitch,elevation] of [[0,0],[.15,0],[-.15,0],[0,.2],[0,-.25]]) {
+        const roof=await draw(1,0,1,false,1.5,2.5,128,128,pitch,elevation);
+        const focal=128/(2*.66),horizon=64+Math.tan(pitch)*focal;
+        const wallTop=horizon+(elevation-.5)*focal/1.5;
+        const wallBottom=horizon+(elevation+.5)*focal/1.5;
+        const spriteTop=horizon+(elevation-2.5)*focal/2.25;
+        const spriteBottom=horizon+(elevation+.5)*focal/2.25;
+        assert(roof.cell===14,"Roof fixture no longer hits its solid building");
+        for(let y=0;y<128;y++) {
+            const inSprite=y+.5>=spriteTop&&y+.5<spriteBottom;
+            const inWall=y+.5>=wallTop&&y+.5<wallBottom;
+            assert(equal(roof.pixel(64,y),colors[2])===(inSprite&&!inWall),
+                `Roof clips sprite incorrectly: pitch=${pitch}, elevation=${elevation}, row=${y}`);
+        }
+    }
+    for(let cell=0;cell<25;cell++)map[cell*4+3]&=~4;
+    const indoorRoof=await draw(1,0,1,false,1.5,2.5);
+    assert(equal(indoorRoof.pixel(64,8),colors[5]),"Tall outdoor sprite leaked through an indoor ceiling");
+    for(let cell=0;cell<25;cell++)map[cell*4+3]|=4;
+    map[13*4+3]=6;
+    const transparentBuilding=await draw(1,0,1,false,1.5,2.5);
+    assert(transparentBuilding.cell===15&&equal(transparentBuilding.pixel(64,64),colors[2]),
+        "Ray-transparent wall should be skipped, exposing the sprite through the building");
+    resetMap(); setMaterial([0,1,2,3]);
     // Thin door planes: ray blocking moves with the actual sliding panel.
     const doorCell=12;
     const doorFlags=(open,solid=true,normalX=true)=>(8|2|(solid?1:0)|(normalX?16:0)|(Math.round(open*65535)<<16))>>>0;

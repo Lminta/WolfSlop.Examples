@@ -134,7 +134,9 @@ public sealed partial class WebGpuRenderer
                     BufferEntry(1, _cameraBuffer!),
                     new GPUBindGroupEntry { Binding = 2, Resource = _textures!.WallView },
                     BufferEntry(3, _spriteBuffer),
-                    new GPUBindGroupEntry { Binding = 4, Resource = _textures!.TextureSampler }
+                    new GPUBindGroupEntry { Binding = 4, Resource = _textures!.TextureSampler },
+                    BufferEntry(5, _worldMapBuffer!),
+                    BufferEntry(6, _mapInfoBuffer!)
                 ]
             });
 

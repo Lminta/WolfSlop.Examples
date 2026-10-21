@@ -13,6 +13,20 @@ struct RayHit {
     side: u32,
 };
 
+struct RenderCell {
+    materialIndex: u32,
+    floorLayer: u32,
+    ceilingLayer: u32,
+    flags: u32,
+};
+
+struct MapInfo {
+    width: u32,
+    height: u32,
+    spriteCount: u32,
+    padding: u32,
+};
+
 struct Sprite {
     position: vec2f,
     textureLayer: u32,
@@ -36,6 +50,8 @@ struct VertexOutput {
 @group(0) @binding(2) var spriteTextures: texture_2d_array<f32>;
 @group(0) @binding(3) var<storage, read> sprites: array<Sprite>;
 @group(0) @binding(4) var spriteSampler: sampler;
+@group(0) @binding(5) var<storage, read> worldMap: array<RenderCell>;
+@group(0) @binding(6) var<uniform> mapInfo: MapInfo;
 
 @vertex
 fn vertexMain(
@@ -124,9 +140,31 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
     let worldDistance = input.depth * length(ray);
     if (camera.look.z > 0.0 && worldDistance >= camera.look.z) { discard; }
     let hit = rayHits[u32(input.position.x)];
-    // The compute ray distances serve as Lode's one-dimensional Z buffer.
+    // Ray depth only occludes the projected wall, not the sky above its roof.
+    // Match the wall pass's bounds, including pitch and camera elevation.
     if (hit.hitCell != 0u && hit.hitCell != input.ownerCell && input.depth >= hit.distance) {
-        discard;
+        // Non-wall ray blockers retain their existing occlusion behavior.
+        if ((worldMap[hit.hitCell - 1u].flags & 2u) == 0u) { discard; }
+        let focalLength = camera.screenSize.x / (2.0 * length(camera.plane));
+        let lineHeight = focalLength / hit.distance;
+        let horizon = camera.screenSize.y * 0.5 + tan(camera.look.x) * focalLength;
+        let wallCenter = horizon + camera.look.y * lineHeight;
+        if (input.position.y >= wallCenter - lineHeight * 0.5 &&
+            input.position.y < wallCenter + lineHeight * 0.5) {
+            discard;
+        }
+        // Below the wall, the ground still hides the sprite. Above it, only
+        // an open ceiling reveals the sky; a building's ceiling remains solid.
+        let offset = input.position.y - horizon;
+        if (offset >= -0.0001) { discard; }
+        let ceilingDepth = focalLength * (0.5 - camera.look.y) / -offset;
+        let ceilingPosition = camera.position + ray * ceilingDepth;
+        if (ceilingDepth > 0.0 && ceilingDepth < input.depth &&
+            all(ceilingPosition >= vec2f(0.0)) &&
+            ceilingPosition.x < f32(mapInfo.width) && ceilingPosition.y < f32(mapInfo.height)) {
+            let tile = vec2u(ceilingPosition);
+            if ((worldMap[tile.y * mapInfo.width + tile.x].flags & 4u) == 0u) { discard; }
+        }
     }
 
     // Mips store premultiplied RGBA; blending uses ONE, ONE_MINUS_SRC_ALPHA.
