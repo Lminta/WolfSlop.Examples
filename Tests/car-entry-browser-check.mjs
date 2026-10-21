@@ -78,17 +78,19 @@ try {
         };
     `});
     await send('Page.navigate', {url: base + '/'}); await send('Page.bringToFront');
-    await waitFor('window.__camera?.[0]===19.5&&!document.querySelector(".loading-overlay")');
+    await waitFor('window.__info?.[0]===34&&window.__camera?.[0]===29.5&&!document.querySelector(".loading-overlay")');
+    assert.equal(await evaluate('document.querySelector(".map-switcher button[aria-pressed=true]")?.textContent.trim()'),
+        'Showcase', 'The default map is not Showcase');
     assert.equal(await evaluate('document.querySelectorAll(".race-minimap").length'), 0, 'Race minimap appeared on exploration map');
     assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).map(button=>button.textContent.trim())`),
         ['The Glassworks', 'The Brickyard', 'Showcase']);
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('Press "F" to interact with door or car.')`));
     await action(); await delay(200);
     assert.equal(await evaluate('window.__raceLoads'), 0, 'F entered the race without mouse capture');
-    for (const [index, source] of ['Glassworks', 'Showcase'].entries()) {
+    for (const [index, source] of ['Showcase', 'Glassworks'].entries()) {
         if (index) {
-            await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent.trim()==='Showcase').click()`);
-            await waitFor('window.__info?.[0]===34&&window.__camera?.[0]===29.5&&!document.querySelector(".loading-overlay")');
+            await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent.trim()==='The Glassworks').click()`);
+            await waitFor('window.__camera?.[0]===19.5&&!document.querySelector(".loading-overlay")');
             assert.equal(await evaluate('document.querySelectorAll(".race-minimap").length'), 0, 'Race minimap survived leaving the race map');
         }
         await capture(); await action();

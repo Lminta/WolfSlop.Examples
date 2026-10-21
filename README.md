@@ -10,7 +10,9 @@ The solution contains sibling projects:
 
 Build both applications with `dotnet build WolfNET.slnx`.
 
-The default level is **The Glassworks**, a compact abandoned botanical station
+The default level is **Showcase**, a gallery of materials, doors, objects, and
+movement examples, with a parked car in its annex for entering Pine Loop.
+**The Glassworks** is a compact abandoned botanical station
 built around a central glasshouse. Explore its potting room and pump room, then
 find the maintenance shortcut that links the rooms. See the
 [Glassworks notes](WolfNET.Game/wwwroot/maps/glassworks.md) for the layout.

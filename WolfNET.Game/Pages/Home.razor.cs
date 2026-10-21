@@ -64,7 +64,7 @@ public partial class Home
             await ShowLoadingProgressAsync("Starting graphics...");
             await Renderer.InitializeAsync(_canvasElement, shaders, _lifetime.Token);
 
-            var initialMap = GlassworksMap;
+            var initialMap = ShowcaseMap;
             if (!string.IsNullOrWhiteSpace(RequestedMap))
             {
                 if (!System.Text.RegularExpressions.Regex.IsMatch(RequestedMap, "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$"))

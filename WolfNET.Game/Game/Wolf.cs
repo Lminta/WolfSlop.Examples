@@ -53,7 +53,7 @@ public sealed class Wolf : IDisposable
     }
 
     public Task StartAsync(HTMLCanvasElement canvas, CancellationToken cancellationToken = default) =>
-        _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/level1.json", cancellationToken);
+        _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/showcase.json", cancellationToken);
 
     public async Task SwitchMapAsync(HTMLCanvasElement canvas, string mapPath, CancellationToken cancellationToken = default,
         Func<string, Task>? reportProgress = null)

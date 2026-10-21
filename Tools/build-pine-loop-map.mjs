@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeRacewayTireProps } from './build-raceway-tire-props.mjs';
 
 // Preserve the previous compact course as an explicit authoring option.
 // The default builds the requested256x512grand circuit.
@@ -54,15 +55,7 @@ group('group-mixed-grove', 577, [member(520, -.32, .28, 2.2), member(529, .29, .
 group('group-woodland-pine', 578, [member(520, -.12, .12, 2.1), member(522, .3, -.2, .7)]);
 group('group-forest-edge', 579, [member(520, -.34, .25, 2.5), member(529, .3, .16, 2.05), member(530, .03, -.33, 2.6)]);
 
-const stack = (id, x, y, scale = .62) => member(id, x, y, scale);
-group('group-tires', 543, [stack(521, -.42, 0), stack(531, 0, 0), stack(521, .42, 0)], 502);
-group('group-tires-north-south', 580, [stack(521, 0, -.42), stack(531, 0, 0), stack(521, 0, .42)], 502);
-group('group-tires-corner', 581, [stack(521, -.3, -.3), stack(531, .3, -.3), stack(531, -.3, .3), stack(521, .3, .3)], 502);
-group('group-tires-elbow', 582, [stack(521, -.23, -.23), stack(531, .23, -.23), stack(521, -.23, .23)], 502);
-group('group-tire-black', 583, [stack(521, 0, 0, .7)], 502);
-group('group-tire-white', 584, [stack(531, 0, 0, .7)], 502);
-group('group-tires-double-row', 585, [-.4, 0, .4].flatMap((x, i) =>
-    [stack(i % 2 ? 531 : 521, x, -.27, .58), stack(i % 2 ? 521 : 531, x, .27, .58)]), 502);
+writeRacewayTireProps();
 
 writeObject('wall-hedge-boundary', 510, 'wall', { raycastTransparent: false,
     collides: true, passageId: 501,

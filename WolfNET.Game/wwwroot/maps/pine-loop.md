@@ -60,7 +60,7 @@ crossings or shared road sections.
 
 Continuous colliding safety rails enclose the racing surface, with a one-tile
 shoulder beside the asphalt. Mesh fences line the straights; individual black
-and white tire stacks at the same 0.62 scale as the existing grouped piles replace
+and white tire stacks at 0.31 scale, half their previous size, replace
 them around the turns and corners. These close the loop
 cuts, including diagonal gaps. The **Mud Express** is the one deliberate shortcut:
 a two-tile dirt lane at **Y 320–321, X 102–139**, linking the Meadow loop at X 100
@@ -90,7 +90,7 @@ pines, oaks, and birches. Most trees occupy scenic corridors beside the racing
 surface or two perimeter belts. Sparse groves fill the deeper infield. A dedicated
 opaque forest texture closes the distant map boundary. Trees and undergrowth
 keep clear setbacks around the course, pit entrances, huts, and public areas.
-The complete map contains **10,324 scenery sprites**, including the continuous
+The complete map contains **14,829 scenery sprites**, including the continuous
 safety rails. The existing 60-block render distance culls distant scenery.
 
 **79 event props** populate the grid, spectator areas, quarry, infield loops,
@@ -106,7 +106,9 @@ reusable billboard presets in both fixed-plane orientations:
 - **MUD CLUB** — Free dirt. Strict dress code.
 - **APEX ACADEMY** — Cut tuition. Not corners.
 
-Tire barriers use separate, symmetric black and white single-stack sprites.
+Tire barriers use separate, symmetric black and white stack sprites. Each boundary
+object contains three smaller stacks in a row, aligned along X or Y to follow
+the boundary. Larger pile presets use rows and clusters of half-size stacks.
 Reusable groups place individual stacks at different world positions in rows,
 corner clusters, elbows, and double rows. Each buffer uses **one long sprite**
 on a fixed X- or Y-aligned plane. It keeps the same long-face texture and its

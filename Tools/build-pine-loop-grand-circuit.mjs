@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeRacewayEventProps } from './build-raceway-event-props.mjs';
+import { writeRacewayTireProps } from './build-raceway-tire-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web = path.join(repository, 'WolfNET.Game/wwwroot');
@@ -14,6 +15,7 @@ const grid = Array.from({ length: width }, () => Array(height).fill(501));
 const track = new Set();
 const key = (x, y) => `${x},${y}`;
 const definitions = new Map();
+writeRacewayTireProps();
 for (const filename of fs.readdirSync(objectDirectory).filter(name => name.endsWith('.json'))) {
     const definition = JSON.parse(fs.readFileSync(path.join(objectDirectory, filename), 'utf8'));
     definitions.set(definition.id, definition);
@@ -57,10 +59,6 @@ object('group-safety-rail-y', 621, 'spriteGroup', { collides: true, passageId: 5
     sprites: [member(524, 0, 0, 1.1)] });
 object('group-safety-rail-corner', 622, 'spriteGroup', { collides: true, passageId: 502,
     sprites: [member(523, 0, 0, 1.1), member(524, 0, 0, 1.1)] });
-object('group-safety-rail-corner-tires', 623, 'spriteGroup', { collides: true, passageId: 502,
-    sprites: [member(531, 0, 0, .62)] });
-object('group-safety-rail-black-tires', 624, 'spriteGroup', { collides: true, passageId: 502,
-    sprites: [member(521, 0, 0, .62)] });
 
 const signDefinitions = [
     [598, 'paddock', 'PINE LOOP', 'PADDOCK', '#284a45'],
@@ -306,7 +304,8 @@ for (const point of railCells) {
     const coreEastWest = drivingArea.has(key(x - 1, y)) || drivingArea.has(key(x + 1, y));
     const coreNorthSouth = drivingArea.has(key(x, y - 1)) || drivingArea.has(key(x, y + 1));
     if (bendBounds.some(([left, top, right, bottom]) => x >= left && x <= right && y >= top && y <= bottom)) {
-        grid[x][y] = (x + y) % 2 === 0 ? 623 : 624;
+        const alongY = coreEastWest && !coreNorthSouth;
+        grid[x][y] = (x + y) % 2 === 0 ? (alongY ? 660 : 623) : (alongY ? 661 : 624);
         bendRailCells.push([x, y]);
     } else grid[x][y] = coreEastWest && coreNorthSouth ? 622 : coreEastWest ? 620 : coreNorthSouth ? 621 : 623;
 }

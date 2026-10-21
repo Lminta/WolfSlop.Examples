@@ -243,7 +243,8 @@ internal static class PineLoopChecks
             treeCount += count;
         }
         Check(treeCount is >= 3500 and <= 5000, "Pine Loop forest density is outside its authored budget");
-        Check(render.Sprites.Count <= 11000, "Pine Loop scenery exceeds its authored sprite budget");
+        // Boundary cells now contain three half-size stacks instead of one large stack.
+        Check(render.Sprites.Count <= 16000, "Pine Loop scenery exceeds its authored sprite budget");
         var boundaryMaterial = render.Materials[(int)Cell(0, 0).MaterialIndex];
         Check(render.Textures.Layers[boundaryMaterial.East]?.EndsWith("/forest-boundary.png") == true,
             "Pine Loop boundary does not use the forest backdrop");
@@ -252,12 +253,17 @@ internal static class PineLoopChecks
         Check(map.Objects.Values.OfType<SpriteGroupDefinition>().Any(group =>
             group.Sprites.Count(member => member.SpriteId is 521 or 531) >= 3),
             "Pine Loop has no reusable groups of separate tire stacks");
-        foreach (var id in new[] { 543, 580, 581, 582, 585 })
+        foreach (var id in new[] { 543, 580, 581, 582, 585, 623, 624, 660, 661 })
         {
             var group = (SpriteGroupDefinition)map.Objects[id];
             Check(group.Sprites.Length >= 3 && group.Sprites.All(member => member.SpriteId is 521 or 531) &&
                 group.Sprites.Select(member => (member.Offset.X, member.Offset.Y)).Distinct().Count() == group.Sprites.Length,
                 $"Pine Loop tire group {id} does not place individual stacks at separate world positions");
+            var scale = id == 585 ? .29f : .31f;
+            Check(group.Sprites.All(member => Math.Abs(member.Scale.X - scale) < .0001f &&
+                Math.Abs(member.Scale.Y - scale) < .0001f &&
+                Math.Abs(member.Offset.Z - (scale - 1) * .5f) < .0001f),
+                $"Pine Loop tire group {id} must use grounded half-size stacks");
         }
         foreach (var id in new[] { 544, 545 })
         {
