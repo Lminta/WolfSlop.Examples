@@ -25,6 +25,7 @@ public sealed class Wolf : IDisposable
     private TextureCatalog? _sceneTextures;
     private bool _disposed;
     private int _frameGeneration;
+    private double _lastPoseNotification = double.NegativeInfinity;
 
     public PlayerObject? Player => _scene?.Player;
     public KeyTracker KeyTracker => _input?.Keyboard ?? throw new InvalidOperationException("No scene is running.");
@@ -33,6 +34,7 @@ public sealed class Wolf : IDisposable
     public RendererSettings RendererSettings { get; }
     public string? CurrentMapPath { get; private set; }
     public event Action<string>? MapSwitchRequested;
+    public event Action<PlayerPose>? PlayerPoseChanged;
 
     public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js)
     {
@@ -78,6 +80,7 @@ public sealed class Wolf : IDisposable
             _sceneTextures = loaded.Map.RendererMap.Textures;
             CurrentMapPath = mapPath;
             _clock.Restart();
+            _lastPoseNotification = double.NegativeInfinity;
             _timing.Reset();
             int generation = ++_frameGeneration;
             Console.WriteLine($"[GAME] Started. Target FPS: {RendererSettings.TargetFPS}");
@@ -123,6 +126,12 @@ public sealed class Wolf : IDisposable
                 return;
             }
             _renderer.Render(_scene.CaptureFrame());
+            if (_scene.Map.RendererMap.RaceMinimap != null && PlayerPoseChanged != null &&
+                _clock.Elapsed.TotalMilliseconds - _lastPoseNotification >= 50)
+            {
+                _lastPoseNotification = _clock.Elapsed.TotalMilliseconds;
+                PlayerPoseChanged.Invoke(_scene.PlayerPose);
+            }
             ScheduleFrame(generation);
         }
         catch (Exception ex)

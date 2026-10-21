@@ -40,5 +40,6 @@
     <Compile Include="../WolfNET.Game/Game/GameSceneLoader.cs" Link="Game/GameSceneLoader.cs" />
     <Compile Include="../WolfNET.Game/Graphics/RendererSettings.cs" Link="Graphics/RendererSettings.cs" />
     <Compile Include="../WolfNET.Game/Graphics/RenderFrame.cs" Link="Graphics/RenderFrame.cs" />
+    <Compile Include="../WolfNET.Game/Graphics/RaceMinimapProjection.cs" Link="Graphics/RaceMinimapProjection.cs" />
   </ItemGroup>
 </Project>

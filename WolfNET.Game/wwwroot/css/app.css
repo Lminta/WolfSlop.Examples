@@ -23,12 +23,19 @@ body {
     align-items: center;
 }
 
-canvas {
-    display: block;
+.game-viewport {
+    position: relative;
     /* Fit the page while keeping the backing buffer and its aspect ratio. */
     width: min(100cqw, calc(100cqh * var(--render-width) / var(--render-height)));
-    height: auto;
+    aspect-ratio: var(--render-width) / var(--render-height);
     flex-shrink: 0;
+    container-type: size;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
     outline: none;
 }
 
@@ -97,6 +104,34 @@ canvas {
 }
 .controls-hint strong { color: #e0e8ee; }
 .controls-hint p { margin: 6px 0 0; }
+
+.race-minimap {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: min(240px, 35cqw, calc(100cqh - 24px));
+    pointer-events: none;
+    z-index: 20;
+}
+.race-minimap-viewport {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+}
+.race-minimap-viewport > svg:first-child { display: block; width: 100%; height: 100%; }
+.race-minimap-course polyline { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.race-minimap-road-edge { stroke: #071018; stroke-width: 11px; }
+.race-minimap-road { stroke: #edf4f8; stroke-width: 8px; }
+.race-minimap-shortcut { stroke: #e6bb68; stroke-width: 5px; stroke-dasharray: 6px 5px; }
+.race-minimap-player {
+    position: absolute;
+    left: 50%;
+    top: 70%;
+    width: 16px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 1px 2px #000);
+}
 .showcase-guide { margin: 10px 0 0; padding-left: 18px; }
 .showcase-guide li + li { margin-top: 5px; }
 

@@ -164,10 +164,13 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
                 pass.Draw(6, (uint)_sortedSprites.Count);
             }
 
-            // Draw last so world sprites cannot cover the minimap.
-            pass.SetPipeline(_minimapPipeline);
-            pass.SetBindGroup(0, _minimapBindGroup!);
-            pass.Draw(3);
+            // Race maps use their route-only SVG HUD instead of scenery dots.
+            if (map.RaceMinimap == null)
+            {
+                pass.SetPipeline(_minimapPipeline);
+                pass.SetBindGroup(0, _minimapBindGroup!);
+                pass.Draw(3);
+            }
 
             pass.End();
         }

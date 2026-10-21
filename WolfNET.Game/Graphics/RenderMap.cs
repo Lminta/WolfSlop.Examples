@@ -46,4 +46,5 @@ public sealed record RenderMap(
     ulong Revision)
 {
     public SkyDefinition? Sky { get; init; }
+    public RaceMinimapDefinition? RaceMinimap { get; init; }
 }

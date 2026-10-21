@@ -14,12 +14,20 @@
 
 @implements IDisposable
 
-<canvas @ref="_canvas"
-        width="@Settings.Width"
-        height="@Settings.Height"
-        style="--render-width: @Settings.Width; --render-height: @Settings.Height;"
-        tabindex="0">
-</canvas>
+<div class="game-viewport" style="--render-width: @Settings.Width; --render-height: @Settings.Height;">
+    <canvas @ref="_canvas"
+            width="@Settings.Width"
+            height="@Settings.Height"
+            tabindex="0">
+    </canvas>
+
+@if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null &&
+    Wolf.Map.RendererMap.RaceMinimap is { } raceMinimap && Wolf.Player is { } player)
+{
+    <WolfNET.Components.RaceMinimap @key="raceMinimap" Definition="raceMinimap"
+        InitialPose="@(new PlayerPose(player.Transform.Position, player.Transform.Rotation))" />
+}
+</div>
 
 @if (_loading)
 {

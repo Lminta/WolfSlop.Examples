@@ -14,6 +14,23 @@ available for authoring and regression previews.
 The player starts at **(25.5,445.5)** facing north, behind the checkerboard.
 The existing movement and camera controls apply.
 
+The race minimap shows **120 blocks across**, with the player at **50% across and
+70% down** its square viewport: 84 blocks ahead and 36 behind. The course scrolls
+and rotates beneath an upward-pointing cyan arrow. White lines show the road,
+a dashed amber line marks the shortcut, and a checkered square marks start/finish
+when nearby. Trees, barriers, crowds, fog, and the render cutoff do not affect it.
+The marker follows the player in either camera mode. The old scenery minimap is
+disabled only for maps containing race-minimap metadata.
+The overlay has no panel background or border, uses an 8-pixel road stroke,
+and is inset 12 pixels from the canvas's upper-left corner. It follows the
+canvas rather than the window when resizing or letterboxing.
+
+`raceMinimap` in the map JSON contains `route` (a closed polyline), `startFinish`
+(one point), and `shortcuts` (an array of polylines). Points are `[x,y]` world
+coordinates, validated to be finite and inside the map. The map generator authors
+these from its lap anchors and shortcut endpoints. Editor load/export preserves
+them; regenerate the route metadata after changing the authored course layout.
+
 The starting straight has three full asphalt lanes at **X 24–26, Y 396–449**.
 The third lane tapers diagonally across **(26,395)**, leaving two lanes at
 **X 24–25** to the north. The checkerboard crosses the three starting lanes at
@@ -134,3 +151,8 @@ node Tests/pine-loop-browser-check.mjs 9255 http://127.0.0.1:53719 start grandst
 The `start` and `spectator-plaza` browser views verify all three animation layers
 reach the GPU for every nearby flag and crowd without changing their geometry.
 Add `mud-express` to inspect the shortcut from its entry.
+
+`Tests/RaceMinimapChecks.cs` checks projection, heading, local range, metadata,
+and editor export. `node Tests/race-minimap-browser-check.mjs 9256 http://127.0.0.1:53721`
+checks real movement and rotation, camera modes, responsive layout, fog/scenery
+independence, and restoring the exploration minimap after leaving the race.

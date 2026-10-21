@@ -29,6 +29,13 @@ or the Showcase annex, face it from nearby, and press **F** to enter Pine Loop.
 Its
 [map notes](WolfNET.Game/wwwroot/maps/pine-loop.md) describe the route and assets.
 
+Pine Loop uses a rotating local minimap with a 120-block viewing width. Its player
+arrow stays below center and points up, leaving more room for upcoming bends.
+The clean route outline includes the shortcut and start/finish marker without
+scenery dots, fog, or visibility shading. Other maps retain their exploration
+minimap. The race overlay has a transparent background and wider route lines,
+and stays pinned to the canvas's upper-left corner, including when letterboxed.
+
 Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filtering
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.

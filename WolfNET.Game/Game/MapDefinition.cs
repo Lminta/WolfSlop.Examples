@@ -10,6 +10,25 @@ public sealed record MapDefinition
     public required int[][] WorldMap { get; init; }
     public required PlayerStartDefinition PlayerStart { get; init; }
     public SkyDefinition? Sky { get; init; }
+    public RaceMinimapDefinition? RaceMinimap { get; init; }
+}
+
+public sealed record RaceMinimapDefinition
+{
+    public required float[][] Route { get; init; }
+    public required float[] StartFinish { get; init; }
+    public float[][][] Shortcuts { get; init; } = [];
+
+    public void Validate(int width, int height)
+    {
+        bool ValidPoint(float[]? point) => point is { Length: 2 } &&
+            float.IsFinite(point[0]) && float.IsFinite(point[1]) &&
+            point[0] >= 0 && point[0] < width && point[1] >= 0 && point[1] < height;
+        if (Route is not { Length: >= 4 } || !Route.All(ValidPoint) ||
+            !Route[0].SequenceEqual(Route[^1]) || !ValidPoint(StartFinish) ||
+            Shortcuts == null || Shortcuts.Any(path => path is not { Length: >= 2 } || !path.All(ValidPoint)))
+            throw new InvalidDataException("Race minimap needs a closed route, start/finish point, and shortcut paths with finite coordinates inside the map.");
+    }
 }
 
 public sealed record SkyDefinition

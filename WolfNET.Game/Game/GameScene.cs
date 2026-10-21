@@ -6,6 +6,8 @@ using WolfNET.Graphics;
 
 namespace WolfNET.Game;
 
+public readonly record struct PlayerPose(Vector2 Position, Vector2 Direction);
+
 /// <summary>Owns simulation objects for one map. Browser and GPU lifetimes belong to the host.</summary>
 public sealed class GameScene : IDisposable
 {
@@ -15,6 +17,7 @@ public sealed class GameScene : IDisposable
     public IMap Map { get; }
     public PlayerObject Player { get; }
     public CharacterAppearance Character { get; }
+    public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
 
     public GameScene(IMap map, CharacterAppearance character, IKeyboardInput input, IMouseInput mouse,
         RendererSettings settings)

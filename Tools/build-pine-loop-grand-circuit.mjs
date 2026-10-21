@@ -354,7 +354,9 @@ for (const name of fs.readdirSync(objectDirectory).filter(name => name.endsWith(
 const map = { objects, worldMap: grid, playerStart: { x: 25.5, y: 445.5, directionX: 0, directionY: -1,
     moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15, jumpRise: .4, jumpLength: 2,
     jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
-    sky: { texture: 'textures/skyboxes/skybox.jpg', rotationDegrees: 110 } };
+    sky: { texture: 'textures/skyboxes/skybox.jpg', rotationDegrees: 110 },
+    raceMinimap: { route: anchors.map(([x, y]) => [x + 1, y + 1]),
+        startFinish: [25.5, 442.5], shortcuts: [[shortcut.from, shortcut.to]] } };
 const pretty = JSON.stringify(map, null, 2), before = pretty.indexOf('  "worldMap": ['), after = pretty.indexOf('  "playerStart":', before);
 const columns = '  "worldMap": [\n' + grid.map(column => '    [' + column.join(', ') + ']').join(',\n') + '\n  ],\n';
 fs.writeFileSync(path.join(web, 'maps/pine-loop.json'), pretty.slice(0, before) + columns + pretty.slice(after) + '\n');

@@ -67,7 +67,9 @@ try {
     await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 850, deviceScaleFactor: 1, mobile: false});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
-        window.__camera=null; window.__mapInfo=null; window.__buffers=[]; window.__sprites=[]; window.__frames=[]; window.__events={};
+        window.__camera=null; window.__mapInfo=null; window.__buffers=[]; window.__sprites=[]; window.__frames=[]; window.__events={};window.__legacyMinimapDraws=0;
+        const setPipeline=GPURenderPassEncoder.prototype.setPipeline;
+        GPURenderPassEncoder.prototype.setPipeline=function(pipeline){if(pipeline.label==='WolfNET Minimap Pipeline')window.__legacyMinimapDraws++;return setPipeline.call(this,pipeline);};
         const views=new Map(${JSON.stringify(fixture.views)}), originalFetch=window.fetch;
         window.fetch=async function(input,...args){
             const response=await originalFetch.call(this,input,...args), url=String(input?.url??input);
@@ -122,6 +124,24 @@ try {
             console.log(`PASS ${name} animation: each nearby flag and crowd cycled through all three frames with stable geometry.`);
         }
         const state = await evaluate('({camera:window.__camera,map:window.__mapInfo,buffers:window.__buffers,sprites:window.__sprites,frames:window.__frames})');
+        if (level.raceMinimap) {
+            await waitFor('!!document.querySelector(".race-minimap-course")');
+            const minimap = await evaluate(`(()=>{
+                const group=document.querySelector('.race-minimap-course'),m=group.transform.baseVal.consolidate().matrix;
+                const p=(${JSON.stringify(view)}),length=Math.hypot(p[2],p[3]),dx=p[2]/length,dy=p[3]/length;
+                return{count:document.querySelectorAll('.race-minimap').length,legacy:window.__legacyMinimapDraws,
+                    anchor:Array.from([new DOMPoint(p[0],p[1]).matrixTransform(m).x,new DOMPoint(p[0],p[1]).matrixTransform(m).y]),
+                    ahead:[new DOMPoint(p[0]+dx*84,p[1]+dy*84).matrixTransform(m).x,new DOMPoint(p[0]+dx*84,p[1]+dy*84).matrixTransform(m).y],
+                    route:document.querySelector('.race-minimap-road').points.numberOfItems,
+                    shortcuts:document.querySelectorAll('.race-minimap-shortcut').length};
+            })()`);
+            assert.equal(minimap.count, 1, 'Race overlay missing or duplicated');
+            assert.equal(minimap.legacy, 0, 'Legacy scenery minimap was drawn on race map');
+            assert.equal(minimap.route, level.raceMinimap.route.length);
+            assert.equal(minimap.shortcuts, 1);
+            assert(Math.hypot(minimap.anchor[0]-50,minimap.anchor[1]-70)<.02, 'Race marker is not anchored to real player position');
+            assert(Math.hypot(minimap.ahead[0]-50,minimap.ahead[1])<.02, 'Race minimap heading or 120-block zoom is incorrect');
+        }
         assert.deepEqual(state.map.slice(0, 2), [256, 512]);
         assert(state.map[2] < 4500, 'Unexpectedly large sprite population');
         assert.equal(state.map[2], state.sprites.length, 'Draw count includes culled sprites or spare capacity');

@@ -79,6 +79,7 @@ try {
     `});
     await send('Page.navigate', {url: base + '/'}); await send('Page.bringToFront');
     await waitFor('window.__camera?.[0]===19.5&&!document.querySelector(".loading-overlay")');
+    assert.equal(await evaluate('document.querySelectorAll(".race-minimap").length'), 0, 'Race minimap appeared on exploration map');
     assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).map(button=>button.textContent.trim())`),
         ['The Glassworks', 'The Brickyard', 'Showcase']);
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('Press "F" to interact with door or car.')`));
@@ -88,6 +89,7 @@ try {
         if (index) {
             await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent.trim()==='Showcase').click()`);
             await waitFor('window.__info?.[0]===34&&window.__camera?.[0]===29.5&&!document.querySelector(".loading-overlay")');
+            assert.equal(await evaluate('document.querySelectorAll(".race-minimap").length'), 0, 'Race minimap survived leaving the race map');
         }
         await capture(); await action();
         await waitFor(`window.__raceLoads===${index + 1}&&window.__info?.[0]===256&&window.__info?.[1]===512&&window.__camera?.[0]===25.5&&!document.querySelector('.loading-overlay')`);
@@ -95,6 +97,7 @@ try {
         assert.equal(await evaluate('document.querySelectorAll(".map-switcher button[aria-pressed=true]").length'), 0,
             'Source map remains selected after car transition');
         assert.equal(await evaluate('window.__textures.size'), 2, 'Car transition retained old scene textures');
+        assert.equal(await evaluate('document.querySelectorAll(".race-minimap").length'), 1, 'Car transition lost or duplicated the race minimap');
         await delay(500);
         assert.equal(await evaluate('window.__raceLoads'), index + 1, 'One F press triggered repeated map loads');
         console.log(`PASS ${source} car: F loads Pine Loop, updates map UI, and releases source scene resources.`);
