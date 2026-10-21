@@ -239,12 +239,18 @@ the simulated steering angle. Switching to the cockpit resets orbit and pitch.
 clicking the canvas resumes. Asset prompts are in
 [cockpit-assets.md](WolfNET.Game/wwwroot/textures/race/cockpit-assets.md).
 
-The panel beneath the race minimap shows completed laps, total elapsed time,
-current lap time, and the last completed lap. Timing starts on the first forward
-crossing of the start/finish line and pauses with driving. Later finish crossings
+The panel beneath the race minimap shows completed/total laps (for example `1/3`), total elapsed time,
+current lap time, and the last completed lap. The first click starts a five-second
+countdown with fading center-screen numbers and red starting lights. GO turns the
+lights green, releases the controls, and starts timing. Countdown and timing pause
+with driving. After the initial departure over the line, later finish crossings
 count only after passing all invisible checkpoints in order. Reversing over the
 line or repeatedly crossing it cannot add laps. An incomplete finish clears
-checkpoint progress while time continues. Leaving the map resets the session.
+checkpoint progress while time continues. The configured final lap freezes driving
+and timing, releases the mouse, and shows total and individual lap times with a
+restart button. Set `race.lapCount` in `WolfNET.Game/wwwroot/gameplay-settings.json`
+to change the race length (default: 3). Restarting loads a fresh grid and countdown;
+leaving the map also resets the session.
 Pine Loop's checkpoint sequence permits its existing Mud Express shortcut.
 The map's optional `race` metadata stores a `startFinish` gate and ordered
 `checkpoints`; each gate has `center`, forward `direction`, and `halfWidth`.

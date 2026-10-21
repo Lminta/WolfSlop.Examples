@@ -118,6 +118,9 @@ public partial class Home
         }
     }
 
+    private Task RestartRaceAsync() => Wolf.CurrentMapPath is { } path
+        ? SelectMapAsync(path) : Task.CompletedTask;
+
     private void OnMapSwitchRequested(string mapPath)
     {
         if (!_disposed) _ = InvokeAsync(async () =>

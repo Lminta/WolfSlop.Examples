@@ -21,12 +21,16 @@ crouching are disabled. Esc or losing capture pauses driving until recaptured.
 Tune handling and cameras in `gameplay-settings.json`; the walking maps retain
 their existing character and movement.
 
-Lap timing starts at the first forward start-line crossing. The panel beneath
+Click the game to start the fading 5–1 countdown. Red starting lights turn green
+at GO, when controls unlock and lap timing starts. The panel beneath
 the minimap shows completed laps, total time, current lap time, and last lap.
 Thirteen invisible ordered checkpoints validate a complete circuit; none lie
 inside the Meadow section bypassed by Mud Express, so that shortcut remains
 valid. Gates are metadata in `race`, independent of map objects and collisions.
-Timers pause with the car and reset on leaving/reloading the race map.
+Countdown and timers pause with the car. After the configured number of validated laps the car and
+timers freeze, the mouse releases, and a results panel offers a fresh restart.
+Set `race.lapCount` in `gameplay-settings.json` (default 3); the counter shows completed/total laps.
+Leaving/reloading the race map resets the session.
 
 The race minimap shows **120 blocks across**, with the player at **50% across and
 70% down** its square viewport: 84 blocks ahead and 36 behind. The course scrolls
@@ -104,8 +108,9 @@ safety rails. The existing 60-block render distance culls distant scenery.
 and eastern straight. Checkered flags on poles and five-person cheering groups
 each use a three-frame animation at four frames per second. Three phase presets
 keep nearby groups from moving in unison. Crowd presets use half their original
-size (1.2-unit scale), with the feet kept on the ground. A static five-lamp race signal marks
-the start; it is scenery rather than a race countdown. Four fake sponsors have
+size (1.2-unit scale), with the feet kept on the ground. A five-lamp race signal marks
+the start and switches from red to green at GO. Its two-frame atlas is driven by
+race state rather than a repeating animation. Four fake sponsors have
 reusable billboard presets in both fixed-plane orientations:
 
 - **GRIP HAPPENS** — Tires with a positive attitude.

@@ -5,7 +5,7 @@ namespace WolfNET.Game;
 
 public sealed class MapCompiler
 {
-    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard, bool FacingCamera = true, SpriteAnimation? Animation = null, string? InteractionMap = null);
+    private sealed record SpriteTemplate(Vector3 Offset, Vector2 Scale, uint Layer, SpriteAtlas? Atlas, float RotationDegrees, SpriteKind Kind = SpriteKind.Billboard, bool FacingCamera = true, SpriteAnimation? Animation = null, string? InteractionMap = null, bool RaceStartLight = false);
     private sealed record CompiledObject(RenderCell Cell, bool Walkable, bool Jumpable, bool Crouchable, string Surface, SpriteTemplate[] Sprites);
 
     private readonly Dictionary<int, CompiledObject> _objects = [];
@@ -28,6 +28,10 @@ public sealed class MapCompiler
         foreach (var sprite in objects.Values.OfType<SpriteDefinition>().OrderBy(sprite => sprite.Id))
         {
             var atlas = sprite.Atlas;
+            if (sprite.RaceStartLight && (atlas is not { Directions: 1, Frames.Length: 2 } || sprite.Animation != null ||
+                atlas.Frames[0] is not { Width: > 0, Height: > 0 } red || red.Width != red.Height ||
+                atlas.Frames[1] is not { Width: > 0, Height: > 0 } green || green.Width != green.Height))
+                throw new InvalidDataException($"Sprite {sprite.Id} raceStartLight requires two square atlas frames without animation.");
             if (sprite.InteractionMap != null && !System.Text.RegularExpressions.Regex.IsMatch(sprite.InteractionMap,
                 @"\Amaps/[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}\.json\z"))
                 throw new InvalidDataException($"Sprite {sprite.Id} interactionMap must name a map in maps/.");
@@ -130,7 +134,7 @@ public sealed class MapCompiler
                     break;
                 case SpriteDefinition sprite:
                     passage = Passage(id, sprite.PassageId);
-                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera, sprite.Animation, sprite.InteractionMap)];
+                    sprites = [new(Vector3.Zero, Vector2.One, sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera, sprite.Animation, sprite.InteractionMap, sprite.RaceStartLight)];
                     break;
                 case SpriteGroupDefinition group:
                     passage = Passage(id, group.PassageId);
@@ -145,7 +149,7 @@ public sealed class MapCompiler
                         if (!objects.TryGetValue(member.SpriteId, out var child) || child is not SpriteDefinition sprite)
                             throw new InvalidDataException($"Sprite group {id} references unknown/non-sprite ID {member.SpriteId}.");
                         return new SpriteTemplate(new Vector3(member.Offset.X, member.Offset.Y, member.Offset.Z),
-                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera, sprite.Animation, sprite.InteractionMap);
+                            new Vector2(member.Scale.X, member.Scale.Y), sprite.TextureLayer, sprite.Atlas, sprite.RotationDegrees, Geometry(sprite), sprite.FacingCamera, sprite.Animation, sprite.InteractionMap, sprite.RaceStartLight);
                     }).ToArray();
                     break;
                 default:
@@ -213,7 +217,7 @@ public sealed class MapCompiler
                         position.X < 0 || position.Y < 0 || position.X >= width || position.Y >= height)
                         throw new InvalidDataException($"Sprite from ({x}, {y}) is outside the map.");
                     sprites.Add(new Sprite(position, sprite.Layer, (uint)index + 1)
-                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, Animation = sprite.Animation, InteractionMap = sprite.InteractionMap, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind, FacingCamera = sprite.FacingCamera });
+                    { Scale = sprite.Scale, Elevation = sprite.Offset.Z, Atlas = sprite.Atlas, Animation = sprite.Animation, InteractionMap = sprite.InteractionMap, RaceStartLight = sprite.RaceStartLight, RotationDegrees = sprite.RotationDegrees, Kind = sprite.Kind, FacingCamera = sprite.FacingCamera });
                 }
             }
         }

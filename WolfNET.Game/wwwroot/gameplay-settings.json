@@ -1,4 +1,7 @@
 {
+  "race": {
+    "lapCount": 3
+  },
   "car": {
     "length": 0.9,
     "width": 0.6,

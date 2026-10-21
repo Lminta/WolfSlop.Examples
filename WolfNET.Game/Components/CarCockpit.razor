@@ -14,7 +14,7 @@
                  style="--wheel-rotation: @WheelRotation(state.SteeringAngle)deg;" />
         </div>
     }
-    @if (state.Paused)
+    @if (state.Paused && Wolf.RaceState?.Phase != RacePhase.Finished)
     {
         <p class="car-paused" role="status">Click the game to resume driving.</p>
     }

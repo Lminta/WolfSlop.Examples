@@ -30,6 +30,10 @@
 @if (!_loading && !_errorPresent && Wolf.Player is WolfNET.Game.Player.CarObject)
 {
     <WolfNET.Components.CarCockpit @key="Wolf.CurrentMapPath" />
+    @if (Wolf.RaceState != null)
+    {
+        <WolfNET.Components.RaceOverlay @key="Wolf.Map" OnRestart="RestartRaceAsync" />
+    }
 }
 </div>
 

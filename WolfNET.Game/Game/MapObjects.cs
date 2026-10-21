@@ -73,6 +73,8 @@ public sealed record SpriteAnimation
 
 public sealed record SpriteDefinition : MapObjectDefinition
 {
+    // Two atlas frames: red while waiting/counting down, green after GO.
+    public bool RaceStartLight { get; init; }
     public string? InteractionMap { get; init; }
     public string? Texture { get; init; }
     public SpriteAtlas? Atlas { get; init; }

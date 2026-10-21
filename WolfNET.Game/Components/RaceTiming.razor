@@ -6,7 +6,7 @@
 @if (_state is { } race)
 {
     <dl class="race-timing" aria-label="Lap counter and race timers">
-        <div><dt>Laps</dt><dd class="race-laps">@race.CompletedLaps</dd></div>
+        <div><dt>Laps</dt><dd class="race-laps">@race.CompletedLaps/@race.TotalLaps</dd></div>
         <div><dt>Total</dt><dd class="race-total">@Time(race.TotalMilliseconds)</dd></div>
         <div><dt>Lap</dt><dd class="race-lap">@Time(race.LapMilliseconds)</dd></div>
         <div><dt>Last</dt><dd class="race-last">@(race.LastLapMilliseconds is { } last ? Time(last) : "—")</dd></div>

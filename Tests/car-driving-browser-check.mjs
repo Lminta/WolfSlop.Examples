@@ -90,6 +90,7 @@ try {
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 850, deviceScaleFactor: 1, mobile: false});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
         window.__camera = null; window.__avatar = null; window.__carLayers = {}; window.__mapInfo = null;
+        window.__lightLayers = [];
         const frames = ${JSON.stringify(carDefinition.atlas.frames)};
         const fetchOriginal = window.fetch;
         window.fetch = async function(input, ...args) {
@@ -98,6 +99,17 @@ try {
                 const settings = await response.json();
                 Object.assign(settings, {width: 640, height: 360, targetFPS: 30});
                 return new Response(JSON.stringify(settings), {headers: {'Content-Type': 'application/json'}});
+            }
+            if (location.search.includes('short-race') && String(input?.url ?? input).includes('gameplay-settings.json')) {
+                const settings = await response.json();
+                settings.race = {lapCount: 2};
+                return new Response(JSON.stringify(settings), {headers: {'Content-Type': 'application/json'}});
+            }
+            if (location.search.includes('short-race') && String(input?.url ?? input).includes('maps/pine-loop.json')) {
+                const map = await response.json();
+                const gate = y => ({center: [25.5, y], direction: [0, -1], halfWidth: 3.5});
+                map.race = {startFinish: gate(444.8), checkpoints: [gate(444.4), gate(444)]};
+                return new Response(JSON.stringify(map), {headers: {'Content-Type': 'application/json'}});
             }
             return response;
         };
@@ -124,6 +136,9 @@ try {
             if (buffer.label === 'WolfNET Sprites') {
                 const ints = new Uint32Array(raw, start, words), floats = new Float32Array(raw, start, words);
                 window.__avatar = null;
+                window.__lightLayers = [];
+                for (let i = 0; i < ints.length; i += 8) if (ints[i + 2] === 180 || ints[i + 2] === 181)
+                    window.__lightLayers.push(ints[i + 2]);
                 for (let i = 0; i < ints.length; i += 8) if (ints[i + 3] === 0) {
                     window.__avatar = {x: floats[i], y: floats[i + 1], frame: window.__carLayers[ints[i + 2]], width: floats[i + 4], height: floats[i + 5], elevation: floats[i + 6], kind: ints[i + 7]};
                 }
@@ -138,8 +153,9 @@ try {
     fs.mkdirSync('artifacts/car-driving', {recursive: true});
     assert.equal(await evaluate('window.__avatar'), null, 'Race first person uploaded a world avatar');
     await waitFor(`document.querySelector('.race-timing')`);
-    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0');
+    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/3');
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
+    assert(await evaluate(`window.__lightLayers.includes(180) && !window.__lightLayers.includes(181)`), 'Starting signal did not render red');
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('W accelerate')`));
     assert(![...requests].some(url => /player-character|main-character-atlas/.test(url)), 'Race map loaded the human character');
     for (const asset of ['/textures/race/cockpit.png', '/textures/race/steering-wheel.png'])
@@ -191,6 +207,27 @@ try {
     assert.deepEqual(await camera(), parked, 'The race moved before mouse capture');
     await capture();
 
+    await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);
+    await key('KeyW'); await key('KeyA'); await tap('KeyV');
+    await delay(300);
+    assert.deepEqual(await camera(), parked, 'Countdown allowed driving or camera changes');
+    assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
+    await key('KeyW', false); await key('KeyA', false);
+    await snapshot('countdown');
+    await tap('Escape');
+    await waitFor(`!document.pointerLockElement && !!document.querySelector('.car-paused')`);
+    const countdown = await evaluate(`document.querySelector('.race-countdown-number').textContent`);
+    await waitFor(`getComputedStyle(document.querySelector('.race-countdown-number')).animationPlayState === 'paused'`);
+    await delay(1100);
+    assert.equal(await evaluate(`document.querySelector('.race-countdown-number').textContent`), countdown, 'Paused countdown advanced');
+    await capture();
+    await waitFor(`document.querySelector('.race-go')?.textContent.trim() === 'GO'`);
+    assert(await evaluate(`window.__lightLayers.includes(181) && !window.__lightLayers.includes(180)`), 'GO did not render green starting lights');
+    assert.deepEqual(await camera(), parked, 'Car moved before GO');
+    await snapshot('go');
+    await waitFor(`!document.querySelector('.race-countdown')`);
+    console.log('PASS start: click-to-start countdown, frozen controls and timers, pause/resume, animated GO.');
+
     await key('KeyA');
     await waitFor(`parseFloat(document.querySelector('.car-cockpit-wheel').style.getPropertyValue('--wheel-rotation')) < -100`);
     assert(distance(await camera(), parked) < .001, 'Steering at rest moved the car');
@@ -222,7 +259,7 @@ try {
     assert(distance(late, coast) > .7, 'Car stopped instead of coasting after throttle release');
     assert(Math.abs(coast[0] - start[0]) < .01, 'Straight acceleration changed the body heading');
     await waitFor(`document.querySelector('.race-total').textContent.trim() !== '0:00.00'`);
-    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0',
+    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/3',
         'Initial start-line crossing counted a complete lap');
     await key('Space'); await delay(1100); const stopped = await camera();
     await delay(250);
@@ -305,6 +342,44 @@ try {
     const showcaseFallbacks = new Set(['sprite', 'floor', 'ceiling', 'wall'].map(kind => `/textures/showcase-missing-${kind}.png`));
     assert.deepEqual(missing.filter(url => !showcaseFallbacks.has(new URL(url).pathname)), []);
     console.log('PASS scene isolation: leaving removes race overlays and controls, restores human textures, and restores jumping.');
+
+    // Keep real map geometry, car physics, rendering and UI, but shorten the
+    // invisible gate sequence and configure two laps to verify gameplay settings.
+    await send('Page.navigate', {url: base + '/?map=pine-loop&short-race'});
+    await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.race-timing') && !!document.querySelector('.car-paused')`);
+    await capture();
+    await waitFor(`!!document.querySelector('.race-go')`);
+    await key('KeyW');
+    await waitFor(`window.__camera[1] < 443.5`);
+    await key('KeyW', false); await key('Space'); await delay(1000); await key('Space', false);
+    for (let lap = 1; lap <= 2; lap++) {
+        await key('KeyS'); await waitFor(`window.__camera[1] > 445.8`);
+        await key('KeyS', false); await key('Space'); await delay(600); await key('Space', false);
+        await key('KeyW');
+        await waitFor(`document.querySelector('.race-laps').textContent.trim() === '${lap}/2'`);
+        if (lap < 2) {
+            await waitFor(`window.__camera[1] < 443.5`);
+            await key('KeyW', false); await key('Space'); await delay(1000); await key('Space', false);
+        }
+    }
+    await waitFor(`!!document.querySelector('.race-results') && !document.pointerLockElement`);
+    assert.equal(await evaluate(`document.querySelectorAll('.race-results li').length`), 2);
+    assert(await evaluate(`document.activeElement === document.querySelector('.race-results button')`), 'Results did not focus restart');
+    const resultPose = await camera();
+    const resultTime = await evaluate(`document.querySelector('.race-total').textContent`);
+    await delay(500); await key('KeyW', false);
+    assert.deepEqual(await camera(), resultPose, 'Finished car kept moving');
+    assert.equal(await evaluate(`document.querySelector('.race-total').textContent`), resultTime, 'Finished race time kept increasing');
+    await snapshot('results');
+    await evaluate(`document.querySelector('.race-results button').click()`);
+    await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-results') &&
+        document.querySelector('.race-total')?.textContent.trim() === '0:00.00' && !!document.querySelector('.car-paused')`);
+    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/2');
+    assert(await evaluate(`window.__lightLayers.includes(180)`), 'Restart did not reset red lights');
+    await capture();
+    await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);
+    assert.deepEqual(errors, []);
+    console.log('PASS finish: configured lap limit and counter, frozen race and released mouse, individual results, keyboard focus and clean restart.');
 } finally {
     await send('Page.close').catch(() => {});
     socket.close();

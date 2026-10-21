@@ -19,6 +19,7 @@ public enum SpriteKind : uint
 public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint OwnerCell)
 {
     public string? InteractionMap { get; init; }
+    public bool RaceStartLight { get; init; }
     public SpriteKind Kind { get; init; }
     public Vector2 Scale { get; init; } = Vector2.One;
     public float Elevation { get; init; }

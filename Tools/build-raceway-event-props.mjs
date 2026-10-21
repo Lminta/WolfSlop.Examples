@@ -98,8 +98,17 @@ export function writeRacewayEventProps() {
         group(`group-cheering-crowd${suffix}`, groupId, spriteId, 1.2, 496);
     }
     fs.writeFileSync(path.join(textureDirectory, 'race-start-light.svg'), startLightArt());
+    const redLight = startLightArt();
+    const greenLight = redLight.replace('<svg ', '<svg x="512" ')
+        .replaceAll('metal', 'green-metal').replaceAll('lamp', 'green-lamp')
+        .replaceAll('#fff0ba', '#dcffbf').replaceAll('#ff7a4d', '#9fff62')
+        .replaceAll('#d72820', '#29d538').replaceAll('#721b20', '#146b26')
+        .replaceAll('#ffd2a7', '#d2ffba');
+    fs.writeFileSync(path.join(textureDirectory, 'race-start-light-atlas.svg'),
+        `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512">${redLight}${greenLight}</svg>\n`);
     object('sprite-race-start-light', 632, 'sprite', { passageId: 501,
-        texture: 'textures/raceway/race-start-light.svg', textureLayer: 136, planeAxis: 'y' });
+        texture: 'textures/raceway/race-start-light-atlas.svg', textureLayer: 180, planeAxis: 'y', raceStartLight: true,
+        atlas: { directions: 1, frames: [0, 512].map(x => ({x, y: 0, width: 512, height: 512})) } });
     group('group-race-start-light', 645, 632, 3.4);
     advertisements.forEach((advertisement, index) => {
         const filename = `billboard-${advertisement.name}.svg`;

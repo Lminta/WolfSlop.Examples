@@ -32,6 +32,7 @@ public sealed class Wolf : IDisposable
     private double _fpsSampleStart = double.NaN;
     private int _fpsFrameCount;
     private double _lastRaceNotification = double.NegativeInfinity;
+    private RaceStatus? _lastRaceState;
 
     public IControlledActor? Player => _scene?.Player;
     public DrivingViewState? DrivingState => _scene?.DrivingState;
@@ -97,6 +98,7 @@ public sealed class Wolf : IDisposable
             _lastPoseNotification = double.NegativeInfinity;
             _lastDrivingNotification = double.NegativeInfinity;
             _lastRaceNotification = double.NegativeInfinity;
+            _lastRaceState = null;
             _timing.Reset();
             _frameClockOrigin = double.NaN;
             int generation = ++_frameGeneration;
@@ -139,6 +141,11 @@ public sealed class Wolf : IDisposable
             // Recapture resumes from the preserved pose, without spending the
             // fraction of this frame that elapsed before controls were active.
             _scene.Update(wasPaused != _scene.Paused ? 0 : deltaTime);
+            if (_scene.RaceState is { Phase: RacePhase.Finished } && _input.Mouse.IsLocked)
+            {
+                _input.Keyboard.Reset();
+                _input.Mouse.Release();
+            }
             if (_scene.ConsumeMapRequest() is { } destination && destination != CurrentMapPath && MapSwitchRequested != null)
             {
                 MapSwitchRequested.Invoke(destination);
@@ -152,9 +159,12 @@ public sealed class Wolf : IDisposable
             _renderer.Render(_scene.CaptureFrame());
             ReportFrameRate();
             if (_scene.RaceState is { } race && RaceStateChanged != null &&
-                _clock.Elapsed.TotalMilliseconds - _lastRaceNotification >= 100)
+                (_clock.Elapsed.TotalMilliseconds - _lastRaceNotification >= 100 ||
+                 _lastRaceState?.Phase != race.Phase || _lastRaceState?.CountdownNumber != race.CountdownNumber ||
+                 _lastRaceState?.ShowGo != race.ShowGo))
             {
                 _lastRaceNotification = _clock.Elapsed.TotalMilliseconds;
+                _lastRaceState = race;
                 RaceStateChanged.Invoke(race);
             }
             if (_scene.DrivingState is { } driving && DrivingStateChanged != null &&

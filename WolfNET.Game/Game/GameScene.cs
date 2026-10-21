@@ -14,9 +14,12 @@ public sealed class GameScene : IDisposable
 {
     private readonly ObjectCollection _objects = new();
     private readonly IKeyboardInput _input;
+    private readonly IMouseInput _mouse;
     private string? _requestedMap;
     private bool _disposed;
     private readonly RaceSession? _race;
+    private RenderMap? _greenSource;
+    private RenderMap? _greenMap;
     public IMap Map { get; }
     public IControlledActor Player { get; }
     public ICharacterAppearance Character { get; }
@@ -29,18 +32,20 @@ public sealed class GameScene : IDisposable
     public GameScene(IMap map, ICharacterAppearance character, IKeyboardInput input, IMouseInput mouse,
         RendererSettings settings, GameplaySettings? gameplay = null)
     {
+        gameplay ??= new();
         Map = map;
         Character = character;
         _input = input;
+        _mouse = mouse;
         var start = map.PlayerStart;
         var direction = Vector2.Normalize(new(start.DirectionX, start.DirectionY));
         Player = start.Controller == "car"
-            ? new CarObject(input, mouse, map.NavigationMap, (gameplay ?? new()).Car)
+            ? new CarObject(input, mouse, map.NavigationMap, gameplay.Car)
             : new PlayerObject(input, mouse, map.NavigationMap, start);
         Player.Transform = new Transform { Position = new(start.X, start.Y), Rotation = direction };
         Player.Camera.Plane = new Vector2(direction.Y, -direction.X) * settings.CameraPlaneScale;
         _objects.Add((ObjectBase)Player);
-        if (Player is CarObject && map.RendererMap.Race is { } race) _race = new RaceSession(race);
+        if (Player is CarObject && map.RendererMap.Race is { } race) _race = new RaceSession(race, gameplay.Race);
     }
 
     public void SetPaused(bool paused)
@@ -53,7 +58,20 @@ public sealed class GameScene : IDisposable
     public void Update(float deltaMilliseconds)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (Paused) return;
+        if (Paused || _race?.Status.Phase == RacePhase.Finished) return;
+        if (_race != null)
+        {
+            _race.BeginCountdown();
+            deltaMilliseconds = _race.AdvanceStart(Math.Clamp(deltaMilliseconds, 0, 250));
+            if (_race.Status.Phase != RacePhase.Racing)
+            {
+                _input.ConsumeJump();
+                _input.ConsumeViewToggle();
+                _input.ConsumeAction();
+                _mouse.ConsumeMovement();
+                return;
+            }
+        }
         var previousPosition = Player.Transform.Position;
         _objects.Update(deltaMilliseconds);
         var transform = Player.Transform;
@@ -74,6 +92,16 @@ public sealed class GameScene : IDisposable
     {
         var camera = Player.Camera;
         var map = Map.RendererMap;
+        if (_race?.Status.Phase is RacePhase.Racing or RacePhase.Finished)
+        {
+            if (!ReferenceEquals(_greenSource, map))
+            {
+                _greenSource = map;
+                _greenMap = map with { Sprites = Array.AsReadOnly(map.Sprites.Select(sprite => sprite.RaceStartLight
+                    ? sprite with { TextureLayer = sprite.TextureLayer + 1, Atlas = null } : sprite).ToArray()) };
+            }
+            map = _greenMap!;
+        }
         if (Player is CarObject car)
         {
             var carView = car.Look.View(car.Transform, camera.ThirdPerson, map, car.Settings);
