@@ -32,6 +32,15 @@ timers freeze, the mouse releases, and a results panel offers a fresh restart.
 Set `race.lapCount` in `gameplay-settings.json` (default 3); the counter shows completed/total laps.
 Leaving/reloading the race map resets the session.
 
+A blue opponent uses the same eight-view car sprite with red and blue channels
+swapped, the same handling and collision footprint, and its own validated laps and
+timers. It follows the circuit and brakes for bends. Set `race.opponentMaxSpeed`
+and `race.opponentCornerSpeed` in gameplay settings to tune its pace. The Gap row
+compares arrival times at matching circuit distance and lap: green +seconds is a
+lead, red −seconds is a deficit. Both racers pause together. Results include both
+racers' total and lap times; an unfinished opponent continues while the player's
+results are open, updating its time until it finishes.
+
 The race minimap shows **120 blocks across**, with the player at **50% across and
 70% down** its square viewport: 84 blocks ahead and 36 behind. The course scrolls
 and rotates beneath an upward-pointing cyan arrow. White lines show the road,

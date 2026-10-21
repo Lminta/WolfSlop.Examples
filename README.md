@@ -256,6 +256,17 @@ The map's optional `race` metadata stores a `startFinish` gate and ordered
 `checkpoints`; each gate has `center`, forward `direction`, and `halfWidth`.
 These gates create no sprites, collision geometry, or visible checkpoint markers.
 
+A blue opponent starts beside the player, sharing the same car atlas (red and blue
+channels swapped), physics, surface penalties, and collision footprint. It follows
+the circuit, brakes for corners, and avoids or makes contact with the player.
+Both racers use `race.lapCount`; tune the bot with `race.opponentMaxSpeed` and
+`race.opponentCornerSpeed` in gameplay settings. The Gap row compares arrival
+times at the same circuit distance on the same lap: green **+seconds** means a
+player lead; red **−seconds** means the opponent leads. Pausing freezes both cars.
+Results show both racers' total and individual lap times. If the player finishes
+first, the opponent continues while results are open and its final time fills in
+when it finishes. Restart resets both cars, timers, and progress histories.
+
 Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
 With the game and a WebGPU browser running, use
 `node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual

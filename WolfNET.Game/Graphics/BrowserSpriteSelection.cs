@@ -25,8 +25,8 @@ internal sealed class BrowserSpriteSelection(JSObject module) : IDisposable
         _source = sprites;
         var bytes = new byte[Math.Max(1, sprites.Count) * 16];
         var positions = MemoryMarshal.Cast<byte, float>(bytes.AsSpan());
-        _frames = new int[sprites.Count + 1];
-        _widths = new float[sprites.Count + 1];
+        _frames = new int[sprites.Count + 2];
+        _widths = new float[sprites.Count + 2];
         for (var i = 0; i < sprites.Count; i++)
         {
             var sprite = sprites[i];
@@ -47,12 +47,12 @@ internal sealed class BrowserSpriteSelection(JSObject module) : IDisposable
         module.JSRef!.CallVoid("prepare", _positions, sprites.Count);
         _widthBytes = new byte[Math.Max(1, _atlasIndices.Count) * 8];
         _widthOverrides = new Uint32Array(_widthBytes.Length / 4);
-        _outputBytes = new byte[(sprites.Count + 2) * 8];
+        _outputBytes = new byte[(sprites.Count + 3) * 8];
         _output = new Uint32Array(_outputBytes.Length / 4);
     }
 
     public void Select(SpriteSelection selection, IReadOnlyList<Sprite> sprites, Vector2 position, Vector2 direction,
-        Vector2 plane, float range, bool cullView, double elapsedSeconds, Sprite? character)
+        Vector2 plane, float range, bool cullView, double elapsedSeconds, Sprite? character, Sprite? opponent = null)
     {
         Synchronize(sprites);
         var overrides = MemoryMarshal.Cast<byte, uint>(_widthBytes.AsSpan());
@@ -67,20 +67,25 @@ internal sealed class BrowserSpriteSelection(JSObject module) : IDisposable
             overrides[i * 2] = (uint)index;
             overrides[i * 2 + 1] = BitConverter.SingleToUInt32Bits(_widths[index]);
         }
-        if (character is { } avatar)
+        void ResolveActor(Sprite? actor, int index)
         {
+            if (actor is not { } avatar) return;
             var frame = avatar.ViewFrame(position, elapsedSeconds);
-            _frames[sprites.Count] = frame;
-            _widths[sprites.Count] = avatar.Scale.X * (avatar.Atlas is { } atlas
+            _frames[index] = frame;
+            _widths[index] = avatar.Scale.X * (avatar.Atlas is { } atlas
                 ? (float)atlas.Frames[frame].Width / atlas.Frames[frame].Height : 1);
         }
+        ResolveActor(character, sprites.Count);
+        ResolveActor(opponent, sprites.Count + 1);
         _widthOverrides!.WriteBytes(_widthBytes);
         var actor = character.GetValueOrDefault();
+        var rival = opponent.GetValueOrDefault();
         var count = module.JSRef!.CallApply<int>("select", new object[] { _output!, _widthOverrides, _atlasIndices.Count,
             position.X, position.Y, range, direction.X, direction.Y, plane.Length(), cullView,
-            character.HasValue, actor.Position.X, actor.Position.Y, _widths[sprites.Count] });
+            character.HasValue, actor.Position.X, actor.Position.Y, _widths[sprites.Count],
+            opponent.HasValue, rival.Position.X, rival.Position.Y, _widths[sprites.Count + 1] });
         _output!.Read(0, _outputBytes, 0, (count + 1) * 8);
-        selection.Resolve(sprites, MemoryMarshal.Cast<byte, uint>(_outputBytes.AsSpan()), count, _frames, _widths, character);
+        selection.Resolve(sprites, MemoryMarshal.Cast<byte, uint>(_outputBytes.AsSpan()), count, _frames, _widths, character, opponent);
     }
 
     public void ReleaseScene()

@@ -5,10 +5,15 @@ namespace WolfNET.Game;
 public sealed record RaceSettings
 {
     public int LapCount { get; init; } = 3;
+    public float OpponentMaxSpeed { get; init; } = 14;
+    public float OpponentCornerSpeed { get; init; } = 7;
 
     public void Validate()
     {
         if (LapCount <= 0) throw new InvalidDataException("Race lapCount must be positive.");
+        if (!float.IsFinite(OpponentMaxSpeed) || !float.IsFinite(OpponentCornerSpeed) ||
+            OpponentCornerSpeed <= 0 || OpponentMaxSpeed < OpponentCornerSpeed)
+            throw new InvalidDataException("Opponent speeds must be finite, positive, with corner speed no greater than maximum speed.");
     }
 }
 

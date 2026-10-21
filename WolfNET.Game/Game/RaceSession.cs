@@ -4,6 +4,9 @@ namespace WolfNET.Game;
 
 public enum RacePhase { AwaitingStart, Countdown, Racing, Finished }
 
+public readonly record struct OpponentRaceStatus(int CompletedLaps, double TotalMilliseconds,
+    IReadOnlyList<double> LapTimes, bool Finished);
+
 public readonly record struct RaceStatus(int CompletedLaps, double TotalMilliseconds, double LapMilliseconds,
     double? LastLapMilliseconds, bool Started)
 {
@@ -12,6 +15,8 @@ public readonly record struct RaceStatus(int CompletedLaps, double TotalMillisec
     public int? CountdownNumber { get; init; }
     public bool ShowGo { get; init; }
     public IReadOnlyList<double> LapTimes { get; init; } = Array.Empty<double>();
+    public OpponentRaceStatus? Opponent { get; init; }
+    public double? GapMilliseconds { get; init; }
 }
 
 /// <summary>Tracks ordered forward gate crossings and active simulation time for one scene.</summary>

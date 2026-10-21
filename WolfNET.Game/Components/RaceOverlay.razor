@@ -21,10 +21,22 @@
             <section class="race-results" role="dialog" aria-modal="true" aria-labelledby="race-results-title">
                 <h1 id="race-results-title">Race finished!</h1>
                 <p class="race-result-total">Total <strong>@Time(race.TotalMilliseconds)</strong></p>
+                @if (race.Opponent is { } opponent)
+                {
+                    <p class="race-opponent-result">Opponent <strong>@Time(opponent.TotalMilliseconds)</strong>
+                        @if (!opponent.Finished) { <small>Racing · @opponent.CompletedLaps/@race.TotalLaps laps</small> }
+                    </p>
+                    <div class="race-results-columns"><span>Lap</span><span>You</span><span>Opponent</span></div>
+                }
                 <ol>
                     @for (var i = 0; i < race.LapTimes.Count; i++)
                     {
-                        <li><span>Lap @(i + 1)</span><strong>@Time(race.LapTimes[i])</strong></li>
+                        <li><span>Lap @(i + 1)</span><strong>@Time(race.LapTimes[i])</strong>
+                            @if (race.Opponent is { } rival)
+                            {
+                                <strong class="race-opponent-lap">@(rival.LapTimes.Count > i ? Time(rival.LapTimes[i]) : "—")</strong>
+                            }
+                        </li>
                     }
                 </ol>
                 <button @ref="_restartButton" type="button" @onclick="OnRestart">Restart race</button>

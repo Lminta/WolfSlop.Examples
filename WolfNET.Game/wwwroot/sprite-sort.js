@@ -5,7 +5,7 @@ let source, sourceCount, radiusKeys, radiusValues, minX, minY, maxX, maxY, maxim
 const grid = new Map(), nearby = [];
 export function prepare(positions, count) {
     source = positions; sourceCount = count;
-    radiusKeys = new Uint32Array((count + 1) * 2); radiusValues = new Float32Array(radiusKeys.buffer);
+    radiusKeys = new Uint32Array((count + 2) * 2); radiusValues = new Float32Array(radiusKeys.buffer);
     grid.clear(); maximumRadius = 0;
     minX = minY = Infinity; maxX = maxY = -Infinity;
     for (let i = 0; i < count; i++) {
@@ -23,7 +23,7 @@ export function release() {
     sourceCount = 0; grid.clear(); nearby.length = 0;
 }
 
-function collect(widths, widthCount, cx, cy, range, hasAvatar, avatarX, avatarY, avatarWidth) {
+function collect(widths, widthCount, cx, cy, range, hasAvatar, avatarX, avatarY, avatarWidth, hasOpponent, opponentX, opponentY, opponentWidth) {
     const f32 = Math.fround;
     const widthValues = new Float32Array(widths.buffer, widths.byteOffset, widths.length);
     for (let i = 0; i < widthCount; i++) source[widths[i * 2] * 4 + 2] = widthValues[i * 2 + 1];
@@ -45,26 +45,31 @@ function collect(widths, widthCount, cx, cy, range, hasAvatar, avatarX, avatarY,
         const dx = f32(avatarX - cx), dy = f32(avatarY - cy), limit = f32(range + avatarWidth * .5);
         if (f32(f32(dx * dx) + f32(dy * dy)) <= f32(limit * limit)) nearby.push(sourceCount);
     }
+    if (hasOpponent) {
+        const dx = f32(opponentX - cx), dy = f32(opponentY - cy), limit = f32(range + opponentWidth * .5);
+        if (f32(f32(dx * dx) + f32(dy * dy)) <= f32(limit * limit)) nearby.push(sourceCount + 1);
+    }
     nearby.sort((a, b) => a - b);
     for (let i = 0; i < nearby.length; i++) {
         const index = nearby[i];
-        const dx = f32((index === sourceCount ? avatarX : source[index * 4]) - cx);
-        const dy = f32((index === sourceCount ? avatarY : source[index * 4 + 1]) - cy);
+        const dx = f32((index === sourceCount ? avatarX : index === sourceCount + 1 ? opponentX : source[index * 4]) - cx);
+        const dy = f32((index === sourceCount ? avatarY : index === sourceCount + 1 ? opponentY : source[index * 4 + 1]) - cy);
         radiusKeys[i * 2] = index; radiusValues[i * 2 + 1] = f32(f32(dx * dx) + f32(dy * dy));
     }
     sort(radiusKeys, nearby.length);
 }
 
-export function select(output, widths, widthCount, cx, cy, range, dirX, dirY, planeScale, cullView, hasAvatar, avatarX, avatarY, avatarWidth) {
-    collect(widths, widthCount, cx, cy, range, hasAvatar, avatarX, avatarY, avatarWidth);
+export function select(output, widths, widthCount, cx, cy, range, dirX, dirY, planeScale, cullView, hasAvatar, avatarX, avatarY, avatarWidth,
+    hasOpponent = false, opponentX = 0, opponentY = 0, opponentWidth = 0) {
+    collect(widths, widthCount, cx, cy, range, hasAvatar, avatarX, avatarY, avatarWidth, hasOpponent, opponentX, opponentY, opponentWidth);
     const f32 = Math.fround, marginScale = f32(Math.sqrt(f32(1 + f32(planeScale * planeScale))));
     let written = 0;
     for (let i = 0; i < nearby.length; i++) {
         const index = radiusKeys[i * 2];
         if (cullView) {
-            const dx = f32((index === sourceCount ? avatarX : source[index * 4]) - cx);
-            const dy = f32((index === sourceCount ? avatarY : source[index * 4 + 1]) - cy);
-            const radius = (index === sourceCount ? avatarWidth : source[index * 4 + 3]) * .5;
+            const dx = f32((index === sourceCount ? avatarX : index === sourceCount + 1 ? opponentX : source[index * 4]) - cx);
+            const dy = f32((index === sourceCount ? avatarY : index === sourceCount + 1 ? opponentY : source[index * 4 + 1]) - cy);
+            const radius = (index === sourceCount ? avatarWidth : index === sourceCount + 1 ? opponentWidth : source[index * 4 + 3]) * .5;
             const depth = f32(f32(dx * dirX) + f32(dy * dirY)), across = f32(f32(dx * dirY) - f32(dy * dirX));
             const margin = f32(radius * marginScale), sideDepth = f32(depth * planeScale);
             if (f32(depth + radius) <= 0 || f32(across - sideDepth) > margin || f32(-across - sideDepth) > margin) continue;

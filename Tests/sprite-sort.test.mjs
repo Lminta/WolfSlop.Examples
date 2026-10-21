@@ -49,6 +49,12 @@ assert.equal(select(output, wideOverride, 1, 0, 0, 60, 1, 0, 1, true, false, 0, 
 release(); prepare(new Float32Array(4), 0);
 assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, true, 3, 0, 1), 1);
 assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, true, -3, 0, 1), 0, 'Moving avatar used stale position');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, true, 3, 0, 1, true, 5, 0, 1), 2);
+assert.deepEqual([output[2], output[4]], [1, 0], 'Opponent and player were not sorted together');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, false, 0, 0, 0, true, 5, 0, 1), 1);
+assert.equal(output[2], 1, 'Cockpit view hid the opponent along with the player');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, false, 0, 0, 0, true, -5, 0, 1), 0, 'Moving opponent used stale position');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, false, 0, 0, 0, true, 70, 0, 1), 0, 'Opponent ignored render distance');
 release();
 console.log(`PASS: browser painter sort matches .NET for ${cases.length} fixtures, including equal distances, partition boundaries, reused buffers, and spare capacity.`);
 console.log(`PASS: browser spatial ordering matches .NET at all ${spatial.views.length} Pine Loop viewpoints.`);

@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../WolfNET.Game/Game/RaceRoute.cs" Link="Game/RaceRoute.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/OpponentDriver.cs" Link="Game/OpponentDriver.cs" />
+    <Compile Include="../WolfNET.Game/Game/Physics/CarContact.cs" Link="Game/CarContact.cs" />
     <Compile Include="../WolfNET.Game/Game/RaceSession.cs" Link="Game/RaceSession.cs" />
     <Compile Include="../WolfNET.Game/Graphics/SpriteSelection.cs" Link="Graphics/SpriteSelection.cs" />
     <Compile Include="../WolfNET.Game/Game/GameplaySettings.cs" Link="Game/GameplaySettings.cs" />

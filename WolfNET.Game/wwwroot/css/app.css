@@ -150,6 +150,8 @@ canvas {
 .race-timing > div { display: grid; grid-template-columns: 5ch auto; gap: .5ch; }
 .race-timing dt { color: inherit; }
 .race-timing dd { margin: 0; font-weight: 700; font-style: italic; }
+.race-gap-ahead { color: #79ff88; }
+.race-gap-behind { color: #ff6969; }
 .race-countdown {
     position: absolute;
     inset: 0;
@@ -181,7 +183,7 @@ canvas {
     background: #081019c9;
 }
 .race-results {
-    width: min(420px, 100%);
+    width: min(520px, 100%);
     padding: clamp(12px, 3cqh, 32px);
     border: 1px solid #82919e;
     border-radius: 12px;
@@ -192,6 +194,17 @@ canvas {
 }
 .race-results h1 { margin: 0 0 .5em; font-size: 1.5em; }
 .race-result-total { margin: 0 0 .6em; }
+.race-opponent-result { margin: 0 0 .6em; }
+.race-opponent-result small { display: block; color: #abc6e8; font-size: .7em; }
+.race-results-columns, .race-results li:has(.race-opponent-lap) {
+    display: grid;
+    grid-template-columns: 5ch 1fr 1fr;
+    gap: .7em;
+    text-align: right;
+}
+.race-results-columns { color: #adbeca; font-size: .75em; margin-bottom: .3em; }
+.race-results-columns > :first-child, .race-results li > :first-child { text-align: left; }
+.race-results li > :first-child { white-space: nowrap; }
 .race-results strong { font-style: italic; font-variant-numeric: tabular-nums; }
 .race-results ol { list-style: none; padding: 0; margin: 0 0 1em; }
 .race-results li { display: flex; justify-content: space-between; gap: 1em; }

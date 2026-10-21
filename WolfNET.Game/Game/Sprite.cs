@@ -20,6 +20,7 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
 {
     public string? InteractionMap { get; init; }
     public bool RaceStartLight { get; init; }
+    public bool SwapRedBlue { get; init; }
     public SpriteKind Kind { get; init; }
     public Vector2 Scale { get; init; } = Vector2.One;
     public float Elevation { get; init; }
@@ -59,11 +60,11 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
     internal uint ViewKind(int frame)
     {
         if (FacingCamera || Atlas is not { Directions: > 1 } atlas || Kind != SpriteKind.Billboard)
-            return (uint)Kind;
+            return (uint)Kind | (SwapRedBlue ? 32u : 0u);
         var degrees = (RotationDegrees % 360 + frame * (360f / atlas.Directions)) % 360;
         if (degrees < 0) degrees += 360;
         var angle = (uint)MathF.Round(degrees / 360 * 65536) & 0xffffu;
-        return (uint)(SpriteKind.FixedPlane | SpriteKind.DirectionalPlane) | (angle << 16);
+        return (uint)(SpriteKind.FixedPlane | SpriteKind.DirectionalPlane) | (angle << 16) | (SwapRedBlue ? 32u : 0u);
     }
 
     public Vector2 ViewScale(Vector2 observer, double elapsedSeconds = 0)

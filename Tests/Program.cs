@@ -138,6 +138,7 @@ assertions += await CarInteractionChecks.RunAsync(http);
 assertions += CarPhysicsChecks.Run();
 assertions += CarCameraChecks.Run();
 assertions += await RaceSessionChecks.RunAsync(http, webRoot);
+assertions += await OpponentChecks.RunAsync(http);
 assertions += SpriteAnimationChecks.Run();
 await SpriteSelectionFixtures.WriteAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (map loading/editing, walking, driving, scenes, animation, and editor persistence).");

@@ -10,4 +10,7 @@ public readonly record struct RenderFrame(
     RenderMap Map,
     float Pitch,
     float Elevation,
-    Sprite? Character);
+    Sprite? Character)
+{
+    public Sprite? Opponent { get; init; }
+}

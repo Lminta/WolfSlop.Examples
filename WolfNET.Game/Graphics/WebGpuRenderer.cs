@@ -99,7 +99,7 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
         UpdateCamera(position, direction, plane, pitch, elevation);
         var selectionStart = _profiling ? Stopwatch.GetTimestamp() : 0;
         _browserSprites!.Select(_spriteSelection, map.Sprites, position, direction, plane, _settings.RenderDistance,
-            map.RaceMinimap != null, _sceneAnimationClock.Elapsed.TotalSeconds, character);
+            map.RaceMinimap != null, _sceneAnimationClock.Elapsed.TotalSeconds, character, frame.Opponent);
         var uploadStart = _profiling ? Stopwatch.GetTimestamp() : 0;
         UpdateSprites();
         var submissionStart = _profiling ? Stopwatch.GetTimestamp() : 0;

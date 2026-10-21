@@ -1,6 +1,8 @@
 {
   "race": {
-    "lapCount": 3
+    "lapCount": 3,
+    "opponentMaxSpeed": 14,
+    "opponentCornerSpeed": 7
   },
   "car": {
     "length": 0.9,

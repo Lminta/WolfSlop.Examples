@@ -52,6 +52,13 @@ public sealed class CarController : ComponentBase
     // Pausing discards unfinished time while preserving all physical state.
     public void ResetTiming() => _accumulator = 0;
 
+    public void ResolveCarContact(Vector2 position, Vector2 velocity)
+    {
+        Parent.Transform = new Transform { Position = position, Rotation = Parent.Transform.Rotation };
+        Velocity = velocity;
+        AngularVelocity = 0;
+    }
+
     public override void Update(float deltaTime)
     {
         _input.ConsumeJump();
@@ -72,7 +79,8 @@ public sealed class CarController : ComponentBase
         var forward = Vector2.Normalize(transform.Rotation);
         var right = new Vector2(forward.Y, -forward.X);
         var (surface, pullSide) = SurfaceContact(transform.Position, forward, right);
-        var steeringInput = (keys.StrafeLeft || keys.Left ? 1 : 0) - (keys.StrafeRight || keys.Right ? 1 : 0);
+        var steeringInput = _input is ISteeringInput analog ? Math.Clamp(analog.Steering, -1, 1) :
+            (keys.StrafeLeft || keys.Left ? 1 : 0) - (keys.StrafeRight || keys.Right ? 1 : 0);
         var steeringTarget = steeringInput * _settings.MaxSteeringDegrees * MathF.PI / 180;
         var steeringRate = (steeringInput == 0 ? _settings.SteeringReturnDegrees : _settings.SteeringRateDegrees) * MathF.PI / 180;
         SteeringAngle = Approach(SteeringAngle, steeringTarget, steeringRate * seconds);

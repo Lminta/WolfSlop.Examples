@@ -1,5 +1,10 @@
 namespace WolfNET.Game.InputEvents;
 
+public interface ISteeringInput
+{
+    float Steering { get; }
+}
+
 public interface IKeyboardInput
 {
     KeyState KeyState { get; }
