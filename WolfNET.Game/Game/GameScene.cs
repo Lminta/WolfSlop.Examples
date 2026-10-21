@@ -23,8 +23,6 @@ public sealed class GameScene : IDisposable
     private RenderMap? _greenMap;
     private readonly RaceSession? _opponentRace;
     private readonly OpponentDriver? _opponentDriver;
-    private readonly RaceProgress? _playerProgress;
-    private readonly RaceProgress? _opponentProgress;
     private double _raceClock;
     public CarObject? Opponent { get; }
     public IMap Map { get; }
@@ -35,22 +33,11 @@ public sealed class GameScene : IDisposable
     {
         Opponent = _opponentRace is { } rival ? new(rival.Status.CompletedLaps, rival.Status.TotalMilliseconds,
             rival.Status.LapTimes, rival.Status.Phase == RacePhase.Finished) : null,
-        GapMilliseconds = RaceGap()
+        GapMilliseconds = _opponentRace == null ? null : RaceLapGap.Calculate(_race.Status, _opponentRace.Status, _raceClock)
     };
     public DrivingViewState? DrivingState => Player is CarObject car
         ? new(car.Camera.ThirdPerson, Paused, car.Controller.SteeringAngle, car.Controller.Speed, car.Look.Yaw) : null;
     public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
-
-    private double? RaceGap()
-    {
-        if (_race == null || _opponentRace == null || !_race.Status.Started) return null;
-        var playerFinished = _race.Status.Phase == RacePhase.Finished;
-        var opponentFinished = _opponentRace.Status.Phase == RacePhase.Finished;
-        if (playerFinished && opponentFinished) return _opponentRace.Status.TotalMilliseconds - _race.Status.TotalMilliseconds;
-        if (playerFinished) return Math.Max(0, _raceClock - _race.Status.TotalMilliseconds);
-        if (opponentFinished) return -Math.Max(0, _raceClock - _opponentRace.Status.TotalMilliseconds);
-        return RaceProgress.Gap(_playerProgress!, _opponentProgress!, _raceClock);
-    }
 
     public GameScene(IMap map, ICharacterAppearance character, IKeyboardInput input, IMouseInput mouse,
         RendererSettings settings, GameplaySettings? gameplay = null)
@@ -84,9 +71,6 @@ public sealed class GameScene : IDisposable
             Opponent = new(_opponentDriver, _opponentDriver, map.NavigationMap, gameplay.Car)
                 { Transform = new Transform { Position = position, Rotation = direction } };
             _opponentRace = new(map.RendererMap.Race!, gameplay.Race);
-            // Both histories share the player's start distance, including a staggered grid.
-            _playerProgress = new(route, Player.Transform.Position);
-            _opponentProgress = new(route, Player.Transform.Position);
         }
     }
 
@@ -163,8 +147,6 @@ public sealed class GameScene : IDisposable
         _raceClock += milliseconds;
         _race.Update(beforePlayer, car.Transform.Position, milliseconds);
         _opponentRace.Update(beforeOpponent, Opponent.Transform.Position, milliseconds);
-        _playerProgress!.Update(car.Transform.Position, _raceClock);
-        _opponentProgress!.Update(Opponent.Transform.Position, _raceClock);
     }
 
     public string? ConsumeMapRequest()

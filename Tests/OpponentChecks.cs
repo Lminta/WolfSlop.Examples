@@ -49,20 +49,26 @@ internal static class OpponentChecks
             "Opponent continued moving or timing after its finish.");
         Check(scene.RaceState.Value.Phase == RacePhase.Racing, "Opponent finishing prematurely ended the player's race.");
 
-        var route = new RaceRoute(new() { Route = [[0,0], [100,0], [100,100], [0,100], [0,0]], StartFinish = [10,0] });
-        var playerProgress = new RaceProgress(route, new(10, 0));
-        var opponentProgress = new RaceProgress(route, new(10, 0));
-        playerProgress.Update(new(30, 0), 1000); opponentProgress.Update(new(20, 0), 1000);
-        Check(Math.Abs(RaceProgress.Gap(playerProgress, opponentProgress, 1000) - 500) < .01,
-            "Leading gap did not compare arrival time at the same track position.");
-        Check(Math.Abs(RaceProgress.Gap(playerProgress, opponentProgress, 2000) - 1500) < .01, "Lead did not grow while the opponent waited.");
-        playerProgress.Update(new(15, 0), 2000);
-        Check(RaceProgress.Gap(playerProgress, opponentProgress, 2000) < 0, "Reversing past the opponent did not change the gap sign.");
-        var lapProgress = new RaceProgress(route, new(10,0));
-        foreach (var point in new Vector2[] { new(100,0), new(100,100), new(0,100), new(0,0), new(10,0) }) lapProgress.Update(point, 4000);
-        Check(lapProgress.Distance > 399, "Race progress reset when wrapping across the lap line.");
-        var stationary = new RaceProgress(route, new(10,0));
-        Check(RaceProgress.Gap(lapProgress, stationary, 5000) > 0, "A full-lap lead compared against the wrong lap.");
+        RaceStatus Laps(params double[] times) => new(times.Length, times.Sum(), 0, times.LastOrDefault(), true)
+            { LapTimes = times };
+        void Gap(RaceStatus player, RaceStatus rival, double now, double? expected, string message)
+        {
+            var gap = RaceLapGap.Calculate(player, rival, now);
+            Check(expected == null ? gap == null : gap != null && Math.Abs(gap.Value - expected.Value) < .01, message);
+        }
+        Gap(Laps(), Laps(), 59000, null, "Gap appeared before either racer completed a lap.");
+        Gap(Laps(60000), Laps(), 60000, 0, "First lap finish did not start the gap at zero.");
+        Gap(Laps(60000), Laps(), 63000, 3000, "Player-first lap gap did not grow positively.");
+        Gap(Laps(60000), Laps(), 65000, 5000, "Unmatched lap gap stopped growing.");
+        Gap(Laps(60000), Laps(68000), 68000, 8000, "Second lap finisher did not freeze the measured separation.");
+        Gap(Laps(60000), Laps(68000), 100000, 8000, "Completed lap gap changed before the next lap finish.");
+        Gap(Laps(60000), Laps(68000,40000), 108000, 0, "Opponent-first next lap did not reset the gap.");
+        Gap(Laps(60000), Laps(68000,40000), 111000, -3000, "Opponent-first lap gap did not grow negatively.");
+        Gap(Laps(60000,55000), Laps(68000,40000), 115000, -7000, "Matching second lap finishes did not freeze the new gap.");
+        Gap(Laps(60000,55000), Laps(68000,40000), 140000, -7000, "Negative completed gap did not stay frozen.");
+        Gap(Laps(60000,55000,35000), Laps(68000,40000), 153000, 3000, "Final lap finish did not reset and reverse the lead.");
+        Gap(Laps(60000,55000,35000), Laps(68000,40000,50000), 200000, 8000, "Final gap did not stay frozen after both finishes.");
+        Gap(Laps(60000), Laps(68000,40000), 112000, -4000, "A lapped racer froze the gap for the wrong lap.");
 
         // Inelastic body contact separates equal car boxes and removes closing velocity.
         var playerCar = (CarObject)scene.Player;

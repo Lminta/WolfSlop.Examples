@@ -19,6 +19,26 @@ public readonly record struct RaceStatus(int CompletedLaps, double TotalMillisec
     public double? GapMilliseconds { get; init; }
 }
 
+/// <summary>Elapsed separation between matching lap finishes; holds until the next lap finish.</summary>
+public static class RaceLapGap
+{
+    public static double? Calculate(RaceStatus player, RaceStatus opponent, double now)
+    {
+        var lap = Math.Max(player.CompletedLaps, opponent.CompletedLaps);
+        if (lap == 0) return null;
+        static double FinishTime(RaceStatus racer, int lap)
+        {
+            double time = 0;
+            for (var i = 0; i < lap; i++) time += racer.LapTimes[i];
+            return time;
+        }
+        var playerArrived = player.CompletedLaps >= lap;
+        var opponentArrived = opponent.CompletedLaps >= lap;
+        if (playerArrived && opponentArrived) return FinishTime(opponent, lap) - FinishTime(player, lap);
+        return playerArrived ? Math.Max(0, now - FinishTime(player, lap)) : -Math.Max(0, now - FinishTime(opponent, lap));
+    }
+}
+
 /// <summary>Tracks ordered forward gate crossings and active simulation time for one scene.</summary>
 public sealed class RaceSession
 {

@@ -260,12 +260,14 @@ A blue opponent starts beside the player, sharing the same car atlas (red and bl
 channels swapped), physics, surface penalties, and collision footprint. It follows
 the circuit, brakes for corners, and avoids or makes contact with the player.
 Both racers use `race.lapCount`; tune the bot with `race.opponentMaxSpeed` and
-`race.opponentCornerSpeed` in gameplay settings. The Gap row compares arrival
-times at the same circuit distance on the same lap: green **+seconds** means a
-player lead; red **−seconds** means the opponent leads. Pausing freezes both cars.
+`race.opponentCornerSpeed` in gameplay settings. The Gap row starts when either
+racer finishes a lap: green **+seconds** grows if the player finishes first;
+red **−seconds** grows if the opponent finishes first. It freezes when the other
+racer finishes that same lap, then resets at the next lap finish. Before the
+first completed lap it shows a dash. Pausing freezes both cars and the gap.
 Results show both racers' total and individual lap times. If the player finishes
 first, the opponent continues while results are open and its final time fills in
-when it finishes. Restart resets both cars, timers, and progress histories.
+when it finishes. Restart resets both cars, timers, and lap comparisons.
 
 Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
 With the game and a WebGPU browser running, use

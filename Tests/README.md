@@ -14,7 +14,7 @@ car physics and cameras, ordered checkpoint/lap timing, pause behavior,
 sprite animation, and editor persistence/export.
 The opponent checks simulate three full checkpoint-validated laps on Pine Loop,
 check grid/pause/finish behavior, car contact and solid boundaries, and compare
-timing gaps at matching route distances across lap boundaries.
+lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
 The Node checks cover editor operations and browser sprite selection/order.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
 references in `artifacts/performance` for the browser implementation to compare.

@@ -36,8 +36,10 @@ A blue opponent uses the same eight-view car sprite with red and blue channels
 swapped, the same handling and collision footprint, and its own validated laps and
 timers. It follows the circuit and brakes for bends. Set `race.opponentMaxSpeed`
 and `race.opponentCornerSpeed` in gameplay settings to tune its pace. The Gap row
-compares arrival times at matching circuit distance and lap: green +seconds is a
-lead, red −seconds is a deficit. Both racers pause together. Results include both
+starts at zero when one racer finishes a lap, grows green +seconds for a player
+lead or red −seconds for an opponent lead, and freezes when the other racer
+finishes that same lap. The next lap finish resets it; before the first completed
+lap it shows a dash. Both racers pause together. Results include both
 racers' total and lap times; an unfinished opponent continues while the player's
 results are open, updating its time until it finishes.
 

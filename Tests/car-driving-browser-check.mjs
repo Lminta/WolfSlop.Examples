@@ -233,12 +233,13 @@ try {
     assert.deepEqual(await camera(), parked, 'Car moved before GO');
     await snapshot('go');
     await waitFor(`!document.querySelector('.race-countdown')`);
-    await waitFor(`!!window.__opponent && !!document.querySelector('.race-gap-behind')`);
+    await waitFor(`!!window.__opponent`);
     assert.equal((await evaluate('window.__opponent')).kind & 32, 32, 'Opponent did not request red/blue channel swapping');
     await snapshot('blue-opponent');
     const gapBefore = await evaluate(`document.querySelector('.race-gap').textContent.trim()`);
     await delay(250);
-    assert.notEqual(await evaluate(`document.querySelector('.race-gap').textContent.trim()`), gapBefore, 'Time deficit did not grow while the player waited');
+    assert.equal(gapBefore, '—', 'Gap appeared before the first completed lap');
+    assert.equal(await evaluate(`document.querySelector('.race-gap').textContent.trim()`), gapBefore, 'Gap changed before either racer completed a lap');
     console.log('PASS start: click-to-start countdown, camera switching with driving locked, frozen timers, pause/resume, animated GO.');
 
     await key('KeyA');
