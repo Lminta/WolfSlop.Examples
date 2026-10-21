@@ -45,6 +45,73 @@ internal static class CarPhysicsChecks
         Check(MathF.Abs(grass.Controller.Speed - mud.Controller.Speed) < .0001f,
             "Grass did not use the configured off-road profile.");
 
+        // Fixed partial penalty: tiny and deep overlaps receive the same profile.
+        var noPull = new CarSettings { MudPullStrength = 0 };
+        string Edge(Vector2 point) => point.Y >= 101 ? "mud" : "asphalt";
+        var edgeRoad = Create(noPull, Edge, position: new(100.5f, 100.5f));
+        var shallow = Create(noPull, Edge, position: new(100.5f, 100.651f));
+        var deep = Create(noPull, Edge, position: new(100.5f, 100.99f));
+        var edgeMud = Create(noPull, Edge, position: new(100.5f, 101.5f));
+        foreach (var rig in new[] { edgeRoad, shallow, deep, edgeMud })
+        {
+            rig.Keys.KeyState = new() { Forward = true };
+            Advance(rig.Controller, .25f);
+        }
+        Check(MathF.Abs(shallow.Controller.Speed - deep.Controller.Speed) < .0001f,
+            "Partial mud penalty changed with the amount of footprint overlap.");
+        Check(shallow.Controller.Speed > edgeMud.Controller.Speed && shallow.Controller.Speed < edgeRoad.Controller.Speed,
+            "A partly off-road car did not receive an intermediate acceleration penalty.");
+        var firstPartial = Create(noPull, Edge, position: new(100.5f, 100.651f));
+        firstPartial.Keys.KeyState = new() { Forward = true };
+        firstPartial.Controller.Update(1000f / 120);
+        Check(MathF.Abs(firstPartial.Controller.Speed * 120 - 5.2f) < .001f,
+            "Mixed contact did not apply exactly half of the asphalt-to-mud acceleration penalty.");
+        Advance(shallow.Controller, 25);
+        Check(MathF.Abs(shallow.Controller.Speed - 13) < .01f,
+            "Partly off-road forward speed did not approach the halfway limit.");
+        var footprintPatch = Create(noPull, point => (int)point.X == 100 && (int)point.Y == 100 ? "mud" : "asphalt",
+            position: new(100.5f, 100.5f));
+        footprintPatch.Actor.Transform = new() { Position = footprintPatch.Actor.Transform.Position, Rotation = Vector2.Normalize(Vector2.One) };
+        footprintPatch.Keys.KeyState = new() { Forward = true };
+        footprintPatch.Controller.Update(1000f / 120);
+        Check(MathF.Abs(footprintPatch.Controller.Speed * 120 - 5.2f) < .001f,
+            "Footprint sampling missed a mud patch between the car's corner samples.");
+        var emptyCorner = Create(noPull, point => (int)point.X == 101 && (int)point.Y == 101 ? "mud" : "asphalt",
+            position: new(100.5f, 100.5f));
+        emptyCorner.Actor.Transform = new() { Position = emptyCorner.Actor.Transform.Position, Rotation = Vector2.Normalize(Vector2.One) };
+        emptyCorner.Keys.KeyState = new() { Forward = true };
+        emptyCorner.Controller.Update(1000f / 120);
+        Check(MathF.Abs(emptyCorner.Controller.Speed * 120 - 8) < .001f,
+            "Surface sampling penalized an empty corner of the car's axis-aligned bounding box.");
+        var leftMud = Create(surface: Edge, position: new(100.5f, 100.8f));
+        var rightMud = Create(surface: point => point.Y < 100 ? "mud" : "asphalt", position: new(100.5f, 100.2f));
+        leftMud.Keys.KeyState = rightMud.Keys.KeyState = new() { Forward = true };
+        Advance(leftMud.Controller, .5f); Advance(rightMud.Controller, .5f);
+        Check(leftMud.Controller.AngularVelocity > .01f && leftMud.Actor.Transform.Rotation.Y > 0 &&
+            rightMud.Controller.AngularVelocity < -.01f && rightMud.Actor.Transform.Rotation.Y < 0,
+            "Unequal surface drag did not turn the car toward the muddy side.");
+        var reverseEdge = Create(surface: Edge, position: new(100.5f, 100.8f));
+        reverseEdge.Keys.KeyState = new() { Backward = true }; Advance(reverseEdge.Controller, .5f);
+        Check(reverseEdge.Controller.AngularVelocity < 0, "Mud drag did not reverse yaw while backing up.");
+        var parkedEdge = Create(surface: Edge, position: new(100.5f, 100.8f));
+        Advance(parkedEdge.Controller, .5f);
+        Check(parkedEdge.Actor.Transform.Rotation == Vector2.UnitX && parkedEdge.Controller.AngularVelocity == 0,
+            "Mud contact rotated a stationary car.");
+        var pullShallow = Create(surface: Edge, position: new(100.5f, 100.651f));
+        var pullDeep = Create(surface: Edge, position: new(100.5f, 100.99f));
+        pullShallow.Keys.KeyState = pullDeep.Keys.KeyState = new() { Forward = true };
+        pullShallow.Controller.Update(1000f / 120); pullDeep.Controller.Update(1000f / 120);
+        Check(MathF.Abs(pullShallow.Controller.AngularVelocity - pullDeep.Controller.AngularVelocity) < .0000001f,
+            "Mud side pull changed with the amount of overlap on that side.");
+        var mixedContact = false;
+        var overspeedEdge = Create(noPull, point => mixedContact ? Edge(point) : "asphalt", position: new(100.5f, 100.8f));
+        overspeedEdge.Keys.KeyState = new() { Forward = true }; Advance(overspeedEdge.Controller, 5);
+        var beforePartial = overspeedEdge.Controller.Speed;
+        mixedContact = true; overspeedEdge.Controller.Update(1000f / 120);
+        var expectedPartial = 13 + (beforePartial - 13) * MathF.Exp(-noPull.OffRoad.SurfacePenaltyCoefficient * .5f / 120);
+        Check(overspeedEdge.Controller.Speed > 13 && MathF.Abs(overspeedEdge.Controller.Speed - expectedPartial) < .001f,
+            "Mixed contact clamped speed or failed to halve the progressive mud penalty coefficient.");
+
         var coast = Create();
         coast.Keys.KeyState = new() { Forward = true };
         Advance(coast.Controller, 2);

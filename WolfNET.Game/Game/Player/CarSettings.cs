@@ -38,8 +38,10 @@ public sealed record CarSettings
     public float MouseSensitivity { get; init; } = .0025f;
     public float CameraRecenterDelay { get; init; } = 1;
     public float CameraRecenterRate { get; init; } = 4;
-    public float CameraMaxYawDegrees { get; init; } = 100;
     public float CameraMaxPitchDegrees { get; init; } = 30;
+    public float PartialMudPenalty { get; init; } = .5f;
+    // Radians/second of side pull at the asphalt forward speed limit.
+    public float MudPullStrength { get; init; } = .65f;
     public float SteeringWheelDegrees { get; init; } = 180;
     public CarSurfaceSettings Asphalt { get; init; } = new();
     public CarSurfaceSettings OffRoad { get; init; } = new()
@@ -52,13 +54,16 @@ public sealed record CarSettings
     {
         foreach (var value in new[] { Length, Width, Wheelbase, StopSpeed, MaxSteeringDegrees,
             SteeringRateDegrees, SteeringReturnDegrees, AngularResponse, CameraFollowDistance,
-            MouseSensitivity, CameraRecenterRate, CameraMaxYawDegrees, CameraMaxPitchDegrees, SteeringWheelDegrees })
+            MouseSensitivity, CameraRecenterRate, CameraMaxPitchDegrees, SteeringWheelDegrees })
             if (!float.IsFinite(value) || value <= 0)
                 throw new InvalidDataException("Car dimensions, steering and camera rates must be finite and positive.");
         if (Width >= 1 || Length > 4 || Wheelbase > Length || MaxSteeringDegrees >= 85 ||
-            CameraMaxYawDegrees > 180 || CameraMaxPitchDegrees >= 85 || !float.IsFinite(CameraElevation) ||
+            CameraMaxPitchDegrees >= 85 || !float.IsFinite(CameraElevation) ||
             CameraElevation < -.45f || CameraElevation > .45f || !float.IsFinite(CameraRecenterDelay) || CameraRecenterDelay < 0)
             throw new InvalidDataException("Car dimensions, steering or camera limits are out of range.");
+        if (!float.IsFinite(PartialMudPenalty) || PartialMudPenalty < 0 || PartialMudPenalty > 1 ||
+            !float.IsFinite(MudPullStrength) || MudPullStrength < 0)
+            throw new InvalidDataException("partialMudPenalty must be in [0, 1] and mudPullStrength must be finite and nonnegative.");
         if (Asphalt == null || OffRoad == null) throw new InvalidDataException("Car needs asphalt and offRoad profiles.");
         Asphalt.Validate();
         OffRoad.Validate();

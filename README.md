@@ -159,7 +159,14 @@ The car uses a rotating **0.9 × 0.7 block** footprint and a 120 Hz simulation.
 Engine acceleration tapers near the speed limit. Asphalt provides stronger grip
 and rolling friction than off-road terrain. Grass and mud share handling; the
 `surfacePenaltyCoefficient` progressively removes excess speed rather than
-snapping the car to a lower limit. Defaults are **18 blocks/s** forward and
+snapping the car to a lower limit. Any mixed asphalt/off-road footprint receives
+a fixed half penalty (`partialMudPenalty: 0.5`), independent of overlap area.
+Its handling and limits lie halfway between the profiles: **13 blocks/s** forward
+and **3 blocks/s** reverse by default. Unequal left/right mud contact pulls the
+car toward that side, with strength controlled by `mudPullStrength` (radians/s
+at the asphalt speed limit); stationary cars do not rotate. Fully paved and
+fully off-road footprints use their full respective profiles.
+Defaults are **18 blocks/s** forward and
 **4 blocks/s** reverse on asphalt, **8** and **2** off-road.
 
 Edit [gameplay-settings.json](WolfNET.Game/wwwroot/gameplay-settings.json) and
@@ -171,8 +178,11 @@ blocks, speeds blocks/second, accelerations blocks/second², response coefficien
 artwork, so painted grid tiles and the covered tunnel retain asphalt handling.
 
 **V** toggles the transparent cockpit and chase view without changing motion.
-Mouse look is independent of steering and recenters after one second without
-mouse movement. The cockpit wheel follows the simulated steering angle.
+The chase camera can orbit through full revolutions, including looking backward,
+independently of steering, and recenters after one second without mouse movement.
+The directional car sprite uses fixed planes within its eight view sectors.
+First-person mouse camera control is disabled; the cockpit wheel still follows
+the simulated steering angle. Switching to the cockpit resets orbit and pitch.
 **Esc**, capture loss, or window blur pauses the car and retains momentum;
 clicking the canvas resumes. Asset prompts are in
 [cockpit-assets.md](WolfNET.Game/wwwroot/textures/race/cockpit-assets.md).

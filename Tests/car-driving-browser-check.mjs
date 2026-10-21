@@ -124,7 +124,7 @@ try {
                 const ints = new Uint32Array(raw, start, data.byteLength / 4), floats = new Float32Array(raw, start, data.byteLength / 4);
                 window.__avatar = null;
                 for (let i = 0; i < ints.length; i += 8) if (ints[i + 3] === 0) {
-                    window.__avatar = {x: floats[i], y: floats[i + 1], frame: window.__carLayers[ints[i + 2]], width: floats[i + 4], height: floats[i + 5], elevation: floats[i + 6]};
+                    window.__avatar = {x: floats[i], y: floats[i + 1], frame: window.__carLayers[ints[i + 2]], width: floats[i + 4], height: floats[i + 5], elevation: floats[i + 6], kind: ints[i + 7]};
                 }
             }
             return write.call(this, buffer, offset, data, ...args);
@@ -187,12 +187,11 @@ try {
 
     const heading = await evaluate(`(() => {const m = document.querySelector('.race-minimap-course').transform.baseVal.consolidate().matrix; return [m.b, m.d];})()`);
     await evaluate(`document.dispatchEvent(new MouseEvent('mousemove', {movementX: 100, movementY: -20, bubbles: true}))`);
-    await waitFor('Math.abs(window.__camera[2]) > .1 && window.__camera[8] > .01');
+    await delay(250);
+    assert.deepEqual(await camera(), parked, 'Cockpit mouse input changed the camera');
     assert.deepEqual(await evaluate(`(() => {const m = document.querySelector('.race-minimap-course').transform.baseVal.consolidate().matrix; return [m.b, m.d];})()`), heading,
-        'Mouse free look changed the car body heading');
-    assert(distance(await camera(), parked) < .001, 'Mouse free look moved the car');
-    await waitFor('Math.abs(window.__camera[2]) < .001 && Math.abs(window.__camera[8]) < .001');
-    console.log('PASS cockpit: real transparent assets, responsive canvas alignment, steering wheel, ignored jump/crouch, and independent recentering free look.');
+        'Cockpit mouse input changed the car body heading');
+    console.log('PASS cockpit: transparent assets, responsive canvas alignment, steering wheel, ignored jump/crouch, and locked mouse camera.');
 
     // Compare equal throttle windows; the car must gain speed instead of moving at its top speed immediately.
     const start = await camera();
@@ -220,9 +219,26 @@ try {
     await waitFor(`!document.querySelector('.car-cockpit') && window.__avatar?.frame === 4`);
     const avatar = await evaluate('window.__avatar');
     assert(Math.abs(avatar.width - .7) < .001 && Math.abs(avatar.height - .45) < .001, 'Chase view used the wrong car sprite dimensions');
+    assert.equal(avatar.kind & 24, 24, 'Car character is still a camera-facing billboard');
     const chase = await camera();
     assert(Math.abs(Math.hypot(chase[0] - avatar.x, chase[1] - avatar.y) - 1.5) < .01, 'Chase view lost its follow distance');
     await snapshot('third-person');
+    await evaluate(`document.dispatchEvent(new MouseEvent('mousemove', {movementX: -40, movementY: -20, bubbles: true}))`);
+    await waitFor('window.__camera[2] > .09 && window.__camera[8] > .01');
+    const offsetAvatar = await evaluate('window.__avatar');
+    assert.equal(offsetAvatar.frame, 4);
+    assert(Math.abs(offsetAvatar.width - avatar.width) < .001 && offsetAvatar.kind === avatar.kind,
+        'Small camera orbit stretched the car or rotated its fixed plane');
+    await snapshot('third-person-small-orbit');
+    await evaluate(`document.dispatchEvent(new MouseEvent('mousemove', {movementX: ${-(Math.PI - .1) / .0025}, movementY: 20, bubbles: true}))`);
+    await waitFor('window.__avatar?.frame === 0 && window.__camera[3] > .99');
+    assert.deepEqual(await evaluate(`(() => {const m = document.querySelector('.race-minimap-course').transform.baseVal.consolidate().matrix; return [m.b, m.d];})()`), heading,
+        'Complete chase orbit steered the car');
+    await snapshot('third-person-front');
+    await evaluate(`document.dispatchEvent(new MouseEvent('mousemove', {movementX: ${-Math.PI / .0025}, movementY: 0, bubbles: true}))`);
+    await waitFor('window.__avatar?.frame === 4 && window.__camera[3] < -.99');
+    await waitFor('Math.abs(window.__camera[2]) < .001 && Math.abs(window.__camera[8]) < .001');
+    console.log('PASS orbit: full revolution with backward view, independent body heading, fixed directional sprite planes, and delayed recentering.');
     await key('KeyW'); await delay(800); await key('KeyW', false);
     const rolling = await camera(); await delay(250); const beforePause = await camera();
     const rollingSpeed = distance(rolling, beforePause) / .25;

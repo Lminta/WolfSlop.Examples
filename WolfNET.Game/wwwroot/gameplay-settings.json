@@ -13,8 +13,9 @@
     "mouseSensitivity": 0.0025,
     "cameraRecenterDelay": 1,
     "cameraRecenterRate": 4,
-    "cameraMaxYawDegrees": 100,
     "cameraMaxPitchDegrees": 30,
+    "partialMudPenalty": 0.5,
+    "mudPullStrength": 0.65,
     "steeringWheelDegrees": 180,
     "asphalt": {
       "maxForwardSpeed": 18,

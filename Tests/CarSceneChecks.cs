@@ -22,6 +22,8 @@ internal static class CarSceneChecks
             gameplay.Car.OffRoad.MaxForwardSpeed == 8, "Approved gameplay defaults did not load from JSON.");
         Reject(gameplay with { Car = gameplay.Car with { Width = float.NaN } });
         Reject(gameplay with { Car = gameplay.Car with { Wheelbase = 2 } });
+        Reject(gameplay with { Car = gameplay.Car with { PartialMudPenalty = 1.1f } });
+        Reject(gameplay with { Car = gameplay.Car with { MudPullStrength = -1 } });
         Reject(gameplay with { Car = gameplay.Car with { OffRoad = gameplay.Car.OffRoad with { SurfacePenaltyCoefficient = -1 } } });
         Reject(gameplay with { Car = gameplay.Car with { Asphalt = gameplay.Car.Asphalt with { MaxReverseSpeed = 19 } } });
 
@@ -59,20 +61,33 @@ internal static class CarSceneChecks
         var direction = car.Transform.Rotation;
         mouse.Movement = new(100, -20);
         scene.Update(1000f / 60);
-        Check(car.Transform.Rotation == direction && scene.CaptureFrame().Direction != direction,
-            "Mouse look steered the car body instead of the camera.");
+        Check(car.Transform.Rotation == direction && scene.CaptureFrame().Direction == direction && scene.CaptureFrame().Pitch == 0,
+            "Cockpit mouse input changed the viewing direction or pitch.");
         car.Look.Reset();
         keyboard.Press("KeyV"); scene.Update(1000f / 60); keyboard.Release("KeyV");
         var frame = scene.CaptureFrame();
-        Check(car.Camera.ThirdPerson && frame.Character is { } sprite && sprite.TextureLayer == appearance.FirstLayer + 4 &&
-            sprite.Scale.X > .69f && sprite.Scale.X < .71f,
+        Check(car.Camera.ThirdPerson && frame.Character is { } sprite && sprite.ViewLayer(frame.Position) == appearance.FirstLayer + 4 &&
+            sprite.ViewScale(frame.Position).X > .69f && sprite.ViewScale(frame.Position).X < .71f &&
+            !sprite.FacingCamera && (sprite.ViewKind(frame.Position) & (uint)SpriteKind.DirectionalPlane) != 0,
             "Chase view did not render the correctly scaled rear car frame.");
+        var rearSprite = frame.Character!.Value;
+        var nearbyObserver = car.Transform.Position - Vector2.Normalize(car.Transform.Rotation + new Vector2(car.Transform.Rotation.Y, -car.Transform.Rotation.X) * .1f) * 1.5f;
+        var nearbySprite = appearance.CreateSprite(car, nearbyObserver);
+        Check(nearbySprite.ViewScale(nearbyObserver) == rearSprite.ViewScale(frame.Position) &&
+            nearbySprite.ViewKind(nearbyObserver) == rearSprite.ViewKind(frame.Position),
+            "Car sprite stretched or rotated its plane within the same directional sector.");
+        mouse.Movement = new(-MathF.PI / gameplay.Car.MouseSensitivity, 20);
+        scene.Update(1000f / 60);
+        Check(Vector2.Dot(scene.CaptureFrame().Direction, car.Transform.Rotation) < -.99f,
+            "Chase orbit could not look backward over the front of the car.");
         Check(scene.DrivingState is { ThirdPerson: true, Paused: false } && scene.PlayerPose.Direction == car.Transform.Rotation,
             "Driving HUD/minimap state did not follow the actual car.");
         var previousSpeed = car.Controller.Speed;
         keyboard.Press("KeyV"); scene.Update(1000f / 60); keyboard.Release("KeyV");
         Check(scene.CaptureFrame().Character == null && car.Controller.Speed > previousSpeed - .1f,
             "Camera toggle reset driving or retained the car in first person.");
+        Check(car.Look.Yaw == 0 && car.Look.Pitch == 0 && scene.CaptureFrame().Direction == car.Transform.Rotation,
+            "Switching to cockpit retained third-person orbit offsets.");
         var human = await new GameSceneLoader(http, renderer, gameplay).LoadAsync("maps/glassworks.json");
         using var walking = new GameScene(human.Map, human.Character, keyboard, mouse, renderer, gameplay);
         Check(walking.Player is PlayerObject && walking.Character is CharacterAppearance && walking.DrivingState == null,

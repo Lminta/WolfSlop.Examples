@@ -13,8 +13,10 @@ Loop is omitted from the map selector. The direct `/?map=pine-loop` URL remains
 available for authoring and regression previews.
 The player starts at **(25.5,445.5)** facing north, behind the checkerboard.
 The car uses acceleration and momentum: W accelerates, A/D or arrows steer,
-S brakes then reverses, Space brakes, and V toggles cockpit/chase views. Mouse
-look is independent of steering and recenters after one second. Jumping and
+S brakes then reverses, Space brakes, and V toggles cockpit/chase views. The chase
+camera supports a full orbit and recenters after one second; cockpit mouse look
+is disabled. Mixed asphalt/mud footprints receive a fixed half penalty and pull
+toward a muddy side. Jumping and
 crouching are disabled. Esc or losing capture pauses driving until recaptured.
 Tune handling and cameras in `gameplay-settings.json`; the walking maps retain
 their existing character and movement.

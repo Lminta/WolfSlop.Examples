@@ -11,6 +11,9 @@ public sealed class OrientedBoxCollider(INavigationMap map, float length, float 
     private readonly float _halfLength = length * .5f;
     private readonly float _halfWidth = width * .5f;
 
+    public bool OverlapsCell(Vector2 position, Vector2 direction, int x, int y) =>
+        Contact(position, Vector2.Normalize(direction), x, y, out _, out _);
+
     public bool CanOccupy(Vector2 position, Vector2 direction)
     {
         direction = Vector2.Normalize(direction);

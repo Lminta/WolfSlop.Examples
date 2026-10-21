@@ -23,8 +23,8 @@ public sealed class CarCamera
 
         if (mousePixels != Vector2.Zero)
         {
-            Yaw = Math.Clamp(Yaw - mousePixels.X * settings.MouseSensitivity,
-                -Radians(settings.CameraMaxYawDegrees), Radians(settings.CameraMaxYawDegrees));
+            // Wrap instead of clamping so the chase camera can orbit repeatedly.
+            Yaw = MathF.IEEERemainder(Yaw - mousePixels.X * settings.MouseSensitivity, MathF.Tau);
             Pitch = Math.Clamp(Pitch - mousePixels.Y * settings.MouseSensitivity,
                 -Radians(settings.CameraMaxPitchDegrees), Radians(settings.CameraMaxPitchDegrees));
             _idleSeconds = 0;

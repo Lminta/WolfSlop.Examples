@@ -32,7 +32,9 @@ public sealed class CarObject : ObjectBase, IControlledActor
     public override void Update(float deltaTime)
     {
         if (_input.ConsumeViewToggle()) Camera.ThirdPerson = !Camera.ThirdPerson;
-        Look.Update(deltaTime / 1000, _mouse.ConsumeMovement(), Settings);
+        var movement = _mouse.ConsumeMovement();
+        if (Camera.ThirdPerson) Look.Update(deltaTime / 1000, movement, Settings);
+        else Look.Reset(); // Consume and discard cockpit mouse input, including stale orbit offsets.
         base.Update(deltaTime);
     }
 }

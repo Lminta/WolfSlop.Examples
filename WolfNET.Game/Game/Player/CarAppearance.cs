@@ -39,13 +39,17 @@ public sealed class CarAppearance : ICharacterAppearance
         var body = actor.Transform;
         var heading = MathF.Atan2(body.Rotation.Y, body.Rotation.X);
         var selector = new Sprite(body.Position, FirstLayer, 0) { Atlas = _definition.Atlas, RotationDegrees = heading * 180 / MathF.PI };
-        var relative = observer - body.Position;
-        var angle = MathF.Atan2(relative.Y, relative.X) - heading;
+        var frameIndex = selector.ViewFrame(observer);
+        // Match the selected frame's fixed plane, without continuously stretching
+        // its width as the observer moves within this directional sector.
+        var angle = frameIndex * MathF.Tau / 8;
         var width = _settings.Width * MathF.Abs(MathF.Cos(angle)) + _settings.Length * MathF.Abs(MathF.Sin(angle));
+        var frame = _definition.Atlas!.Frames[frameIndex];
         const float height = .45f;
-        return new Sprite(body.Position, FirstLayer + (uint)selector.ViewFrame(observer), 0)
+        return new Sprite(body.Position, FirstLayer, 0)
         {
-            Scale = new(width, height), Elevation = (height - 1) * .5f - .005f
+            Scale = new(width * frame.Height / frame.Width, height), Elevation = (height - 1) * .5f - .005f,
+            Atlas = _definition.Atlas, RotationDegrees = heading * 180 / MathF.PI, FacingCamera = false
         };
     }
 }

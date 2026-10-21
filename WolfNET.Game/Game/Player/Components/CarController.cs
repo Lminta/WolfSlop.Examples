@@ -13,6 +13,8 @@ public sealed class CarController : ComponentBase
     private readonly Func<Vector2, string> _surfaceAt;
     private readonly CarSettings _settings;
     private readonly OrientedBoxCollider _collider;
+    private readonly OrientedBoxCollider _halfFootprint;
+    private readonly CarSurfaceSettings _mixedSurface;
     private double _accumulator;
 
     public Vector2 Velocity { get; private set; }
@@ -28,6 +30,23 @@ public sealed class CarController : ComponentBase
         _surfaceAt = surfaceAt;
         _settings = settings;
         _collider = new OrientedBoxCollider(navigation, settings.Length, settings.Width);
+        _halfFootprint = new OrientedBoxCollider(navigation, settings.Length, settings.Width * .5f);
+        var asphalt = settings.Asphalt;
+        var mud = settings.OffRoad;
+        var amount = settings.PartialMudPenalty;
+        float Blend(float road, float offRoad) => road + (offRoad - road) * amount;
+        _mixedSurface = new CarSurfaceSettings
+        {
+            MaxForwardSpeed = Blend(asphalt.MaxForwardSpeed, mud.MaxForwardSpeed),
+            MaxReverseSpeed = Blend(asphalt.MaxReverseSpeed, mud.MaxReverseSpeed),
+            Acceleration = Blend(asphalt.Acceleration, mud.Acceleration),
+            ReverseAcceleration = Blend(asphalt.ReverseAcceleration, mud.ReverseAcceleration),
+            BrakeDeceleration = Blend(asphalt.BrakeDeceleration, mud.BrakeDeceleration),
+            RollingResistance = Blend(asphalt.RollingResistance, mud.RollingResistance),
+            LateralGrip = Blend(asphalt.LateralGrip, mud.LateralGrip),
+            MaxLateralAcceleration = Blend(asphalt.MaxLateralAcceleration, mud.MaxLateralAcceleration),
+            SurfacePenaltyCoefficient = mud.SurfacePenaltyCoefficient * amount
+        };
     }
 
     // Pausing discards unfinished time while preserving all physical state.
@@ -52,7 +71,7 @@ public sealed class CarController : ComponentBase
         var transform = Parent.Transform;
         var forward = Vector2.Normalize(transform.Rotation);
         var right = new Vector2(forward.Y, -forward.X);
-        var surface = _surfaceAt(transform.Position) == "asphalt" ? _settings.Asphalt : _settings.OffRoad;
+        var (surface, pullSide) = SurfaceContact(transform.Position, forward, right);
         var steeringInput = (keys.StrafeLeft || keys.Left ? 1 : 0) - (keys.StrafeRight || keys.Right ? 1 : 0);
         var steeringTarget = steeringInput * _settings.MaxSteeringDegrees * MathF.PI / 180;
         var steeringRate = (steeringInput == 0 ? _settings.SteeringReturnDegrees : _settings.SteeringRateDegrees) * MathF.PI / 180;
@@ -102,6 +121,10 @@ public sealed class CarController : ComponentBase
             Velocity = Vector2.Zero;
 
         var yawTarget = longitudinal / _settings.Wheelbase * MathF.Tan(SteeringAngle);
+        // Unequal rolling drag pulls the nose toward the muddy side when moving
+        // forward, and reverses that yaw while backing up. Contact area does not
+        // scale the penalty or pull: each side is either on mud or off it.
+        yawTarget += pullSide * _settings.MudPullStrength * longitudinal / _settings.Asphalt.MaxForwardSpeed;
         var yawLimit = surface.MaxLateralAcceleration / MathF.Max(MathF.Abs(longitudinal), _settings.StopSpeed);
         yawTarget = Math.Clamp(yawTarget, -yawLimit, yawLimit);
         AngularVelocity += (yawTarget - AngularVelocity) * (1 - MathF.Exp(-_settings.AngularResponse * seconds));
@@ -112,6 +135,32 @@ public sealed class CarController : ComponentBase
         if (result.Collided && Vector2.DistanceSquared(result.Direction, Rotate(forward, rotation)) > .00000001f)
             AngularVelocity = 0;
         Parent.Transform = new Transform { Position = result.Position, Rotation = result.Direction };
+    }
+
+    private (CarSurfaceSettings Surface, int PullSide) SurfaceContact(Vector2 position, Vector2 forward, Vector2 right)
+    {
+        var extent = new Vector2(
+            MathF.Abs(forward.X) * _settings.Length + MathF.Abs(right.X) * _settings.Width,
+            MathF.Abs(forward.Y) * _settings.Length + MathF.Abs(right.Y) * _settings.Width) * .5f;
+        var leftCenter = position - right * (_settings.Width * .25f);
+        var rightCenter = position + right * (_settings.Width * .25f);
+        var asphalt = false;
+        var mud = false;
+        var leftMud = false;
+        var rightMud = false;
+        // Test actual oriented footprint/cell intersections. Corner-only samples
+        // miss thin patches touching an edge or the middle of the car.
+        for (var x = (int)MathF.Floor(position.X - extent.X); x <= (int)MathF.Floor(position.X + extent.X); x++)
+        for (var y = (int)MathF.Floor(position.Y - extent.Y); y <= (int)MathF.Floor(position.Y + extent.Y); y++)
+        {
+            if (!_collider.OverlapsCell(position, forward, x, y)) continue;
+            if (_surfaceAt(new(x + .5f, y + .5f)) == "asphalt") { asphalt = true; continue; }
+            mud = true;
+            leftMud |= _halfFootprint.OverlapsCell(leftCenter, forward, x, y);
+            rightMud |= _halfFootprint.OverlapsCell(rightCenter, forward, x, y);
+        }
+        var profile = !mud ? _settings.Asphalt : asphalt ? _mixedSurface : _settings.OffRoad;
+        return (profile, (leftMud ? 1 : 0) - (rightMud ? 1 : 0));
     }
 
     private static float Approach(float value, float target, float change) =>

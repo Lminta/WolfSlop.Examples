@@ -66,12 +66,16 @@ internal static class CarCameraChecks
         Near(oneFrame.Yaw, manyFrames.Yaw, "Car recentering depends on the frame rate.");
         Near(oneFrame.Pitch, manyFrames.Pitch, "Car pitch recentering depends on the frame rate.");
 
-        camera.Update(0, new(-100000, -100000), settings);
-        Near(camera.Yaw, settings.CameraMaxYawDegrees * MathF.PI / 180, "Positive car free-look yaw exceeded its limit.");
+        camera.Reset();
+        camera.Update(0, new(-MathF.PI / settings.MouseSensitivity, -100000), settings);
+        Near(MathF.Abs(camera.Yaw), MathF.PI, "Car orbit could not reach the view ahead of the car looking backward.");
+        PositionNear(camera.Direction(body), -body.Rotation, "Rearward orbit did not reverse the viewing direction.");
         Near(camera.Pitch, settings.CameraMaxPitchDegrees * MathF.PI / 180, "Positive car free-look pitch exceeded its limit.");
-        camera.Update(0, new(100000, 100000), settings);
-        Near(camera.Yaw, -settings.CameraMaxYawDegrees * MathF.PI / 180, "Negative car free-look yaw exceeded its limit.");
+        camera.Update(0, new(-MathF.PI / settings.MouseSensitivity, 100000), settings);
+        Near(camera.Yaw, 0, "A complete orbit did not wrap smoothly back behind the car.");
         Near(camera.Pitch, -settings.CameraMaxPitchDegrees * MathF.PI / 180, "Negative car free-look pitch exceeded its limit.");
+        camera.Update(0, new(MathF.Tau * 3.25f / settings.MouseSensitivity, 0), settings);
+        Near(camera.Yaw, -MathF.PI / 2, "Repeated reverse orbits were clamped instead of wrapped.");
         camera.Reset();
         Check(camera.Yaw == 0 && camera.Pitch == 0, "Reset left car free-look offsets behind.");
 
