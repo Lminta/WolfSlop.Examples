@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeRacewayTireProps } from './build-raceway-tire-props.mjs';
+import { sizeRacewayObject, sizeRacewayProps } from './size-raceway-props.mjs';
 
 // Preserve the previous compact course as an explicit authoring option.
 // The default builds the requested256x512grand circuit.
@@ -24,6 +25,7 @@ const ownedObjects = new Map();
 function writeObject(name, id, type, fields) {
     const value = { type, id, raycastTransparent: true, collides: false,
         jumpable: false, crouchable: false, ...fields };
+    sizeRacewayObject(value);
     fs.writeFileSync(path.join(objectDirectory, `${name}.json`), JSON.stringify(value, null, 2) + '\n');
     ownedObjects.set(id, value);
 }
@@ -56,6 +58,7 @@ group('group-woodland-pine', 578, [member(520, -.12, .12, 2.1), member(522, .3, 
 group('group-forest-edge', 579, [member(520, -.34, .25, 2.5), member(529, .3, .16, 2.05), member(530, .03, -.33, 2.6)]);
 
 writeRacewayTireProps();
+sizeRacewayProps();
 
 writeObject('wall-hedge-boundary', 510, 'wall', { raycastTransparent: false,
     collides: true, passageId: 501,

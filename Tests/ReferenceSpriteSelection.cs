@@ -27,9 +27,13 @@ internal sealed class ReferenceSpriteSelection
                 var radius = view.Sprite.Scale.X * .5f;
                 if (view.Sprite.Atlas is { } atlas)
                     radius = atlas.Frames.Max(frame => view.Sprite.Scale.X * ((float)frame.Width / frame.Height)) * .5f;
+                if (view.Sprite.Footprint is { } footprint && view.Sprite.Atlas is { Directions: > 1 } directions)
+                    radius = Enumerable.Range(0, directions.Directions).Max(frame =>
+                        (footprint.Length * MathF.Abs(MathF.Sin(frame * MathF.Tau / directions.Directions)) +
+                         footprint.Width * MathF.Abs(MathF.Cos(frame * MathF.Tau / directions.Directions))) * view.Sprite.Scale.X) * .5f;
                 var depth = Vector2.Dot(relative, direction);
                 var across = Vector2.Dot(relative, right);
-                var margin = radius * MathF.Sqrt(1 + scale * scale);
+                var margin = radius * MathF.Sqrt(1 + scale * scale) + .0001f;
                 if (depth + radius <= 0 || across - depth * scale > margin || -across - depth * scale > margin) continue;
             }
             _visible.Add(view);

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sizeRacewayObject } from './size-raceway-props.mjs';
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Game/wwwroot/objects/raceway');
 const stack = (spriteId, x, y, scale = .31) => ({ spriteId,
@@ -11,8 +12,8 @@ const row = (spriteId, axis, scale = .31) => [-.32, 0, .32].map(offset =>
 
 export function writeRacewayTireProps() {
     const group = (name, id, sprites) => fs.writeFileSync(path.join(directory, `${name}.json`),
-        JSON.stringify({ type: 'spriteGroup', id, raycastTransparent: true, collides: true,
-            jumpable: false, crouchable: false, passageId: 502, sprites }, null, 2) + '\n');
+        JSON.stringify(sizeRacewayObject({ type: 'spriteGroup', id, raycastTransparent: true, collides: true,
+            jumpable: false, crouchable: false, passageId: 502, sprites }), null, 2) + '\n');
     group('group-tires', 543, [-.6, -.3, 0, .3, .6].map((x, i) => stack(i % 2 ? 531 : 521, x, 0)));
     group('group-tires-north-south', 580, [-.6, -.3, 0, .3, .6].map((y, i) => stack(i % 2 ? 531 : 521, 0, y)));
     group('group-tires-corner', 581, [-.3, 0, .3].flatMap((x, i) =>

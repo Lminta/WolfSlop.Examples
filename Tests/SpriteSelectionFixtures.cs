@@ -27,7 +27,7 @@ internal static class SpriteSelectionFixtures
         File.WriteAllText(Path.Combine(artifactDirectory, "sprite-sort-oracle.json"), JsonSerializer.Serialize(orderingCases));
         var map = await GameMap.LoadAsync(http, "maps/pine-loop.json", 512, 512);
         var sourcePositions = map.RendererMap.Sprites.SelectMany(sprite => new[] { sprite.Position.X, sprite.Position.Y,
-            sprite.Scale.X, sprite.Atlas?.Frames.Max(frame => sprite.Scale.X * ((float)frame.Width / frame.Height)) ?? sprite.Scale.X }).ToArray();
+            sprite.Scale.X, sprite.MaximumViewWidth }).ToArray();
         var spatialCases = new List<object>();
         using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(webRoot, "../../Tests/Fixtures/pine-loop-lap.json")));
         foreach (var view in fixture.RootElement.GetProperty("views").EnumerateArray())

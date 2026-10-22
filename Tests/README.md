@@ -5,7 +5,7 @@ Run from the repository root with the .NET 10 SDK and Node 22 or newer:
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs
+node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs Tests/raceway-prop-scale.test.mjs
 ```
 
 The C# runner loads every shipped map and checks map edits, validation, walking,

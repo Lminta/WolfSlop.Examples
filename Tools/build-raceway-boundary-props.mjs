@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sizeRacewayObject } from './size-raceway-props.mjs';
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Game/wwwroot/objects/raceway');
 const faces = [
@@ -53,6 +54,7 @@ export function alignRacewayBoundaries(grid, definitions, drivingArea) {
             const original = definitions.get(grid[x][y]);
             const definition = { type: 'spriteGroup', id, raycastTransparent: true, collides: true,
                 jumpable: false, crouchable: false, passageId: original.passageId, sprites };
+            sizeRacewayObject(definition);
             const filename = `group-boundary-${style.name}-${visibleFaces.map(face => face.name).join('-')}.json`;
             fs.writeFileSync(path.join(directory, filename), JSON.stringify(definition, null, 2) + '\n');
             definitions.set(id, definition);

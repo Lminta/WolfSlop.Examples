@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { writeRacewayEventProps } from './build-raceway-event-props.mjs';
 import { writeRacewayTireProps } from './build-raceway-tire-props.mjs';
 import { alignRacewayBoundaries } from './build-raceway-boundary-props.mjs';
+import { sizeRacewayObject, sizeRacewayProps } from './size-raceway-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web = path.join(repository, 'WolfNET.Game/wwwroot');
@@ -17,6 +18,7 @@ const track = new Set();
 const key = (x, y) => `${x},${y}`;
 const definitions = new Map();
 writeRacewayTireProps();
+sizeRacewayProps();
 for (const filename of fs.readdirSync(objectDirectory).filter(name => name.endsWith('.json'))) {
     const definition = JSON.parse(fs.readFileSync(path.join(objectDirectory, filename), 'utf8'));
     definitions.set(definition.id, definition);
@@ -25,6 +27,7 @@ for (const filename of fs.readdirSync(objectDirectory).filter(name => name.endsW
 function object(name, id, type, fields) {
     const value = { type, id, raycastTransparent: true, collides: false,
         jumpable: false, crouchable: false, ...fields };
+    sizeRacewayObject(value);
     fs.writeFileSync(path.join(objectDirectory, `${name}.json`), JSON.stringify(value, null, 2) + '\n');
     definitions.set(id, value);
 }

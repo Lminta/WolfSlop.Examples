@@ -73,6 +73,8 @@ public sealed record SpriteAnimation
 
 public sealed record SpriteDefinition : MapObjectDefinition
 {
+    // Physical horizontal dimensions for directional props, in blocks.
+    public SpriteFootprint? Footprint { get; init; }
     // Two atlas frames: red while waiting/counting down, green after GO.
     public bool RaceStartLight { get; init; }
     public string? InteractionMap { get; init; }
@@ -85,6 +87,12 @@ public sealed record SpriteDefinition : MapObjectDefinition
     public string? PlaneAxis { get; init; }
     public required uint TextureLayer { get; init; }
     public required int PassageId { get; init; }
+}
+
+public sealed record SpriteFootprint
+{
+    public required float Length { get; init; }
+    public required float Width { get; init; }
 }
 
 public sealed record SpriteGroupDefinition : MapObjectDefinition

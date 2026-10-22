@@ -32,15 +32,11 @@ internal sealed class BrowserSpriteSelection(JSObject module) : IDisposable
             var sprite = sprites[i];
             positions[i * 4] = sprite.Position.X; positions[i * 4 + 1] = sprite.Position.Y;
             positions[i * 4 + 2] = _widths[i] = sprite.Scale.X;
-            var maximumWidth = sprite.Scale.X;
             if (sprite.Atlas is { } atlas)
             {
                 _atlasIndices.Add(i);
-                maximumWidth = 0;
-                foreach (var frame in atlas.Frames)
-                    maximumWidth = MathF.Max(maximumWidth, sprite.Scale.X * ((float)frame.Width / frame.Height));
             }
-            positions[i * 4 + 3] = maximumWidth;
+            positions[i * 4 + 3] = sprite.MaximumViewWidth;
         }
         _positions = new Float32Array(positions.Length);
         _positions.WriteBytes(bytes);
@@ -62,8 +58,7 @@ internal sealed class BrowserSpriteSelection(JSObject module) : IDisposable
             var sprite = sprites[index];
             var frame = sprite.ViewFrame(position, elapsedSeconds);
             _frames[index] = frame;
-            var size = sprite.Atlas!.Frames[frame];
-            _widths[index] = sprite.Scale.X * ((float)size.Width / size.Height);
+            _widths[index] = sprite.ViewWidth(frame);
             overrides[i * 2] = (uint)index;
             overrides[i * 2 + 1] = BitConverter.SingleToUInt32Bits(_widths[index]);
         }
@@ -72,8 +67,7 @@ internal sealed class BrowserSpriteSelection(JSObject module) : IDisposable
             if (actor is not { } avatar) return;
             var frame = avatar.ViewFrame(position, elapsedSeconds);
             _frames[index] = frame;
-            _widths[index] = avatar.Scale.X * (avatar.Atlas is { } atlas
-                ? (float)atlas.Frames[frame].Width / atlas.Frames[frame].Height : 1);
+            _widths[index] = avatar.ViewWidth(frame);
         }
         ResolveActor(character, sprites.Count);
         ResolveActor(opponent, sprites.Count + 1);

@@ -76,7 +76,8 @@ export function select(output, widths, widthCount, cx, cy, range, dirX, dirY, pl
             const dy = f32((index === sourceCount ? avatarY : index === sourceCount + 1 ? opponentY : index === sourceCount + 2 ? secondOpponentY : source[index * 4 + 1]) - cy);
             const radius = (index === sourceCount ? avatarWidth : index === sourceCount + 1 ? opponentWidth : index === sourceCount + 2 ? secondOpponentWidth : source[index * 4 + 3]) * .5;
             const depth = f32(f32(dx * dirX) + f32(dy * dirY)), across = f32(f32(dx * dirY) - f32(dy * dirX));
-            const margin = f32(radius * marginScale), sideDepth = f32(depth * planeScale);
+            // Keep planes tangent to the frustum visible across browser/.NET rounding.
+            const margin = f32(f32(radius * marginScale) + .0001), sideDepth = f32(depth * planeScale);
             if (f32(depth + radius) <= 0 || f32(across - sideDepth) > margin || f32(-across - sideDepth) > margin) continue;
         }
         output[2 + written * 2] = index; output[3 + written * 2] = radiusKeys[i * 2 + 1];

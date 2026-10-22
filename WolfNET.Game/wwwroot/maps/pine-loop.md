@@ -6,6 +6,31 @@ loops occupy the infield instead of repeating small switchbacks. Rounded bends
 have radii of 14–30 blocks, and the eastern side has a **384-block uninterrupted
 straight** between its corner arcs. Distances follow the tile centerline.
 
+One block represents **3 × 3 meters**. Raceway scenery uses the same scale as
+the 4.5 × 1.9 × 1.2 m sports cars:
+
+| Scenery | Physical size |
+| --- | --- |
+| Trees | 6–14 m tall; species-specific canopy widths |
+| Bushes | 0.9–1.2 m tall |
+| Tire stacks | About 0.81 m wide and 0.9 m tall |
+| Fence panels | 3 m wide, 2.4 m tall; paddock fences 3 m tall |
+| Buffers | 3 m wide and 0.9 m tall |
+| Grandstands | 6–7.5 m wide, approximately 4–5 m of visible height |
+| Spectators | Approximately 1.8 m body height, with space for raised arms |
+| Festival flags | 3.6 m sprite planes including poles |
+| Starting signal | 3 m high |
+| Advertising boards | 3 m wide, 2.4 m high including posts |
+| Service barrels | Approximately 0.64 m wide and 0.9 m high |
+| Parked cars | Same directional dimensions as the driven sports cars |
+
+`Tools/size-raceway-props.mjs` maintains these sizes and grounds padded artwork
+by its visible baseline. The map and prop generators apply the same sizing rules;
+running the sizing tool again does not compound the scale. Buildings, tunnels,
+wall-mounted signs, and road surfaces retain their 3 m grid modules.
+Scenery collision remains tile-based: changing a sprite's size does not change its
+blocked square. Boundary planes retain their track-facing offsets.
+
 Find a car on another map and press **F** while facing it from nearby to enter
 Pine Loop. Cars are in the Glassworks east service room at **(20,20)**, the
 Brickyard motor yard at **(29,5)**, and the Showcase annex at **(30,18)**. Pine
@@ -81,7 +106,7 @@ crossings or shared road sections.
 
 Continuous colliding safety rails enclose the racing surface, with a one-tile
 shoulder beside the asphalt. Mesh fences line the straights; individual black
-and white tire stacks at 0.31 scale, half their previous size, replace
+and white tire stacks about 0.81 m wide and 0.9 m tall replace
 them around the turns and corners. Fence planes and tire rows sit on the
 track-facing edges of their blocked tiles, matching the collision boundary.
 Corner tiles carry a section on each exposed face. These close the loop

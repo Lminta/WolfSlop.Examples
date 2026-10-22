@@ -24,6 +24,7 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
     public bool SwapRedBlue { get; init; }
     public SpriteKind Kind { get; init; }
     public Vector2 Scale { get; init; } = Vector2.One;
+    public SpriteFootprint? Footprint { get; init; }
     public float Elevation { get; init; }
     public SpriteAtlas? Atlas { get; init; }
     public SpriteAnimation? Animation { get; init; }
@@ -70,8 +71,20 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
 
     public Vector2 ViewScale(Vector2 observer, double elapsedSeconds = 0)
     {
-        if (Atlas is not { } atlas) return Scale;
-        var frame = atlas.Frames[ViewFrame(observer, elapsedSeconds)];
-        return Scale * new Vector2((float)frame.Width / frame.Height, 1);
+        return new(ViewWidth(ViewFrame(observer, elapsedSeconds)), Scale.Y);
     }
+
+    internal float ViewWidth(int frameIndex)
+    {
+        if (Footprint is { } footprint && Atlas is { Directions: > 1 } directional)
+        {
+            var angle = frameIndex * MathF.Tau / directional.Directions;
+            return Scale.X * (footprint.Width * MathF.Abs(MathF.Cos(angle)) +
+                footprint.Length * MathF.Abs(MathF.Sin(angle)));
+        }
+        return Scale.X * (Atlas is { } atlas ? (float)atlas.Frames[frameIndex].Width / atlas.Frames[frameIndex].Height : 1);
+    }
+
+    internal float MaximumViewWidth => Atlas is { } atlas
+        ? Enumerable.Range(0, atlas.Frames.Length).Max(ViewWidth) : Scale.X;
 }

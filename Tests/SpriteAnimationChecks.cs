@@ -96,6 +96,17 @@ internal static class SpriteAnimationChecks
               roundTrip.Animation == definition.Animation && roundTrip.Atlas!.Frames.Length == 3,
             "Animation did not survive object JSON round-trip.");
         Reject(definition with { Atlas = null });
+        Reject(definition with { Footprint = new() { Length = 1.5f, Width = .6f } });
+        var footprintDefinition = definition with
+        {
+            Atlas = definition.Atlas! with { Directions = 3 }, Animation = null,
+            Footprint = new() { Length = 1.5f, Width = .6f }
+        };
+        foreach (var invalidSize in new[] { 0f, -1f, float.NaN, float.PositiveInfinity })
+        {
+            Reject(footprintDefinition with { Footprint = new() { Length = invalidSize, Width = .6f } });
+            Reject(footprintDefinition with { Footprint = new() { Length = 1.5f, Width = invalidSize } });
+        }
         Reject(definition with { Atlas = definition.Atlas with { Directions = 3 } });
         foreach (var invalidFps in new[] { 0f, -1f, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
             Reject(definition with { Animation = definition.Animation with { FramesPerSecond = invalidFps } });

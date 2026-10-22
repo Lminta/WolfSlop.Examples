@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sizeRacewayObject } from './size-raceway-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web = path.join(repository, 'WolfNET.Game/wwwroot');
@@ -77,6 +78,7 @@ export function writeRacewayEventProps() {
     function object(name, id, type, fields) {
         const value = { type, id, raycastTransparent: true, collides: false,
             jumpable: false, crouchable: false, ...fields };
+        sizeRacewayObject(value);
         fs.writeFileSync(path.join(objectDirectory, `${name}.json`), JSON.stringify(value, null, 2) + '\n');
         definitions.set(id, value);
     }

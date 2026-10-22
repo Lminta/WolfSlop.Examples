@@ -63,6 +63,13 @@ whole image at any scale and cannot use multiple directional views.
 For padded sprites, ground the visible artwork using
 `offset.z = -0.5 + scale.y * (baseline / imageHeight - 0.5)`, where `baseline` is
 the row immediately below the visible feet or pot base within the source frame.
+
+Directional sprites may set `footprint: { "length": 1.5, "width": 0.6333333 }`
+to size each directional plane by physical dimensions in blocks instead of the
+atlas frame's pixel aspect ratio. This requires a directional atlas without timed
+animation. Group `scale.x` multiplies the footprint's projected width; `scale.y`
+sets the sprite height as usual. This controls rendering, while scenery collision
+continues to use the group's tile. Pine Loop uses it to match parked and driven cars.
 This compensates for transparent space below the artwork. With an unpadded image,
 `baseline == imageHeight` gives the usual `(scale.y - 1) / 2` offset.
 
