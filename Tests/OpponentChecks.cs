@@ -15,6 +15,25 @@ internal static class OpponentChecks
         var playerSettings = ((CarObject)scene.Player).Settings;
         var count = 0;
         void Check(bool value, string message) { count++; if (!value) throw new Exception(message); }
+        foreach (var rival in new[] { opponent, green })
+        {
+            Check(rival.Settings.Length == playerSettings.Length && rival.Settings.Width == playerSettings.Width &&
+                rival.Settings.Height == playerSettings.Height && rival.Settings.Wheelbase == playerSettings.Wheelbase,
+                "Rival dimensions differ from the player's dimensions.");
+            // Compare at the same pose and distance so perspective cannot hide a size difference.
+            using var alignedRival = new CarObject(new FakeKeyboard(), new FakeMouse(), loaded.Map.NavigationMap, rival.Settings)
+                { Transform = scene.Player.Transform };
+            for (var direction = 0; direction < 8; direction++)
+            {
+                var angle = direction * MathF.Tau / 8;
+                var observer = scene.Player.Transform.Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * 5;
+                var playerSprite = loaded.Character.CreateSprite(scene.Player, observer);
+                var rivalSprite = loaded.Character.CreateSprite(alignedRival, observer);
+                Check(playerSprite.ViewScale(observer) == rivalSprite.ViewScale(observer) &&
+                    playerSprite.Elevation == rivalSprite.Elevation,
+                    $"Rival sprite differs from player size in direction {direction}.");
+            }
+        }
         Check(MathF.Abs(opponent.Settings.Asphalt.MaxForwardSpeed - playerSettings.Asphalt.MaxForwardSpeed - 3) < .001f,
             "Blue top speed is not 3 blocks/s above the player's.");
         Check(MathF.Abs(green.Settings.Asphalt.MaxForwardSpeed - playerSettings.Asphalt.MaxForwardSpeed + 3) < .001f,
@@ -90,7 +109,7 @@ internal static class OpponentChecks
                 chasingBlue.Update(1000f / 120);
                 chasingGreen.Update(1000f / 120);
                 for (var a = 0; a < traffic.Length; a++)
-                    for (var b = a + 1; b < traffic.Length; b++) CarContact.Resolve(traffic[a], traffic[b], straightMap, false, false);
+                    for (var b = a + 1; b < traffic.Length; b++) CarContact.Resolve(traffic[a], traffic[b], straightMap, 1f / 120, false, false);
             }
             var gap = leadingPlayer.Transform.Position.Y - chasingBlue.Transform.Position.Y;
             Console.WriteLine($"Player chase: blue gap {gap:F1} blocks, blue {chasingBlue.Controller.Speed:F1}, green {chasingGreen.Controller.Speed:F1} blocks/s.");
@@ -417,7 +436,7 @@ internal static class OpponentChecks
         opponent.Transform = new() { Position = new(25.9f,445.5f), Rotation = new(0,-1) };
         playerCar.Controller.ResolveCarContact(playerCar.Transform.Position, new(2,0));
         opponent.Controller.ResolveCarContact(opponent.Transform.Position, new(-2,0));
-        CarContact.Resolve(playerCar, opponent, loaded.Map.NavigationMap, false, false);
+        CarContact.Resolve(playerCar, opponent, loaded.Map.NavigationMap, 1f / 120, false, false);
         Check(Vector2.Distance(playerCar.Transform.Position, opponent.Transform.Position) >= playerCar.Settings.Width,
             "Cars remained interpenetrating after contact.");
         Check(playerCar.Controller.Speed < .001f && opponent.Controller.Speed < .001f, "Car contact retained closing velocity.");

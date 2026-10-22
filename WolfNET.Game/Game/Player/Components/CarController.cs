@@ -52,11 +52,11 @@ public sealed class CarController : ComponentBase
     // Pausing discards unfinished time while preserving all physical state.
     public void ResetTiming() => _accumulator = 0;
 
-    public void ResolveCarContact(Vector2 position, Vector2 velocity)
+    public void ResolveCarContact(Vector2 position, Vector2 velocity, bool resetAngularVelocity = true)
     {
         Parent.Transform = new Transform { Position = position, Rotation = Parent.Transform.Rotation };
         Velocity = velocity;
-        AngularVelocity = 0;
+        if (resetAngularVelocity) AngularVelocity = 0;
     }
 
     public override void Update(float deltaTime)

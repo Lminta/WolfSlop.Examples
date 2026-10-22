@@ -12,6 +12,8 @@ The C# runner loads every shipped map and checks map edits, validation, walking,
 jumping, crouching, input, frame timing, scene ownership, doors, car interaction,
 car physics and cameras, ordered checkpoint/lap timing, pause behavior,
 sprite animation, and editor persistence/export.
+Car contact checks cover rubbing during blocked overtakes, clean passes and steering
+away, momentum transfer, finished cars, update-rate independence, and three cars beside a barrier.
 The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,
 check individual top speeds and throttle/braking, blue mistake events and clean green laps, launches against an accelerating player, player-priority blocking and chase recovery, moving overtakes and defensive lane holding on both sides,
 standings, grid/pause/finish behavior, car contact and solid boundaries. They measure full-footprint

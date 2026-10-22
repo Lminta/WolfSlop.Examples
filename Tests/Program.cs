@@ -141,6 +141,7 @@ finally { Directory.Delete(editorRoot, true); }
 assertions += await EngineChecks.RunAsync(http);
 assertions += await CarInteractionChecks.RunAsync(http);
 assertions += CarPhysicsChecks.Run();
+assertions += CarContactChecks.Run();
 assertions += CarCameraChecks.Run();
 assertions += await RaceSessionChecks.RunAsync(http, webRoot);
 assertions += await OpponentChecks.RunAsync(http);

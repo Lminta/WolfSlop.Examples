@@ -201,7 +201,7 @@ public sealed class GameScene : IDisposable
         }
         for (var i = 0; i < _raceCars.Length; i++)
             for (var j = i + 1; j < _raceCars.Length; j++)
-                CarContact.Resolve(_raceCars[i], _raceCars[j], Map.NavigationMap,
+                CarContact.Resolve(_raceCars[i], _raceCars[j], Map.NavigationMap, milliseconds / 1000,
                     i == 0 ? playerFinished : _rivals[i - 1].Race.Status.Phase == RacePhase.Finished,
                     _rivals[j - 1].Race.Status.Phase == RacePhase.Finished);
         _raceClock += milliseconds;
