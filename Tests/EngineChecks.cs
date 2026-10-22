@@ -120,7 +120,7 @@ internal static class EngineChecks
             "Scene did not initialize the player's transform.");
         Check(Math.Abs(scene.Player.Camera.Plane.Length() - 1) < .00001f, "Scene did not apply configured FOV.");
         Check(scene.CaptureFrame().Character == null, "First-person scene drew the avatar.");
-        Check(scene.HumanState is { ThirdPerson: false, InAir: false, Crouching: false, HandSwing: 0, HandBob: 0 } &&
+        Check(scene.CaptureFrame().FirstPerson is { Kind: FirstPersonViewKind.Hands, InAir: false, Crouching: false, HandMotion: var idleMotion } && idleMotion == Vector4.Zero &&
               scene.DrivingState == null, "Walking scene did not initialize its first-person hands state.");
         keyboard.Press("KeyV");
         keyboard.Press("KeyW");
@@ -130,30 +130,32 @@ internal static class EngineChecks
             "Scene did not update the real player controller.");
         Check(scene.CaptureFrame().Character != null && scene.Player.AnimationFrame != 14,
             "Scene did not connect movement, animation, and third-person rendering.");
-        Check(scene.HumanState is { ThirdPerson: true } hands && MathF.Abs(hands.HandSwing) > .1f,
-            "Hands state did not follow the active camera and resolved player movement.");
+        Check(scene.CaptureFrame().FirstPerson.Kind == FirstPersonViewKind.None &&
+              MathF.Abs(((WolfNET.Game.Player.PlayerObject)scene.Player).Animation.HandSwing) > .1f,
+            "Third-person frame retained first-person sprites or lost player animation.");
+        scene.Player.Camera.ThirdPerson = false;
         keyboard.Press("KeyF");
         scene.Update(1000);
         Check(map.Doors.Single().Openness == 1 && map.NavigationMap.IsWalkable(5, 4),
             "Scene did not route interaction and door updates.");
-        Check(scene.HumanState is { } restingHands && MathF.Abs(restingHands.HandSwing) < .001f && restingHands.HandBob < .001f,
+        Check(scene.CaptureFrame().FirstPerson is { HandMotion: var restingMotion } && MathF.Abs(restingMotion.X) < .001f && restingMotion.Y < .001f,
             "Hands continued walking after the player stopped.");
         scene.Update(90);
-        Check(scene.HumanState is { HandReach: > .5f }, "Successful interaction did not animate the hand.");
+        Check(scene.CaptureFrame().FirstPerson.HandMotion.W > .5f, "Successful interaction did not animate the hand.");
         scene.Update(400);
         keyboard.Press("KeyF", repeat: true);
         scene.Update(90);
-        Check(scene.HumanState is { HandReach: 0 }, "Held F repeated the action animation or the hand did not return to rest.");
+        Check(scene.CaptureFrame().FirstPerson.HandMotion.W == 0, "Held F repeated the action animation or the hand did not return to rest.");
         keyboard.Release("KeyF");
         scene.Player.Transform = new() { Position = scene.Player.Transform.Position, Rotation = -Vector2.UnitX };
         keyboard.Press("KeyF");
         scene.Update(16);
         scene.Update(90);
-        Check(scene.HumanState is { HandReach: > .5f } && scene.ConsumeMapRequest() == null && map.Doors.Single().Openness == 1,
+        Check(scene.CaptureFrame().FirstPerson.HandMotion.W > .5f && scene.ConsumeMapRequest() == null && map.Doors.Single().Openness == 1,
             "Pressing F without an interaction target did not animate the hand independently.");
         keyboard.Release("KeyF");
         scene.Update(400);
-        Check(scene.HumanState is { HandReach: 0 }, "Empty interaction gesture did not finish.");
+        Check(scene.CaptureFrame().FirstPerson.HandMotion.W == 0, "Empty interaction gesture did not finish.");
         scene.Dispose();
         Throws<ObjectDisposedException>(() => scene.Update(16));
 

@@ -19,6 +19,7 @@ public sealed partial class WebGpuRenderer
         {
             _textures = await GpuSceneTextures.LoadAsync(_device!, _js, _settings, map.Sky,
                 character?.AddTextures(map.Textures) ?? map.Textures, cancellationToken, reportProgress);
+            await PrepareFirstPersonAsync(character is CarAppearance, cancellationToken, reportProgress);
 
             if (reportProgress != null) await reportProgress("Preparing scene…");
             cancellationToken.ThrowIfCancellationRequested();
@@ -77,6 +78,7 @@ public sealed partial class WebGpuRenderer
 
     public void ReleaseScene()
     {
+        ReleaseFirstPerson();
         _sceneAnimationClock.Reset();
         _preparedTextures = null;
         _renderBindGroup?.Dispose();

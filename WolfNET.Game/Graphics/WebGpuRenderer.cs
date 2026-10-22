@@ -97,6 +97,7 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
 
         // 2. Update camera every frame.
         UpdateCamera(position, direction, plane, pitch, elevation);
+        UpdateFirstPerson(frame.FirstPerson);
         var selectionStart = _profiling ? Stopwatch.GetTimestamp() : 0;
         _browserSprites!.Select(_spriteSelection, map.Sprites, position, direction, plane, _settings.RenderDistance,
             map.RaceMinimap != null, _sceneAnimationClock.Elapsed.TotalSeconds, character, frame.Opponent);
@@ -175,6 +176,13 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
                 pass.SetPipeline(_spritePipeline);
                 pass.SetBindGroup(0, _spriteBindGroup!);
                 pass.Draw(6, (uint)_spriteSelection.Visible.Count);
+            }
+
+            if (frame.FirstPerson.Kind != FirstPersonViewKind.None && _firstPersonBindGroup != null)
+            {
+                pass.SetPipeline(_firstPersonPipeline!);
+                pass.SetBindGroup(0, _firstPersonBindGroup);
+                pass.Draw(6, 2);
             }
 
             // Race maps use their route-only SVG HUD instead of scenery dots.
@@ -265,6 +273,9 @@ public sealed partial class WebGpuRenderer : ISceneRenderer, IDisposable
         _renderPipeline?.Dispose();
         _spritePipeline?.Dispose();
         _minimapPipeline?.Dispose();
+        _firstPersonPipeline?.Dispose();
+        DestroyBuffer(_firstPersonBuffer);
+        _firstPersonUpload?.Dispose();
 
         _context?.Dispose();
         _cameraUpload?.Dispose();

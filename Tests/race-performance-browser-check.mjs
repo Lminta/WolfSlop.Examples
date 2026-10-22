@@ -95,6 +95,7 @@ try {
         };
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,dataOffset=0,size){
+            if(buffer.label==='WolfNET First Person')perf.firstPerson=new Float32Array(data.buffer??data,data.byteOffset??0,3)[2];
             if(buffer.label==='WolfNET Camera'){
                 const camera=new Float32Array(data.buffer??data,data.byteOffset??0,2);perf.camera=[camera[0],camera[1]];
             }
@@ -137,7 +138,7 @@ try {
             if (process.argv.includes('--chase')) {
                 await send('Input.dispatchKeyEvent', {type: 'keyDown', code: 'KeyV', key: 'v', windowsVirtualKeyCode: 86});
                 await send('Input.dispatchKeyEvent', {type: 'keyUp', code: 'KeyV', key: 'v', windowsVirtualKeyCode: 86});
-                await waitFor('!document.querySelector(".car-cockpit")');
+                await waitFor('window.__racePerf.firstPerson===0');
             }
             await send('Input.dispatchKeyEvent', {type: 'keyDown', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87});
         }

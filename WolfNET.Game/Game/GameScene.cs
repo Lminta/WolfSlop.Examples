@@ -9,7 +9,6 @@ namespace WolfNET.Game;
 
 public readonly record struct PlayerPose(Vector2 Position, Vector2 Direction);
 public readonly record struct DrivingViewState(bool ThirdPerson, bool Paused, float SteeringAngle, float Speed, float CameraYaw);
-public readonly record struct HumanViewState(bool ThirdPerson, bool InAir, bool Crouching, float HandSwing, float HandBob, float HandStrafe, float HandReach);
 
 /// <summary>Owns simulation objects for one map. Browser and GPU lifetimes belong to the host.</summary>
 public sealed class GameScene : IDisposable
@@ -38,9 +37,6 @@ public sealed class GameScene : IDisposable
     };
     public DrivingViewState? DrivingState => Player is CarObject car
         ? new(car.Camera.ThirdPerson, Paused, car.Controller.SteeringAngle, car.Controller.Speed, car.Look.Yaw) : null;
-    public HumanViewState? HumanState => Player is PlayerObject human
-        ? new(human.Camera.ThirdPerson, human.InAir, human.Crouching,
-            human.Animation.HandSwing, human.Animation.HandBob, human.Animation.HandStrafe, human.Animation.HandReach) : null;
     public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
 
     public GameScene(IMap map, ICharacterAppearance character, IKeyboardInput input, IMouseInput mouse,
@@ -184,13 +180,24 @@ public sealed class GameScene : IDisposable
             Sprite? sprite = camera.ThirdPerson && carView.Distance > .35f ? Character.CreateSprite(car, carView.Position) : null;
             return new(carView.Position, car.Look.Direction(car.Transform), car.Look.Plane(car.Transform, camera.Plane.Length()),
                 map, car.Look.Pitch, carView.Elevation, sprite)
-                { Opponent = Opponent == null ? null : Character.CreateSprite(Opponent, carView.Position) with { SwapRedBlue = true } };
+                {
+                    Opponent = Opponent == null ? null : Character.CreateSprite(Opponent, carView.Position) with { SwapRedBlue = true },
+                    FirstPerson = camera.ThirdPerson ? default : new(FirstPersonViewKind.Cockpit,
+                        WheelRotation: -Math.Clamp(car.Controller.SteeringAngle / (car.Settings.MaxSteeringDegrees * MathF.PI / 180), -1, 1)
+                            * car.Settings.SteeringWheelDegrees * MathF.PI / 180)
+                };
         }
         var view = camera.View(map);
         Sprite? character = camera.ThirdPerson && view.Distance > .35f
             ? Character.CreateSprite(Player, view.Position)
             : null;
-        return new(view.Position, camera.Transform.Rotation, camera.Plane, map, camera.Pitch, view.Elevation, character);
+        var human = (PlayerObject)Player;
+        var animation = human.Animation;
+        return new(view.Position, camera.Transform.Rotation, camera.Plane, map, camera.Pitch, view.Elevation, character)
+        {
+            FirstPerson = camera.ThirdPerson ? default : new(FirstPersonViewKind.Hands,
+                new(animation.HandSwing, animation.HandBob, animation.HandStrafe, animation.HandReach), human.InAir, human.Crouching)
+        };
     }
 
     public void Dispose()

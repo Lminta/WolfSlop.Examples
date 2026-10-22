@@ -15,7 +15,7 @@ public sealed partial class WebGpuRenderer
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
-        var (computeShaderSource, screenShaderSource, spriteShaderSource) = shaders;
+        var (computeShaderSource, screenShaderSource, spriteShaderSource, firstPersonShaderSource) = shaders;
 
         if (_initialized)
         {
@@ -263,6 +263,8 @@ public sealed partial class WebGpuRenderer
             {
                 throw new Exception($"Sprite pipeline validation failed: {spriteError.Message}");
             }
+
+            await CreateFirstPersonPipelineAsync(firstPersonShaderSource, format, cancellationToken);
 
             // 7. Create compute bind group.
 

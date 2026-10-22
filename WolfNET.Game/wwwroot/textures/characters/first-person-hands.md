@@ -6,12 +6,14 @@ reference; its blue jacket and skin palette carry into the hands. Original
 generated alpha is preserved.
 
 The 1536 x 1024 image contains the left hand in its left half and the right hand
-in its right half. `PlayerHands.razor` clips and transforms each half independently
-over the game canvas. Simulation-driven swing, bob and strafe settle when actual
+in its right half. `shaders/first-person.wgsl` samples and transforms each half independently
+in the engine's alpha-blended first-person pass after world sprites. Simulation-driven swing, bob and strafe settle when actual
 movement stops; jumping raises the hands and crouching lowers them. The overlay
 appears only for the human first-person camera.
 Pressing F also plays a 360 ms right-hand reach, even without an interaction
 target. The gesture uses the existing sprite and blends with movement poses.
+Animation state travels with `RenderFrame` every frame; no DOM image overlays or
+Blazor animation events are used. GPU textures belong to the scene and are released on map changes.
 
 ## Generation prompt
 

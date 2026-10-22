@@ -5,6 +5,10 @@ The existing `car-game-atlas.png` was a car/style reference for the cockpit;
 the generated cockpit was the materials reference for the wheel. References
 were not overwritten. Alpha is preserved in both project PNGs.
 
+The engine draws both images with `shaders/first-person.wgsl` after world sprites.
+Steering rotation and camera visibility travel with each `RenderFrame`; no DOM
+image overlay is used. GPU textures are loaded and released with the scene.
+
 ## cockpit.png — generation prompt
 
 Create one production game HUD bitmap asset for a raycasting racing game:

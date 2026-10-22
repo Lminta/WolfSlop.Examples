@@ -42,9 +42,10 @@ node Tests/car-driving-browser-check.mjs 9243 http://127.0.0.1:5194
 node Tests/editor-browser-check.mjs 9246 http://127.0.0.1:5080
 ```
 
-The game smoke check covers startup, movement, input capture, map switching,
-resource cleanup, and failed-load recovery. The driving check covers real input,
-cockpit/chase views, countdown control locking, start lights, configured lap limits and results,
+The game smoke check covers startup, movement, input capture, shader-rendered hands
+and their F gesture, map switching, texture cleanup, and failed-load recovery.
+The driving check covers real input, shader cockpit/steering and chase views,
+countdown control locking, start lights, configured lap limits and results,
 restart, pause/resume, and returning to walking. Its short-race fixture changes
 invisible gates and the configured lap limit to exercise finishing on the real starting straight. The editor browser
 check covers its UI; disk saves are covered by the native and API checks.

@@ -150,6 +150,8 @@ internal static class RaceSessionChecks
         var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
         using var scene = new GameScene(loaded.Map, loaded.Character, keys, new FakeMouse(), new RendererSettings());
         var startingPose = scene.PlayerPose;
+        Check(scene.CaptureFrame().FirstPerson is { Kind: FirstPersonViewKind.Cockpit, WheelRotation: 0 },
+            "Car frame did not include its first-person cockpit state.");
         scene.SetPaused(true); scene.Update(1000);
         Check(scene.RaceState?.Phase == RacePhase.AwaitingStart, "Race countdown began before mouse capture.");
         scene.SetPaused(false);
@@ -164,10 +166,12 @@ internal static class RaceSessionChecks
         scene.Update(0);
         Check(scene.Player.Camera.ThirdPerson && scene.PlayerPose == startingPose && scene.RaceState == countdown,
             "Countdown camera switch did not enter chase view while preserving the car and race state.");
+        Check(scene.CaptureFrame().FirstPerson.Kind == FirstPersonViewKind.None, "Chase camera retained the shader cockpit.");
         keys.ViewToggleRequested = true;
         scene.Update(0);
         Check(!scene.Player.Camera.ThirdPerson && scene.PlayerPose == startingPose && scene.RaceState == countdown,
             "Countdown camera switch did not return to cockpit view while preserving the car and race state.");
+        Check(scene.CaptureFrame().FirstPerson.Kind == FirstPersonViewKind.Cockpit, "Returning to first person did not restore the shader cockpit.");
         for (var i = 0; i < 18; i++) scene.Update(250);
         Check(scene.PlayerPose == startingPose && scene.RaceState?.CountdownNumber == 1, "Countdown allowed the car to move.");
         scene.Update(250);

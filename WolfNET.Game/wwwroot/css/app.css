@@ -315,56 +315,6 @@ canvas {
     color: white;
 }
 
-.player-hands,
-.car-cockpit {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: 10;
-}
-
-.player-hands {
-    user-select: none;
-}
-
-.player-hand {
-    position: absolute;
-    left: 0;
-    bottom: -28%;
-    width: 100%;
-    height: auto;
-    transition: transform 34ms linear;
-    will-change: transform;
-}
-
-.player-hand-left {
-    clip-path: inset(0 50% 0 0);
-    transform-origin: 25% 100%;
-}
-
-.player-hand-right {
-    clip-path: inset(0 0 0 50%);
-    transform-origin: 75% 100%;
-}
-
-.car-cockpit-interior {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: fill;
-}
-
-.car-cockpit-wheel {
-    position: absolute;
-    left: 42%;
-    top: 86%;
-    width: 28%;
-    height: auto;
-    transform: translate(-50%, -50%) rotate(var(--wheel-rotation));
-    transform-origin: center;
-}
-
 .car-paused {
     position: absolute;
     top: 50%;

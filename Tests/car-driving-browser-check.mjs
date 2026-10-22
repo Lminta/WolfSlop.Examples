@@ -113,6 +113,14 @@ try {
             }
             return response;
         };
+        window.__viewTextures = new Set();
+        const createViewTexture = GPUDevice.prototype.createTexture, destroyViewTexture = GPUTexture.prototype.destroy;
+        GPUDevice.prototype.createTexture = function(descriptor) {
+            const texture = createViewTexture.call(this, descriptor);
+            if (descriptor.label?.startsWith('WolfNET First Person Texture:')) window.__viewTextures.add(texture);
+            return texture;
+        };
+        GPUTexture.prototype.destroy = function() { window.__viewTextures.delete(this); return destroyViewTexture.call(this); };
         const bitmap = window.createImageBitmap;
         window.createImageBitmap = function(...args) {
             const result = bitmap.apply(this, args);
@@ -132,6 +140,7 @@ try {
             const unit = data.BYTES_PER_ELEMENT ?? 1, raw = data.buffer ?? data, start = (data.byteOffset ?? 0) + (args[0] ?? 0) * unit;
             const words = (args[1] ?? (data.byteLength / unit - (args[0] ?? 0))) * unit / 4;
             if (buffer.label === 'WolfNET Camera') window.__camera = Array.from(new Float32Array(raw, start, 12));
+            if (buffer.label === 'WolfNET First Person') window.__firstPerson = Array.from(new Float32Array(raw, start, 12));
             if (buffer.label === 'WolfNET Map Info' && offset === 0) window.__mapInfo = Array.from(new Uint32Array(raw, start, 4));
             if (buffer.label === 'WolfNET Sprites') {
                 const ints = new Uint32Array(raw, start, words), floats = new Float32Array(raw, start, words);
@@ -150,8 +159,9 @@ try {
     `});
     await send('Page.navigate', {url: base + '/?map=pine-loop'});
     await send('Page.bringToFront');
-    await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && document.querySelector('.car-cockpit') && document.querySelector('.car-paused')`);
-    await waitFor(`Array.from(document.querySelectorAll('.car-cockpit img')).every(image => image.complete && image.naturalWidth > 0)`);
+    await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__firstPerson?.[2] === 2 && document.querySelector('.car-paused')`);
+    assert.equal(await evaluate(`document.querySelectorAll('.car-cockpit, .player-hands').length`), 0, 'First-person images still use DOM overlays');
+    assert.equal(await evaluate('window.__viewTextures.size'), 2, 'Car did not upload its two first-person textures');
     fs.mkdirSync('artifacts/car-driving', {recursive: true});
     assert.equal(await evaluate('window.__avatar'), null, 'Race first person uploaded a world avatar');
     await waitFor(`document.querySelector('.race-timing')`);
@@ -159,35 +169,24 @@ try {
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
     assert(await evaluate(`window.__lightLayers.includes(180) && !window.__lightLayers.includes(181)`), 'Starting signal did not render red');
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('W accelerate')`));
-    assert(![...requests].some(url => /player-character|main-character-atlas/.test(url)), 'Race map loaded the human character');
+    assert(![...requests].some(url => /player-character|main-character-atlas|first-person-hands/.test(url)), 'Race map loaded human textures');
     for (const asset of ['/textures/race/cockpit.png', '/textures/race/steering-wheel.png'])
         assert(requests.has(asset), 'Cockpit asset was never requested: ' + asset);
 
-    const alpha = await evaluate(`Array.from(document.querySelectorAll('.car-cockpit img')).map(image => {
+    const alpha = await evaluate(`Promise.all(['textures/race/cockpit.png', 'textures/race/steering-wheel.png'].map(async src => {
+        const image = new Image(); image.src = src; await image.decode();
         const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
         const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
         let transparent = 0, opaque = 0, count = 0;
         for (let i = 3; i < pixels.length; i += 32) { transparent += pixels[i] <= 2; opaque += pixels[i] >= 250; count++; }
         return {src: image.getAttribute('src'), transparent: transparent / count, opaque: opaque / count};
-    })`);
+    }))`);
     assert(alpha.every(image => image.transparent > .1 && image.opaque > .05), 'Cockpit or wheel lacks a transparent cutout');
     for (const [width, height] of [[1280, 850], [1920, 720], [390, 850]]) {
         await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
         await delay(100);
-        const layout = await evaluate(`(() => {
-            const canvas = document.querySelector('canvas').getBoundingClientRect();
-            const cockpit = document.querySelector('.car-cockpit'), bounds = cockpit.getBoundingClientRect();
-            const wheel = document.querySelector('.car-cockpit-wheel').getBoundingClientRect();
-            return {canvas: [canvas.x, canvas.y, canvas.width, canvas.height], cockpit: [bounds.x, bounds.y, bounds.width, bounds.height],
-                pointer: getComputedStyle(cockpit).pointerEvents, overflow: getComputedStyle(cockpit).overflow,
-                wheelCenter: [(wheel.x + wheel.width / 2 - canvas.x) / canvas.width, (wheel.y + wheel.height / 2 - canvas.y) / canvas.height]};
-        })()`);
-        assert.deepEqual(layout.cockpit, layout.canvas, 'Cockpit left the canvas bounds at ' + width + 'x' + height);
-        assert.equal(layout.pointer, 'none');
-        assert.equal(layout.overflow, 'hidden');
-        assert(Math.abs(layout.wheelCenter[0] - .42) < .005 && Math.abs(layout.wheelCenter[1] - .86) < .005,
-            'Wheel alignment changed at ' + width + 'x' + height);
+        assert.equal(await evaluate(`window.__firstPerson[2]`), 2, 'Resize hid the shader cockpit');
         const timing = await evaluate(`(() => {
             const map=document.querySelector('.race-minimap-viewport').getBoundingClientRect();
             const hud=document.querySelector('.race-timing').getBoundingClientRect();
@@ -212,11 +211,11 @@ try {
     await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);
     await key('KeyW'); await key('KeyA'); await tap('KeyV');
     await delay(300);
-    await waitFor(`!document.querySelector('.car-cockpit') && !!window.__avatar`);
+    await waitFor(`window.__firstPerson?.[2] === 0 && !!window.__avatar`);
     const countdownCar = await evaluate('window.__avatar');
     assert(distance([countdownCar.x, countdownCar.y], parked) < .001, 'Countdown camera switch allowed driving');
     await tap('KeyV');
-    await waitFor(`!!document.querySelector('.car-cockpit')`);
+    await waitFor(`window.__firstPerson?.[2] === 2`);
     assert.deepEqual(await camera(), parked, 'Countdown camera switch changed the car pose');
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
     await key('KeyW', false); await key('KeyA', false);
@@ -243,12 +242,12 @@ try {
     console.log('PASS start: click-to-start countdown, camera switching with driving locked, frozen timers, pause/resume, animated GO.');
 
     await key('KeyA');
-    await waitFor(`parseFloat(document.querySelector('.car-cockpit-wheel').style.getPropertyValue('--wheel-rotation')) < -100`);
+    await waitFor(`window.__firstPerson[3] < -100 * Math.PI / 180`);
     assert(distance(await camera(), parked) < .001, 'Steering at rest moved the car');
     assert(Math.abs((await camera())[2]) < .001, 'Steering at rest rotated the car');
     await snapshot('cockpit-steering');
     await key('KeyA', false);
-    await waitFor(`Math.abs(parseFloat(document.querySelector('.car-cockpit-wheel').style.getPropertyValue('--wheel-rotation'))) < .01`);
+    await waitFor(`Math.abs(window.__firstPerson[3]) < .01 * Math.PI / 180`);
     await key('Space'); await key('AltLeft'); await delay(250);
     assert.equal((await camera())[9], 0, 'Car Space or Alt changed camera height');
     await key('Space', false); await key('AltLeft', false);
@@ -287,7 +286,7 @@ try {
     console.log('PASS driving: gradual acceleration, continued coasting, braking without a jump, and accelerated reverse.');
 
     await tap('KeyV');
-    await waitFor(`!document.querySelector('.car-cockpit') && window.__avatar?.frame === 4`);
+    await waitFor(`window.__firstPerson?.[2] === 0 && window.__avatar?.frame === 4`);
     const avatar = await evaluate('window.__avatar');
     assert(Math.abs(avatar.width - .6) < .001 && Math.abs(avatar.height - .45) < .001, 'Chase view used the wrong car sprite dimensions');
     assert.equal(avatar.kind & 24, 24, 'Car character is still a camera-facing billboard');
@@ -328,7 +327,7 @@ try {
         'Race timer advanced while driving was paused');
     assert.equal(await evaluate(`document.querySelector('.race-gap').textContent`), pausedGap,
         'Opponent gap advanced while driving was paused');
-    assert.equal(await evaluate('document.querySelectorAll(".car-cockpit").length'), 0, 'Paused chase view displayed the cockpit');
+    assert.equal(await evaluate('window.__firstPerson[2]'), 0, 'Paused chase view displayed the cockpit');
     await key('KeyW', false); await key('KeyA', false); await key('Space', false);
     await snapshot('third-person-paused');
     await capture();
@@ -339,7 +338,7 @@ try {
     assert(Math.abs(afterResume[2] - paused[2]) < .001 && Math.abs(afterResume[8] - paused[8]) < .001,
         'Inactive mouse or steering input leaked into the resumed race');
     await tap('KeyV');
-    await waitFor(`!!document.querySelector('.car-cockpit') && window.__avatar === null`);
+    await waitFor(`window.__firstPerson?.[2] === 2 && window.__avatar === null`);
     assert.deepEqual(missing, [], 'Race map requested a missing asset');
     console.log('PASS camera and pause: eight-view chase car, V switching, Esc pose freeze, inactive-input rejection, and preserved momentum on recapture.');
 
@@ -351,6 +350,9 @@ try {
     assert.equal(await evaluate('document.querySelectorAll(".car-cockpit, .car-paused, .race-minimap").length'), 0,
         'Race overlays survived leaving the race map');
     assert([...requests].some(url => /main-character-atlas/.test(url)), 'Exploration map did not restore the human character');
+    await waitFor(`window.__firstPerson?.[2] === 1`);
+    assert.equal(await evaluate('window.__viewTextures.size'), 1, 'Car first-person textures survived switching to the human scene');
+    assert(requests.has('/textures/characters/first-person-hands.png'), 'Human hands were not uploaded on returning to exploration');
     await capture();
     await key('Space'); await waitFor('window.__camera[9] > .05'); await key('Space', false);
     await waitFor('window.__camera[9] === 0');
