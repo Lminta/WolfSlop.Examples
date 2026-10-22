@@ -2,7 +2,7 @@ namespace WolfNET.Game.Player;
 
 public sealed record CarSurfaceSettings
 {
-    public float MaxForwardSpeed { get; init; } = 19;
+    public float MaxForwardSpeed { get; init; } = 25;
     public float MaxReverseSpeed { get; init; } = 4;
     public float Acceleration { get; init; } = 8;
     public float ReverseAcceleration { get; init; } = 4;
@@ -25,9 +25,12 @@ public sealed record CarSurfaceSettings
 
 public sealed record CarSettings
 {
-    public float Length { get; init; } = .9f;
-    public float Width { get; init; } = .6f;
-    public float Wheelbase { get; init; } = .65f;
+    public const float MetersPerBlock = 3;
+    // Sports coupe: 4.5 m long, 1.9 m wide, 1.2 m high, with a 2.7 m wheelbase.
+    public float Length { get; init; } = 4.5f / MetersPerBlock;
+    public float Width { get; init; } = 1.9f / MetersPerBlock;
+    public float Height { get; init; } = 1.2f / MetersPerBlock;
+    public float Wheelbase { get; init; } = 2.7f / MetersPerBlock;
     public float StopSpeed { get; init; } = .05f;
     public float MaxSteeringDegrees { get; init; } = 10;
     public float SteeringRateDegrees { get; init; } = 40;
@@ -52,7 +55,7 @@ public sealed record CarSettings
 
     public void Validate()
     {
-        foreach (var value in new[] { Length, Width, Wheelbase, StopSpeed, MaxSteeringDegrees,
+        foreach (var value in new[] { Length, Width, Height, Wheelbase, StopSpeed, MaxSteeringDegrees,
             SteeringRateDegrees, SteeringReturnDegrees, AngularResponse, CameraFollowDistance,
             MouseSensitivity, CameraRecenterRate, CameraMaxPitchDegrees, SteeringWheelDegrees })
             if (!float.IsFinite(value) || value <= 0)

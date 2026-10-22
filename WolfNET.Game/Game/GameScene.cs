@@ -30,20 +30,27 @@ public sealed class GameScene : IDisposable
     private RaceStatus? _cachedRaceState;
     private RaceStatus[] _cachedStatuses = [];
     private double _cachedClock = -1;
-    public CarObject? Opponent => _rivals.FirstOrDefault()?.Car;
-    public CarObject? SecondOpponent => _rivals.Skip(1).FirstOrDefault()?.Car;
+    public CarObject? Opponent => _rivals.Count > 0 ? _rivals[0].Car : null;
+    public CarObject? SecondOpponent => _rivals.Count > 1 ? _rivals[1].Car : null;
     public IMap Map { get; }
     public IControlledActor Player { get; }
     public ICharacterAppearance Character { get; }
     public bool Paused { get; private set; }
+    // Phase checks need only the player's session, not projected opponent standings.
+    public RaceStatus? PlayerRaceState => _race?.Status;
     public RaceStatus? RaceState
     {
         get
         {
             if (_race == null) return null;
-            var statuses = new[] { _race.Status }.Concat(_rivals.Select(r => r.Race.Status)).ToArray();
-            if (_cachedClock == _raceClock && statuses.SequenceEqual(_cachedStatuses)) return _cachedRaceState;
-            _cachedStatuses = statuses;
+            var unchanged = _cachedStatuses.Length == _rivals.Count + 1 &&
+                _cachedClock == _raceClock && _cachedStatuses[0] == _race.Status;
+            for (var i = 0; unchanged && i < _rivals.Count; i++)
+                unchanged = _cachedStatuses[i + 1] == _rivals[i].Race.Status;
+            if (unchanged) return _cachedRaceState;
+            if (_cachedStatuses.Length != _rivals.Count + 1) _cachedStatuses = new RaceStatus[_rivals.Count + 1];
+            _cachedStatuses[0] = _race.Status;
+            for (var i = 0; i < _rivals.Count; i++) _cachedStatuses[i + 1] = _rivals[i].Race.Status;
             _cachedClock = _raceClock;
             var racers = new[] { (Name: "You", Player: true, Race: _race, Car: (CarObject)Player) }
                 .Concat(_rivals.Select(r => (Name: r.Name, Player: false, Race: r.Race, Car: r.Car)))

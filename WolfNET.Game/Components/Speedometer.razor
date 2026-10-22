@@ -1,0 +1,41 @@
+@using WolfNET.Game
+@using WolfNET.Game.Player
+@implements IDisposable
+@inject Wolf Wolf
+
+<section class="speedometer" aria-label="Speedometer">
+    <span class="speedometer-value">@_kilometersPerHour</span><span>km/h</span>
+</section>
+
+@code {
+    private int _kilometersPerHour;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        UpdateSpeed(Wolf.DrivingState?.Speed ?? 0);
+        Wolf.DrivingStateChanged += OnDrivingStateChanged;
+    }
+
+    private void UpdateSpeed(float speed)
+    {
+        _kilometersPerHour = (int)MathF.Round(speed * CarSettings.MetersPerBlock * 3.6f);
+    }
+
+    private void OnDrivingStateChanged(DrivingViewState state)
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            UpdateSpeed(state.Speed);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Wolf.DrivingStateChanged -= OnDrivingStateChanged;
+    }
+}

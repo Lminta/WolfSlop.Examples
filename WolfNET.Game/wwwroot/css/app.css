@@ -141,6 +141,9 @@ canvas {
     width: max-content;
     margin: 8px 0 0;
     padding: 0;
+}
+.race-timing,
+.speedometer {
     color: #fff;
     font: 44px/1.15 ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
@@ -224,6 +227,15 @@ canvas {
 .race-minimap-road-edge { stroke: #071018; stroke-width: 11px; }
 .race-minimap-road { stroke: #edf4f8; stroke-width: 8px; }
 .race-minimap-shortcut { stroke: #e6bb68; stroke-width: 5px; stroke-dasharray: 6px 5px; }
+.race-minimap-opponents {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.race-minimap-opponents circle { stroke: #fff; stroke-width: .5; }
+.race-minimap-blue { fill: #275cff; }
+.race-minimap-green { fill: #32ed39; }
 .race-minimap-player {
     position: absolute;
     left: 50%;
@@ -326,3 +338,16 @@ canvas {
     pointer-events: none;
     z-index: 25;
 }
+
+.speedometer {
+    position: absolute;
+    left: 12px;
+    bottom: clamp(28px, 4cqh, 40px);
+    display: flex;
+    align-items: baseline;
+    gap: .5ch;
+    pointer-events: none;
+    user-select: none;
+    z-index: 20;
+}
+.speedometer-value { font-size: 5em; font-weight: 700; font-style: italic; }

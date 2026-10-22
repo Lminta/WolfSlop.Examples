@@ -1,4 +1,5 @@
 @using System.Globalization
+@using System.Numerics
 @using WolfNET.Game
 @using WolfNET.Graphics
 @implements IDisposable
@@ -20,11 +21,25 @@
                 </g>
             </g>
         </svg>
+        <svg class="race-minimap-opponents" viewBox="0 0 100 100" role="img" aria-label="Opponent positions">
+            @if (_bluePosition is { } blue)
+            {
+                <circle class="race-minimap-blue" cx="@Number(blue.X)" cy="@Number(blue.Y)" r="1.8">
+                    <title>Blue car</title>
+                </circle>
+            }
+            @if (_greenPosition is { } green)
+            {
+                <circle class="race-minimap-green" cx="@Number(green.X)" cy="@Number(green.Y)" r="1.8">
+                    <title>Green car</title>
+                </circle>
+            }
+        </svg>
         <svg class="race-minimap-player" viewBox="0 0 16 20" aria-hidden="true">
             <path d="M8 1L15 18L8 14L1 18Z" fill="#45bfff" stroke="#f2f8ff" stroke-width="1.5" stroke-linejoin="round" />
         </svg>
     </div>
-    @if (Wolf.RaceState != null)
+    @if (_hasRace)
     {
         <RaceTiming />
     }
@@ -38,7 +53,10 @@
     private string[] _shortcuts = [];
     private string _startTransform = "";
     private string _transform = "";
+    private Vector2? _bluePosition;
+    private Vector2? _greenPosition;
     private bool _disposed;
+    private bool _hasRace;
 
     private static string Number(float value) => value.ToString("0.#####", CultureInfo.InvariantCulture);
     private static string Points(float[][] points) => string.Join(" ", points.Select(point => $"{Number(point[0])},{Number(point[1])}"));
@@ -47,6 +65,7 @@
 
     protected override void OnParametersSet()
     {
+        _hasRace = Wolf.RaceState != null;
         if (!ReferenceEquals(_cachedDefinition, Definition))
         {
             _cachedDefinition = Definition;
@@ -60,6 +79,8 @@
     private void UpdateTransform(PlayerPose pose)
     {
         var matrix = RaceMinimapProjection.Create(pose.Position, pose.Direction);
+        _bluePosition = Wolf.OpponentPose is { } blue ? Vector2.Transform(blue.Position, matrix) : null;
+        _greenPosition = Wolf.SecondOpponentPose is { } green ? Vector2.Transform(green.Position, matrix) : null;
         _transform = $"matrix({Number(matrix.M11)} {Number(matrix.M12)} {Number(matrix.M21)} {Number(matrix.M22)} {Number(matrix.M31)} {Number(matrix.M32)})";
     }
 

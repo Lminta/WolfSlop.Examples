@@ -39,7 +39,8 @@ internal static class CarPhysicsChecks
             Advance(rig.Controller, .25f);
             return rig.Controller.Speed - initialSpeed;
         }
-        Check(SpeedGain(5) > 1.1f && SpeedGain(17) < .2f && SpeedGain(17) < SpeedGain(5) * .15f,
+        var nearLimit = new CarSettings().Asphalt.MaxForwardSpeed * .9f;
+        Check(SpeedGain(5) > 1.1f && SpeedGain(nearLimit) < .2f && SpeedGain(nearLimit) < SpeedGain(5) * .15f,
             "High-speed acceleration did not taper strongly while preserving low-speed pull.");
 
         var mud = Create(surface: _ => "mud");
@@ -89,7 +90,7 @@ internal static class CarPhysicsChecks
         Check(MathF.Abs(footprintPatch.Controller.Speed * 120 - 5.2f) < .001f,
             "Footprint sampling missed a mud patch between the car's corner samples.");
         var emptyCorner = Create(noPull, point => (int)point.X == 101 && (int)point.Y == 101 ? "mud" : "asphalt",
-            position: new(100.5f, 100.5f));
+            position: new(100.4f, 100.4f));
         emptyCorner.Actor.Transform = new() { Position = emptyCorner.Actor.Transform.Position, Rotation = Vector2.Normalize(Vector2.One) };
         emptyCorner.Keys.KeyState = new() { Forward = true };
         emptyCorner.Controller.Update(1000f / 120);
@@ -154,7 +155,7 @@ internal static class CarPhysicsChecks
         transition.Controller.Update(1000f / 120);
         Check(transition.Controller.Speed < beforeMud && transition.Controller.Speed > 8,
             "Entering mud must slow the car progressively instead of instantly clamping it.");
-        Advance(transition.Controller, 2.5f);
+        Advance(transition.Controller, 3);
         Check(transition.Controller.Speed < 8.1f,
             "The off-road overspeed penalty did not bring speed down toward the lower limit.");
         float PenaltySpeed(float coefficient)
@@ -277,8 +278,10 @@ internal static class CarPhysicsChecks
             "Reverse steering must rotate the car in the opposite direction.");
         Advance(reverseTurn.Controller, 4);
         var reverseRadius = reverseTurn.Controller.Speed / MathF.Abs(reverseTurn.Controller.AngularVelocity);
-        Check(reverseRadius > 3.5f && reverseRadius < 5,
-            $"Full-lock low-speed steering still turns nearly in place: radius {reverseRadius}");
+        var dimensions = new CarSettings();
+        var minimumRadius = dimensions.Wheelbase / MathF.Tan(dimensions.MaxSteeringDegrees * MathF.PI / 180);
+        Check(reverseRadius > minimumRadius * .95f && reverseRadius < minimumRadius * 1.1f,
+            $"Full-lock low-speed steering did not match the wheelbase: radius {reverseRadius}");
 
         var brakingTurn = Create();
         brakingTurn.Keys.KeyState = new() { Forward = true, StrafeLeft = true };
@@ -345,6 +348,13 @@ internal static class CarPhysicsChecks
             "Pausing/resetting time discarded car momentum or steering state.");
 
         var wallNavigation = new TestNavigation((x, _) => x < 10);
+        var sportsCar = new OrientedBoxCollider(wallNavigation, dimensions.Length, dimensions.Width);
+        Check(sportsCar.CanOccupy(new(9.249f, 5.5f), Vector2.UnitX) &&
+              !sportsCar.CanOccupy(new(9.251f, 5.5f), Vector2.UnitX),
+            "Sports-car collision did not use the 4.5-meter length at 3 meters per block.");
+        Check(sportsCar.CanOccupy(new(9.682f, 5.5f), Vector2.UnitY) &&
+              !sportsCar.CanOccupy(new(9.685f, 5.5f), Vector2.UnitY),
+            "Sports-car collision did not use the 1.9-meter width at 3 meters per block.");
         var collider = new OrientedBoxCollider(wallNavigation, .9f, .6f);
         Check(collider.CanOccupy(new(9.54f, 5.5f), Vector2.UnitX) &&
               !collider.CanOccupy(new(9.56f, 5.5f), Vector2.UnitX),
@@ -377,7 +387,7 @@ internal static class CarPhysicsChecks
         var wallCar = Create(navigation: wallNavigation, position: new(5.5f, 5.5f));
         wallCar.Keys.KeyState = new() { Forward = true };
         Advance(wallCar.Controller, 10);
-        Check(MathF.Abs(wallCar.Actor.Transform.Position.X - 9.55f) < .0001f && wallCar.Controller.Speed < .001f,
+        Check(MathF.Abs(wallCar.Actor.Transform.Position.X - (10 - dimensions.Length * .5f)) < .0001f && wallCar.Controller.Speed < .001f,
             "Repeated throttle against a barrier let the car overlap scenery or accumulate hidden speed.");
         wallCar.Keys.KeyState = new() { Forward = true, StrafeLeft = true };
         Advance(wallCar.Controller, 2);

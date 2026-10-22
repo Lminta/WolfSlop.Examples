@@ -63,6 +63,10 @@ adapter and logs the adapter the browser actually supplies.
 Frame deadlines use the browser's animation timestamps to stay aligned with
 display refreshes, independently of main-thread callback delays.
 
+Race progress uses an immutable spatial index of route segments, including when
+cars take the shortcut or leave the racing line. Phase checks read the player
+session directly; opponent standings are assembled when the race HUD updates.
+
 To measure Pine Loop at the configured resolution and target FPS, start the
 development server and Edge with hardware WebGPU and a remote-debugging port:
 

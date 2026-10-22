@@ -93,13 +93,26 @@ internal static class OpponentChecks
         Check(opponent.Settings.Length == ((CarObject)scene.Player).Settings.Length &&
             opponent.Settings.Width == ((CarObject)scene.Player).Settings.Width, "Opponent has a different collision footprint.");
         var opponentSprite = scene.CaptureFrame().Opponent!.Value;
+        var frontObserver = start.Position + start.Rotation * 5;
+        var frontView = loaded.Character.CreateSprite(opponent, frontObserver).ViewScale(frontObserver);
+        Check(MathF.Abs(frontView.X - opponent.Settings.Width) < .0001f &&
+            MathF.Abs(frontView.Y - opponent.Settings.Height) < .0001f,
+            "Car sprite did not match the sports-car width and height.");
+        Check(MathF.Abs(opponentSprite.Elevation - opponent.Settings.Height * .5f + .505f) < .0001f,
+            "Resizing the car sprite lifted its tires off the ground.");
         Check(opponentSprite.SwapRedBlue && (opponentSprite.ViewKind(Vector2.Zero) & 32) != 0,
             "Opponent did not share the car artwork with red/blue channel swapping.");
         var greenSprite = scene.CaptureFrame().SecondOpponent!.Value;
         Check(greenSprite.SwapRedGreen && (greenSprite.ViewKind(Vector2.Zero) & 64) != 0,
             "Green opponent did not carry its palette through the sprite flags.");
-        Check(Vector2.Distance(start.Position, greenStart.Position) > opponent.Settings.Length &&
-            Vector2.Distance(parked.Position, greenStart.Position) > opponent.Settings.Length, "Grid cars overlap.");
+        bool GridClear(Vector2 first, Vector2 second)
+        {
+            var delta = first - second;
+            var side = new Vector2(-start.Rotation.Y, start.Rotation.X);
+            return MathF.Abs(Vector2.Dot(delta, start.Rotation)) > opponent.Settings.Length ||
+                MathF.Abs(Vector2.Dot(delta, side)) > opponent.Settings.Width;
+        }
+        Check(GridClear(start.Position, greenStart.Position) && GridClear(parked.Position, greenStart.Position), "Grid cars overlap.");
         for (var i = 0; i < 299; i++) scene.Update(1000f / 60);
         Check(opponent.Transform.Position == start.Position && green.Transform.Position == greenStart.Position, "Opponent moved before GO.");
         scene.SetPaused(true);

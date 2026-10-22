@@ -121,6 +121,42 @@ internal static class RaceSessionChecks
         var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         var authored = JsonSerializer.Deserialize<MapDefinition>(File.ReadAllText(Path.Combine(webRoot, "maps/pine-loop.json")), json)!;
         Check(authored.Race != null, "Generated race map has no lap/checkpoint metadata.");
+        // Spatial projection must preserve scan ordering at shortcuts and lap wraps.
+        var routePoints = authored.RaceMinimap!.Route.Select(p => new Vector2(p[0], p[1])).ToArray();
+        var distances = new float[routePoints.Length];
+        for (var i = 1; i < distances.Length; i++) distances[i] = distances[i - 1] + Vector2.Distance(routePoints[i - 1], routePoints[i]);
+        var route = new RaceRoute(authored.RaceMinimap);
+        float Scan(Vector2 position, float? near)
+        {
+            var best = float.PositiveInfinity;
+            var result = 0f;
+            void Search(bool local)
+            {
+                var center = near is { } n ? Array.BinarySearch(distances, (n % route.Length + route.Length) % route.Length) : 0;
+                if (center < 0) center = ~center;
+                var total = routePoints.Length - 1;
+                var count = local ? Math.Min(81, total) : total;
+                for (var step = 0; step < count; step++)
+                {
+                    var i = local ? (center - count / 2 + step + total - 1) % total + 1 : step + 1;
+                    var edge = routePoints[i] - routePoints[i - 1];
+                    if (edge.LengthSquared() == 0) continue;
+                    var amount = Math.Clamp(Vector2.Dot(position - routePoints[i - 1], edge) / edge.LengthSquared(), 0, 1);
+                    var squared = Vector2.DistanceSquared(routePoints[i - 1] + edge * amount, position);
+                    if (squared >= best) continue;
+                    best = squared;
+                    result = distances[i - 1] + edge.Length() * amount;
+                }
+            }
+            Search(near != null);
+            if (best > 36) Search(false);
+            return near is { } previous ? result + MathF.Round((previous - result) / route.Length) * route.Length : result;
+        }
+        foreach (var position in new[] { new Vector2(25, 445), new(101, 321), new(111, 321), new(121, 321),
+                     new(141, 321), new(-20, -20), route.Point(route.Length - 1), route.Point(1) })
+        foreach (var near in new float?[] { null, 0, route.Length - 2, route.Length + 3 })
+            Check(MathF.Abs(route.Project(position, near) - Scan(position, near)) < .001f,
+                $"Indexed route projection changed progress at {position}, previous {near}.");
         using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(webRoot, "../../Tests/Fixtures/pine-loop-lap.json")));
         var lap = fixture.RootElement.GetProperty("lap").EnumerateArray().Select(p => new Vector2(p[0].GetSingle(), p[1].GetSingle())).ToArray()[..^1];
         var finishGate = authored.Race!.StartFinish;

@@ -45,7 +45,7 @@ public sealed class CarAppearance : ICharacterAppearance
         var angle = frameIndex * MathF.Tau / 8;
         var width = _settings.Width * MathF.Abs(MathF.Cos(angle)) + _settings.Length * MathF.Abs(MathF.Sin(angle));
         var frame = _definition.Atlas!.Frames[frameIndex];
-        const float height = .45f;
+        var height = _settings.Height;
         return new Sprite(body.Position, FirstLayer, 0)
         {
             Scale = new(width * frame.Height / frame.Width, height), Elevation = (height - 1) * .5f - .005f,
