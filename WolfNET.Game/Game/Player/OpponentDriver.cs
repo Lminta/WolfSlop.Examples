@@ -7,9 +7,9 @@ internal readonly record struct OpponentPace(float Corner, float Recovery, float
 
 /// <summary>Steers and brakes a normal car along the circuit; never moves its transform directly.</summary>
 public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettings car, RaceSettings settings,
-    Vector2 start, bool skilled = false, float gridSide = 1.5f) : IKeyboardInput, ISteeringInput, IMouseInput
+    Vector2 start, bool skilled = false, float gridSide = 1.5f, OpponentDriver? racingLineSource = null) : IKeyboardInput, ISteeringInput, IMouseInput
 {
-    private readonly OpponentRacingLine _line = new(route, map, car);
+    private readonly OpponentRacingLine _line = new(route, map, car, racingLineSource?._line);
     private float _distance = route.Project(start);
     private readonly float _origin = route.Project(start);
     private float _drivingTime;

@@ -9,20 +9,32 @@ internal sealed class OpponentRacingLine
     private readonly Vector2[] _points;
     private readonly float[] _curvature;
     private readonly NavigationMap _map;
+    private readonly RaceRoute _route;
     private readonly OrientedBoxCollider _box;
     private readonly CarSettings _car;
     private readonly float _spacing;
     private readonly float _length;
 
-    public OpponentRacingLine(RaceRoute route, NavigationMap map, CarSettings car)
+    public OpponentRacingLine(RaceRoute route, NavigationMap map, CarSettings car, OpponentRacingLine? source = null)
     {
-        _map = map; _car = car;
+        _map = map; _car = car; _route = route;
         _box = new(map, car.Length + .12f, car.Width + .12f);
         _length = route.Length;
+        // Geometry depends on the shared scene and footprint, not rival speed or
+        // acceleration. Keep each rival's own settings for runtime speed planning.
+        if (source != null && ReferenceEquals(source._route, route) && ReferenceEquals(source._map, map) &&
+            source._car.Length == car.Length && source._car.Width == car.Width)
+        {
+            _points = source._points;
+            _curvature = source._curvature;
+            _spacing = source._spacing;
+            return;
+        }
         var count = (int)MathF.Ceiling(route.Length);
         _spacing = route.Length / count;
         _points = new Vector2[count];
         _curvature = new float[count];
+        Span<bool> open = stackalloc bool[31];
         for (var i = 0; i < count; i++)
         {
             var distance = i * _spacing;
@@ -31,21 +43,26 @@ internal sealed class OpponentRacingLine
             var side = new Vector2(-direction.Y, direction.X);
             var best = float.PositiveInfinity;
             var chosen = point;
-            var open = new bool[31];
             for (var lane = 0; lane < open.Length; lane++)
                 open[lane] = OnRoad(point + side * ((lane - 15) * .15f), direction);
-            for (var lane = 0; lane < open.Length; lane++)
+            // Score a corridor in one pass instead of re-walking its neighbors.
+            for (var begin = 0; begin < open.Length;)
             {
-                if (!open[lane]) continue;
-                var offset = (lane - 15) * .15f;
-                var left = lane; var right = lane;
-                while (left > 0 && open[left - 1] && lane - left < 13) left--;
-                while (right < open.Length - 1 && open[right + 1] && right - lane < 13) right++;
-                var score = MathF.Abs((lane - left) - (right - lane)) * .15f + MathF.Abs(offset) * .15f -
-                    Math.Min(lane - left, right - lane) * .015f;
-                if (score >= best) continue;
-                best = score;
-                chosen = point + side * offset;
+                if (!open[begin]) { begin++; continue; }
+                var end = begin + 1;
+                while (end < open.Length && open[end]) end++;
+                for (var lane = begin; lane < end; lane++)
+                {
+                    var offset = (lane - 15) * .15f;
+                    var left = Math.Min(lane - begin, 13);
+                    var right = Math.Min(end - lane - 1, 13);
+                    var score = MathF.Abs(left - right) * .15f + MathF.Abs(offset) * .15f -
+                        Math.Min(left, right) * .015f;
+                    if (score >= best) continue;
+                    best = score;
+                    chosen = point + side * offset;
+                }
+                begin = end;
             }
             _points[i] = chosen;
         }
@@ -164,12 +181,15 @@ internal sealed class OpponentRacingLine
 
     public bool OnRoad(Vector2 point, Vector2 direction)
     {
+        // Every footprint covers its center cell; off-road centers need no SAT checks.
+        if (_map.GetSurface((int)MathF.Floor(point.X), (int)MathF.Floor(point.Y)) != "asphalt") return false;
         if (!_box.CanOccupy(point, direction)) return false;
         var extent = new Vector2(_car.Length * .5f * MathF.Abs(direction.X) + _car.Width * .5f * MathF.Abs(direction.Y),
             _car.Length * .5f * MathF.Abs(direction.Y) + _car.Width * .5f * MathF.Abs(direction.X)) + new Vector2(.08f);
         for (var x = (int)MathF.Floor(point.X - extent.X); x <= (int)MathF.Floor(point.X + extent.X); x++)
         for (var y = (int)MathF.Floor(point.Y - extent.Y); y <= (int)MathF.Floor(point.Y + extent.Y); y++)
-            if (_box.OverlapsCell(point, direction, x, y) && _map.GetSurface(x, y) != "asphalt") return false;
+            // Asphalt cells cannot reject the footprint. Test overlap only at verges.
+            if (_map.GetSurface(x, y) != "asphalt" && _box.OverlapsCell(point, direction, x, y)) return false;
         return true;
     }
 }

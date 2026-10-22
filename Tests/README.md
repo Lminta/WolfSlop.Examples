@@ -5,7 +5,7 @@ Run from the repository root with the .NET 10 SDK and Node 22 or newer:
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs Tests/raceway-prop-scale.test.mjs
+node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs Tests/raceway-prop-scale.test.mjs Tests/texture-upload.test.mjs
 ```
 
 The C# runner loads every shipped map and checks map edits, validation, walking,
@@ -20,7 +20,8 @@ standings, grid/pause/finish behavior, car contact and solid boundaries. They me
 asphalt coverage and a time-weighted mean pace near 19 blocks/s during solo and traffic laps (including launch),
 check recovery from mud and a wall-facing pose, and compare
 lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
-The Node checks cover editor operations and browser sprite selection/order.
+The Node checks cover editor operations, browser sprite selection/order, and
+texture upload filtering, mip coverage, cancellation, and bitmap cleanup.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
 references in `artifacts/performance` for the browser implementation to compare.
 

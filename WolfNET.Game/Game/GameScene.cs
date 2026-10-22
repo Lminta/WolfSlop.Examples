@@ -116,7 +116,8 @@ public sealed class GameScene : IDisposable
                 if (position == null) throw new InvalidDataException("Race grid needs room for two opponents.");
                 var rivalSettings = OpponentDriver.CreateCarSettings(gameplay.Car, skilled: i == 1);
                 var driver = new OpponentDriver(_route, map.NavigationMap, rivalSettings, gameplay.Race,
-                    position.Value, skilled: i == 1, gridSide: i == 0 ? 1.5f : -1.5f);
+                    position.Value, skilled: i == 1, gridSide: i == 0 ? 1.5f : -1.5f,
+                    racingLineSource: _rivals.Count == 0 ? null : _rivals[0].Driver);
                 var rival = new CarObject(driver, driver, map.NavigationMap, rivalSettings)
                     { Transform = new Transform { Position = position.Value, Rotation = direction } };
                 _rivals.Add(new(rival, driver, new(map.RendererMap.Race!, gameplay.Race), i == 0 ? "Blue car" : "Green car"));

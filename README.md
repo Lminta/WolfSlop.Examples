@@ -67,6 +67,11 @@ Race progress uses an immutable spatial index of route segments, including when
 cars take the shortcut or leave the racing line. Phase checks read the player
 session directly; opponent standings are assembled when the race HUD updates.
 
+Race loading prepares the AI corridor once for matching rival footprints and
+skips collision math for known asphalt cells. Texture mip resizing/upload runs
+in bounded browser batches; the loading UI throttles counter updates instead of
+waiting on a paint timer for every layer. Texture quality and mip levels are retained.
+
 To measure Pine Loop at the configured resolution and target FPS, start the
 development server and Edge with hardware WebGPU and a remote-debugging port:
 
@@ -105,7 +110,7 @@ Run the regular regression checks from the repository root:
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs
+node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs
 ```
 
 Run the C# suite first because it generates the sprite ordering reference files.

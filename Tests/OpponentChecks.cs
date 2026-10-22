@@ -137,6 +137,19 @@ internal static class OpponentChecks
         }
         // Both driver profiles defend either passing lane against any faster racer.
         var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
+        var blueLine = new OpponentRacingLine(route, loaded.Map.NavigationMap, opponent.Settings);
+        foreach (var settings in new[] { green.Settings with
+                 { Asphalt = green.Settings.Asphalt with { MaxLateralAcceleration = 4, BrakeDeceleration = 3 } },
+                 green.Settings with { Width = green.Settings.Width * .8f } })
+        {
+            var shared = new OpponentRacingLine(route, loaded.Map.NavigationMap, settings, blueLine);
+            var independent = new OpponentRacingLine(route, loaded.Map.NavigationMap, settings);
+            for (var distance = 0f; distance < route.Length; distance += route.Length / 12)
+                Check(shared.Point(distance) == independent.Point(distance) &&
+                    shared.Curvature(distance) == independent.Curvature(distance) &&
+                    shared.Speed(distance, true, 13) == independent.Speed(distance, true, 13),
+                    "Sharing a racing corridor changed the rival's geometry or its own grip/braking limits.");
+        }
         foreach (var skilled in new[] { false, true })
         {
             float Defend(float lateral, float behind, float closing, bool facingForward = true, bool move = false)

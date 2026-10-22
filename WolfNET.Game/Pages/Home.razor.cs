@@ -25,10 +25,16 @@ public partial class Home
 
     private string? _error;
     private MouseTracker? _observedMouse;
+    private long _lastLoadingProgress;
 
     private async Task ShowLoadingProgressAsync(string message)
     {
         _lifetime.Token.ThrowIfCancellationRequested();
+        // Counter updates must not impose a browser timer delay for every texture
+        // layer. Stage transitions still paint immediately.
+        var now = Environment.TickCount64;
+        if (message.Contains('(') && now - _lastLoadingProgress < 75) return;
+        _lastLoadingProgress = now;
         _loadingMessage = message;
         await InvokeAsync(StateHasChanged);
         // Allow the browser to paint the message before the next loading step.

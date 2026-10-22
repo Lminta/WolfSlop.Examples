@@ -41,7 +41,7 @@ Run the regression suite from the repository root:
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs
+node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs
 ```
 
 The C# suite compiles the production simulation, object, component, camera, input
