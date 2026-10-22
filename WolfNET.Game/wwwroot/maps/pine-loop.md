@@ -32,16 +32,15 @@ timers freeze, the mouse releases, and a results panel offers a fresh restart.
 Set `race.lapCount` in `gameplay-settings.json` (default 3); the counter shows completed/total laps.
 Leaving/reloading the race map resets the session.
 
-A blue opponent uses the same eight-view car sprite with red and blue channels
-swapped, the same handling and collision footprint, and its own validated laps and
-timers. It follows the circuit and brakes for bends. Set `race.opponentMaxSpeed`
-and `race.opponentCornerSpeed` in gameplay settings to tune its pace. The Gap row
-starts at zero when one racer finishes a lap, grows green +seconds for a player
-lead or red −seconds for an opponent lead, and freezes when the other racer
-finishes that same lap. The next lap finish resets it; before the first completed
-lap it shows a dash. Both racers pause together. Results include both
-racers' total and lap times; an unfinished opponent continues while the player's
-results are open, updating its time until it finishes.
+Blue and green opponents share the car artwork and collision footprint, with their
+own validated laps and timers. Blue's asphalt top speed is 3 blocks/s above the
+player's; green's is 3 below. Blue occasionally brakes too early at a corner,
+while green follows a consistent clean line. Both use road-aware corner braking
+and check clearance before passing or blocking. Set `race.opponentCornerSpeed`
+in gameplay settings to tune cornering pace. The Gap row shows the player's delay
+to the leader, with zero when leading and lap-finish separation while trailing.
+All cars pause together. Results show all three places, totals, and lap times;
+unfinished rivals continue racing while the player's results are open.
 
 The race minimap shows **120 blocks across**, with the player at **50% across and
 70% down** its square viewport: 84 blocks ahead and 36 behind. The course scrolls

@@ -260,15 +260,14 @@ The map's optional `race` metadata stores a `startFinish` gate and ordered
 `checkpoints`; each gate has `center`, forward `direction`, and `halfWidth`.
 These gates create no sprites, collision geometry, or visible checkpoint markers.
 
-A blue opponent starts beside the player, sharing the same car atlas (red and blue
-channels swapped), physics, surface penalties, and collision footprint. It follows
-the circuit, brakes for corners, and avoids or makes contact with the player.
-Both racers use `race.lapCount`; tune the bot with `race.opponentMaxSpeed` and
-`race.opponentCornerSpeed` in gameplay settings. The Gap row starts when either
-racer finishes a lap: green **+seconds** grows if the player finishes first;
-red **−seconds** grows if the opponent finishes first. It freezes when the other
-racer finishes that same lap, then resets at the next lap finish. Before the
-first completed lap it shows a dash. Pausing freezes both cars and the gap.
+Blue and green opponents share the player's car physics, collision footprint, and surface penalties.
+Their asphalt top speeds follow the player's configured speed automatically: blue is **3 blocks/s faster**,
+and green is **3 blocks/s slower** (28 and 22 blocks/s with the current 25 blocks/s player limit).
+Blue occasionally brakes too early for a corner and loses time; green drives a consistent, clean line.
+Both follow a road-centered path, brake ahead of bends, avoid barriers, and check road clearance before passing or defending.
+`race.opponentCornerSpeed` adjusts their cornering pace; `race.lapCount` applies to all three racers.
+The Gap row measures the player's delay to the leader, with zero when leading. It starts measuring
+separation at lap finishes and freezes between matching finishes. Pausing freezes the cars and timers.
 Results show both racers' total and individual lap times. If the player finishes
 first, the opponent continues while results are open and its final time fills in
 when it finishes. Restart resets both cars, timers, and lap comparisons.

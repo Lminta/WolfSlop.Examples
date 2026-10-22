@@ -13,8 +13,9 @@ jumping, crouching, input, frame timing, scene ownership, doors, car interaction
 car physics and cameras, ordered checkpoint/lap timing, pause behavior,
 sprite animation, and editor persistence/export.
 The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,
-check unobstructed green-car pace, moving overtakes and defensive lane holding on both sides,
-standings, grid/pause/finish behavior, car contact and solid boundaries, and compare
+check individual top speeds and throttle/braking, blue mistake events and clean green laps, moving overtakes and defensive lane holding on both sides,
+standings, grid/pause/finish behavior, car contact and solid boundaries. They measure full-footprint
+asphalt coverage during solo and traffic laps, check recovery from mud and a wall-facing pose, and compare
 lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
 The Node checks cover editor operations and browser sprite selection/order.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native

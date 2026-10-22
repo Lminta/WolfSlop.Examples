@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const port = process.argv[2] ?? '9260';
 const base = process.argv[3] ?? 'http://127.0.0.1:53727';
 const carDefinition = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/objects/sprites/sprite-directional-car.json', 'utf8'));
+const carSettings = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/gameplay-settings.json', 'utf8')).car;
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {method: 'PUT'})).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
@@ -290,7 +291,7 @@ try {
     await tap('KeyV');
     await waitFor(`window.__firstPerson?.[2] === 0 && window.__avatar?.frame === 4`);
     const avatar = await evaluate('window.__avatar');
-    assert(Math.abs(avatar.width - .6) < .001 && Math.abs(avatar.height - .45) < .001, 'Chase view used the wrong car sprite dimensions');
+    assert(Math.abs(avatar.width - carSettings.width) < .001 && Math.abs(avatar.height - carSettings.height) < .001, 'Chase view used the wrong car sprite dimensions');
     assert.equal(avatar.kind & 24, 24, 'Car character is still a camera-facing billboard');
     const chase = await camera();
     assert(Math.abs(Math.hypot(chase[0] - avatar.x, chase[1] - avatar.y) - 1.5) < .01, 'Chase view lost its follow distance');

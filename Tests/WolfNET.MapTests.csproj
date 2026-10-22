@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../WolfNET.Game/Game/RaceRoute.cs" Link="Game/RaceRoute.cs" />
+    <Compile Include="../WolfNET.Game/Game/Player/OpponentRacingLine.cs" Link="Game/OpponentRacingLine.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/OpponentDriver.cs" Link="Game/OpponentDriver.cs" />
     <Compile Include="../WolfNET.Game/Game/Physics/CarContact.cs" Link="Game/CarContact.cs" />
     <Compile Include="../WolfNET.Game/Game/RaceSession.cs" Link="Game/RaceSession.cs" />

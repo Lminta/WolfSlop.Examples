@@ -113,9 +113,10 @@ public sealed class GameScene : IDisposable
                     break;
                 }
                 if (position == null) throw new InvalidDataException("Race grid needs room for two opponents.");
-                var driver = new OpponentDriver(_route, map.NavigationMap, gameplay.Car, gameplay.Race,
+                var rivalSettings = OpponentDriver.CreateCarSettings(gameplay.Car, skilled: i == 1);
+                var driver = new OpponentDriver(_route, map.NavigationMap, rivalSettings, gameplay.Race,
                     position.Value, skilled: i == 1, gridSide: i == 0 ? 1.5f : -1.5f);
-                var rival = new CarObject(driver, driver, map.NavigationMap, gameplay.Car)
+                var rival = new CarObject(driver, driver, map.NavigationMap, rivalSettings)
                     { Transform = new Transform { Position = position.Value, Rotation = direction } };
                 _rivals.Add(new(rival, driver, new(map.RendererMap.Race!, gameplay.Race), i == 0 ? "Blue car" : "Green car"));
             }

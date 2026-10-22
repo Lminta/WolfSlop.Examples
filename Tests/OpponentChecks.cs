@@ -12,8 +12,44 @@ internal static class OpponentChecks
         var opponent = scene.Opponent ?? throw new Exception("Race has no opponent.");
         var green = scene.SecondOpponent ?? throw new Exception("Race has no green opponent.");
         var greenStart = green.Transform;
+        var playerSettings = ((CarObject)scene.Player).Settings;
         var count = 0;
         void Check(bool value, string message) { count++; if (!value) throw new Exception(message); }
+        Check(MathF.Abs(opponent.Settings.Asphalt.MaxForwardSpeed - playerSettings.Asphalt.MaxForwardSpeed - 3) < .001f,
+            "Blue top speed is not 3 blocks/s above the player's.");
+        Check(MathF.Abs(green.Settings.Asphalt.MaxForwardSpeed - playerSettings.Asphalt.MaxForwardSpeed + 3) < .001f,
+            "Green top speed is not 3 blocks/s below the player's.");
+        var tunedPlayer = playerSettings with { Asphalt = playerSettings.Asphalt with { MaxForwardSpeed = 32 } };
+        Check(OpponentDriver.CreateCarSettings(tunedPlayer, false).Asphalt.MaxForwardSpeed == 35 &&
+            OpponentDriver.CreateCarSettings(tunedPlayer, true).Asphalt.MaxForwardSpeed == 29,
+            "Rival speed differences did not follow a tuned player speed.");
+        // Check actual throttle/braking too, so an old shared AI cap cannot hide the speed differences.
+        var straightMap = new NavigationMap();
+        var straightCells = Enumerable.Range(0, 50).Select(_ => Enumerable.Repeat(true, 1000).ToArray()).ToArray();
+        straightMap.Replace(straightCells, straightCells.Select(c => new bool[c.Length]).ToArray(),
+            straightCells.Select(c => new bool[c.Length]).ToArray(),
+            straightCells.Select(c => c.Select(_ => "asphalt").ToArray()).ToArray());
+        var straightRoute = new RaceRoute(new RaceMinimapDefinition
+        {
+            StartFinish = [40, 500], Route = [[10, 10], [40, 10], [40, 990], [10, 990], [10, 10]]
+        });
+        foreach (var skilled in new[] { false, true })
+        {
+            var position = new Vector2(40, 500);
+            var rivalSettings = OpponentDriver.CreateCarSettings(playerSettings, skilled);
+            var driver = new OpponentDriver(straightRoute, straightMap, rivalSettings, new(), position, skilled, gridSide: 0);
+            using var rival = new CarObject(driver, driver, straightMap, rivalSettings)
+                { Transform = new() { Position = position, Rotation = Vector2.UnitY } };
+            rival.Controller.ResolveCarContact(position, Vector2.UnitY * playerSettings.Asphalt.MaxForwardSpeed);
+            for (var frame = 0; frame < 120; frame++)
+            {
+                driver.Update(rival, Array.Empty<CarObject>(), 1f / 120);
+                rival.Update(1000f / 120);
+            }
+            Check(skilled ? rival.Controller.Speed <= rivalSettings.Asphalt.MaxForwardSpeed + .5f :
+                    rival.Controller.Speed > playerSettings.Asphalt.MaxForwardSpeed + .05f,
+                "Rival AI throttle/braking did not use its individual top speed on a clear straight.");
+        }
         // Both driver profiles defend either passing lane against any faster racer.
         var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
         foreach (var skilled in new[] { false, true })
@@ -21,11 +57,11 @@ internal static class OpponentChecks
             float Defend(float lateral, float behind, float closing, bool facingForward = true, bool move = false)
             {
                 var driver = new OpponentDriver(route, loaded.Map.NavigationMap, opponent.Settings, new(),
-                    new(25, 400), skilled, gridSide: 0);
+                    new(25.5f, 400), skilled, gridSide: 0);
                 using var defender = new CarObject(driver, driver, loaded.Map.NavigationMap, opponent.Settings)
-                    { Transform = new() { Position = new(25, 400), Rotation = new(0, -1) } };
+                    { Transform = new() { Position = new(25.5f, 400), Rotation = new(0, -1) } };
                 using var challenger = new CarObject(new FakeKeyboard(), new FakeMouse(), loaded.Map.NavigationMap, opponent.Settings)
-                    { Transform = new() { Position = new(25 + lateral, 400 + behind), Rotation = new(0, facingForward ? -1 : 1) } };
+                    { Transform = new() { Position = new(25.5f + lateral, 400 + behind), Rotation = new(0, facingForward ? -1 : 1) } };
                 defender.Controller.ResolveCarContact(defender.Transform.Position, new(0, -10));
                 challenger.Controller.ResolveCarContact(challenger.Transform.Position, new(0, -(10 + closing)));
                 var traffic = new[] { defender, challenger };
@@ -38,14 +74,15 @@ internal static class OpponentChecks
                     Check(new OrientedBoxCollider(loaded.Map.NavigationMap, defender.Settings.Length, defender.Settings.Width)
                         .CanOccupy(defender.Transform.Position, defender.Transform.Rotation), "Defending car crossed a solid boundary.");
                 }
-                return move ? defender.Transform.Position.X - 25 : driver.Steering;
+                return move ? defender.Transform.Position.X - 25.5f : driver.Steering;
             }
-            Check(Defend(1.1f, 5, 4) > .05f, "Opponent did not cover a faster racer's right passing lane.");
-            Check(Defend(-1.1f, 5, 4) < -.05f, "Opponent did not cover a faster racer's left passing lane.");
-            Check(MathF.Abs(Defend(1.1f, 30, 4)) < .01f, "Opponent defended against distant traffic.");
-            Check(MathF.Abs(Defend(1.1f, 5, -2)) < .01f, "Opponent blocked a slower following car.");
-            Check(MathF.Abs(Defend(1.1f, .5f, 4)) < .01f, "Opponent swerved into a car already alongside.");
-            Check(MathF.Abs(Defend(1.1f, 5, 4, facingForward: false)) < .01f, "Opponent defended against oncoming traffic.");
+            var cruising = Defend(0, 30, -2);
+            Check(Defend(1.1f, 5, 4) > cruising + .025f, "Opponent did not cover a faster racer's right passing lane.");
+            Check(Defend(-1.1f, 5, 4) < cruising - .025f, "Opponent did not cover a faster racer's left passing lane.");
+            Check(MathF.Abs(Defend(1.1f, 30, 4) - cruising) < .01f, "Opponent defended against distant traffic.");
+            Check(MathF.Abs(Defend(1.1f, 5, -2) - cruising) < .01f, "Opponent blocked a slower following car.");
+            Check(MathF.Abs(Defend(1.1f, .5f, 4) - cruising) < .01f, "Opponent swerved into a car already alongside.");
+            Check(MathF.Abs(Defend(1.1f, 5, 4, facingForward: false) - cruising) < .01f, "Opponent defended against oncoming traffic.");
             Check(Defend(1.1f, 5, 4, move: true) > .15f, "Defensive steering did not physically cover the passing lane.");
         }
         // A real pursuer holds throttle: the defender must cover its lane before it gets alongside.
@@ -88,6 +125,61 @@ internal static class OpponentChecks
             Check(MathF.Abs(pursuer.Transform.Position.X - defender.Transform.Position.X) < defender.Settings.Width,
                 "Defender abandoned the passing lane as soon as the pursuer matched its speed.");
         }
+        bool OffRoad(CarObject racer)
+        {
+            var footprint = new OrientedBoxCollider(loaded.Map.NavigationMap, racer.Settings.Length, racer.Settings.Width);
+            var position = racer.Transform.Position;
+            for (var x = (int)MathF.Floor(position.X - racer.Settings.Length); x <= (int)MathF.Ceiling(position.X + racer.Settings.Length); x++)
+            for (var y = (int)MathF.Floor(position.Y - racer.Settings.Length); y <= (int)MathF.Ceiling(position.Y + racer.Settings.Length); y++)
+                if (footprint.OverlapsCell(position, racer.Transform.Rotation, x, y) && loaded.Map.NavigationMap.GetSurface(x, y) != "asphalt") return true;
+            return false;
+        }
+        foreach (var skilled in new[] { false, true })
+        {
+            var position = new Vector2(27.5f, 395);
+            var heading = Vector2.Normalize(new Vector2(.35f, -1));
+            var driver = new OpponentDriver(route, loaded.Map.NavigationMap, opponent.Settings, new(), position, skilled, gridSide: 0);
+            using var recovering = new CarObject(driver, driver, loaded.Map.NavigationMap, opponent.Settings)
+                { Transform = new() { Position = position, Rotation = heading } };
+            recovering.Controller.ResolveCarContact(position, heading * 10);
+            for (var frame = 0; frame < 60 * 12; frame++)
+            {
+                driver.Update(recovering, Array.Empty<CarObject>(), 1f / 60);
+                recovering.Update(1000f / 60);
+            }
+            Console.WriteLine($"Recovery {skilled}: {recovering.Transform.Position}, speed {recovering.Controller.Speed:F1}, mud {OffRoad(recovering)}");
+            Check(!OffRoad(recovering) && recovering.Controller.Speed > 3,
+                "Opponent did not recover onto the road after being knocked onto the verge.");
+        }
+        // Start pointed at the outside wall of a narrow ring, as after a collision.
+        var ringMap = new NavigationMap();
+        var ringCells = Enumerable.Range(0, 50).Select(x => Enumerable.Range(0, 50)
+            .Select(y => MathF.Abs(Vector2.Distance(new(x + .5f, y + .5f), new(24.5f)) - 15) < 3).ToArray()).ToArray();
+        ringMap.Replace(ringCells, ringCells.Select(c => new bool[c.Length]).ToArray(),
+            ringCells.Select(c => new bool[c.Length]).ToArray(),
+            ringCells.Select(c => c.Select(open => open ? "asphalt" : "mud").ToArray()).ToArray());
+        var ringRoute = new RaceRoute(new RaceMinimapDefinition
+        {
+            StartFinish = [39.5f, 24.5f],
+            Route = Enumerable.Range(0, 129).Select(i => new[] { 24.5f + 15 * MathF.Cos(i * MathF.Tau / 128),
+                24.5f + 15 * MathF.Sin(i * MathF.Tau / 128) }).ToArray()
+        });
+        foreach (var skilled in new[] { false, true })
+        {
+            var position = new Vector2(39.5f, 24.5f);
+            var driver = new OpponentDriver(ringRoute, ringMap, opponent.Settings, new(), position, skilled, gridSide: 0);
+            using var car = new CarObject(driver, driver, ringMap, opponent.Settings)
+                { Transform = new() { Position = position, Rotation = Vector2.UnitX } };
+            car.Controller.ResolveCarContact(position, Vector2.UnitX * 6);
+            for (var frame = 0; frame < 60 * 18; frame++)
+            {
+                driver.Update(car, Array.Empty<CarObject>(), 1f / 60);
+                car.Update(1000f / 60);
+            }
+            Console.WriteLine($"Wall recovery {skilled}: {car.Transform.Position}, speed {car.Controller.Speed:F1}");
+            Check(car.Controller.Speed > 3 && Vector2.Distance(car.Transform.Position, position) > 5,
+                "Opponent remained stuck pointing into a barrier after a collision.");
+        }
         var start = opponent.Transform;
         var parked = scene.PlayerPose;
         Check(opponent.Settings.Length == ((CarObject)scene.Player).Settings.Length &&
@@ -122,9 +214,30 @@ internal static class OpponentChecks
         scene.SetPaused(false);
         var box = new OrientedBoxCollider(loaded.Map.NavigationMap, opponent.Settings.Length, opponent.Settings.Width);
         var lastLap = 0;
+        var raceSamples = new int[2];
+        var raceMud = new int[2];
+        var raceSlow = new int[2];
+        var trafficWorst = new[] { new Dictionary<(int, int), int>(), new Dictionary<(int, int), int>() };
         for (var i = 0; i < 60 * 1200 && scene.RaceState?.Opponents.Any(r => !r.Finished) == true; i++)
         {
             scene.Update(1000f / 60);
+            if (i % 6 == 0 && i > 120)
+            {
+                var racers = new[] { opponent, green };
+                for (var racer = 0; racer < racers.Length; racer++)
+                {
+                    if (scene.RaceState!.Value.Opponents[racer].Finished) continue;
+                    raceSamples[racer]++;
+                    if (OffRoad(racers[racer]))
+                    {
+                        raceMud[racer]++;
+                        var position = racers[racer].Transform.Position;
+                        var cell = ((int)(position.X / 8) * 8, (int)(position.Y / 8) * 8);
+                        trafficWorst[racer][cell] = trafficWorst[racer].GetValueOrDefault(cell) + 1;
+                    }
+                    if (racers[racer].Controller.Speed < 1) raceSlow[racer]++;
+                }
+            }
             if (i == 180) Check(scene.PlayerPose == parked, "Opponent hit the parked player while leaving the grid.");
             if (i % 600 == 0) Check(box.CanOccupy(opponent.Transform.Position, opponent.Transform.Rotation) &&
                 box.CanOccupy(green.Transform.Position, green.Transform.Rotation), "Opponent crossed a solid boundary.");
@@ -136,6 +249,11 @@ internal static class OpponentChecks
         }
         Check(scene.RaceState?.Opponent is { Finished: true, CompletedLaps: 3, LapTimes.Count: 3 },
             $"Opponent failed to complete three validated laps: {scene.RaceState?.Opponent}, position {opponent.Transform.Position}.");
+        for (var racer = 0; racer < 2; racer++)
+        {
+            Console.WriteLine($"Traffic {racer}: mud {100f * raceMud[racer] / raceSamples[racer]:F1}%, slow {raceSlow[racer]}, worst {string.Join("; ", trafficWorst[racer].OrderByDescending(p => p.Value).Take(6))}");
+            Check(raceMud[racer] < raceSamples[racer] * .01f, "Opponent spent too much of a traffic race off the asphalt.");
+        }
         var greenResult = scene.RaceState!.Value.Opponents[1];
         Console.WriteLine($"Green car: {greenResult.TotalMilliseconds / 1000:F1}s, laps {greenResult.CompletedLaps}, position {green.Transform.Position}.");
         Check(greenResult is { Finished: true, CompletedLaps: 3, LapTimes.Count: 3 }, "Green opponent failed to complete three validated laps.");
@@ -148,28 +266,48 @@ internal static class OpponentChecks
             "Gap did not track the actual race leader.");
 
         // Blocking can change race order; compare the cornering profiles on an unobstructed lap.
-        double SoloLap(bool skilled)
+        void SoloLap(bool skilled)
         {
             var startPosition = new Vector2(25.5f, 445.5f);
-            var driver = new OpponentDriver(route, loaded.Map.NavigationMap, opponent.Settings, new(), startPosition, skilled, gridSide: 0);
-            using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, opponent.Settings)
+            var rivalSettings = OpponentDriver.CreateCarSettings(playerSettings, skilled);
+            var driver = new OpponentDriver(route, loaded.Map.NavigationMap, rivalSettings, new(), startPosition, skilled, gridSide: 0);
+            using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, rivalSettings)
                 { Transform = new() { Position = startPosition, Rotation = new(0, -1) } };
             var race = new RaceSession(loaded.Map.RendererMap.Race!, new() { LapCount = 1 });
             race.BeginCountdown();
             race.AdvanceStart(5000);
+            var samples = 0;
+            var muddy = 0;
+            var slow = 0;
+            var worst = new Dictionary<(int X, int Y), int>();
             for (var frame = 0; frame < 60 * 300 && race.Status.Phase != RacePhase.Finished; frame++)
             {
                 var before = car.Transform.Position;
                 driver.Update(car, Array.Empty<CarObject>(), 1f / 60);
                 car.Update(1000f / 60);
                 race.Update(before, car.Transform.Position, 1000f / 60);
+                if (frame % 6 == 0 && frame > 60)
+                {
+                    samples++;
+                    var position = car.Transform.Position;
+                    var offRoad = OffRoad(car);
+                    if (car.Controller.Speed < 1) slow++;
+                    if (offRoad)
+                    {
+                        muddy++;
+                        var cell = ((int)(position.X / 8) * 8, (int)(position.Y / 8) * 8);
+                        worst[cell] = worst.GetValueOrDefault(cell) + 1;
+                    }
+                }
             }
+            Console.WriteLine($"SOLO {(skilled ? "Green" : "Blue")}: {race.Status.TotalMilliseconds / 1000:F1}s, mud {100f * muddy / samples:F1}%, slow {slow}, worst {string.Join("; ", worst.OrderByDescending(p => p.Value).Take(8))}");
+            Check(skilled ? driver.MistakesMade == 0 : driver.MistakesMade > 0, "Rival did not follow its intended mistake profile.");
+            Check(muddy < samples * .01f, "Opponent repeatedly cut corners or ran wide onto mud on an unobstructed lap.");
+            Check(slow == 0, "Unobstructed opponent stalled against track barriers.");
             Check(race.Status.Phase == RacePhase.Finished, "Unobstructed opponent failed to finish a lap.");
-            return race.Status.TotalMilliseconds;
         }
-        var blueSolo = SoloLap(false);
-        var greenSolo = SoloLap(true);
-        Check(greenSolo < blueSolo, "Green driver's cornering did not beat the blue driver on an unobstructed lap.");
+        SoloLap(false);
+        SoloLap(true);
         Check(((CarObject)scene.Player).Controller.Speed == 0, "Parked player moved during the opponent race.");
         var opponentFinish = scene.RaceState!.Value.Opponent;
         var finishPose = opponent.Transform;
