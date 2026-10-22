@@ -35,6 +35,10 @@
         <WolfNET.Components.RaceOverlay @key="Wolf.Map" OnRestart="RestartRaceAsync" />
     }
 }
+@if (!_loading && !_errorPresent && Wolf.Player is WolfNET.Game.Player.PlayerObject)
+{
+    <WolfNET.Components.PlayerHands @key="Wolf.CurrentMapPath" />
+}
 </div>
 
 @if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null)

@@ -28,6 +28,8 @@ public sealed class Wolf : IDisposable
     private int _frameGeneration;
     private double _lastPoseNotification = double.NegativeInfinity;
     private double _lastDrivingNotification = double.NegativeInfinity;
+    private double _lastHumanNotification = double.NegativeInfinity;
+    private HumanViewState? _lastHumanState;
     private readonly GameplaySettings _gameplay;
     private double _fpsSampleStart = double.NaN;
     private int _fpsFrameCount;
@@ -36,6 +38,7 @@ public sealed class Wolf : IDisposable
 
     public IControlledActor? Player => _scene?.Player;
     public DrivingViewState? DrivingState => _scene?.DrivingState;
+    public HumanViewState? HumanState => _scene?.HumanState;
     public RaceStatus? RaceState => _scene?.RaceState;
     public KeyTracker KeyTracker => _input?.Keyboard ?? throw new InvalidOperationException("No scene is running.");
     public MouseTracker MouseTracker => _input?.Mouse ?? throw new InvalidOperationException("No scene is running.");
@@ -46,6 +49,7 @@ public sealed class Wolf : IDisposable
     public event Action<string>? MapSwitchRequested;
     public event Action<PlayerPose>? PlayerPoseChanged;
     public event Action<DrivingViewState>? DrivingStateChanged;
+    public event Action<HumanViewState>? HumanStateChanged;
     public event Action<int?>? FramesPerSecondChanged;
     public event Action<RaceStatus>? RaceStateChanged;
 
@@ -97,6 +101,8 @@ public sealed class Wolf : IDisposable
             _clock.Restart();
             _lastPoseNotification = double.NegativeInfinity;
             _lastDrivingNotification = double.NegativeInfinity;
+            _lastHumanNotification = double.NegativeInfinity;
+            _lastHumanState = null;
             _lastRaceNotification = double.NegativeInfinity;
             _lastRaceState = null;
             _timing.Reset();
@@ -172,6 +178,14 @@ public sealed class Wolf : IDisposable
             {
                 _lastDrivingNotification = _clock.Elapsed.TotalMilliseconds;
                 DrivingStateChanged.Invoke(driving);
+            }
+            if (_scene.HumanState is { } human && HumanStateChanged != null && human != _lastHumanState &&
+                (_clock.Elapsed.TotalMilliseconds - _lastHumanNotification >= 1000d / 30 ||
+                 _lastHumanState?.ThirdPerson != human.ThirdPerson))
+            {
+                _lastHumanNotification = _clock.Elapsed.TotalMilliseconds;
+                _lastHumanState = human;
+                HumanStateChanged.Invoke(human);
             }
             if (_scene.Map.RendererMap.RaceMinimap != null && PlayerPoseChanged != null &&
                 _clock.Elapsed.TotalMilliseconds - _lastPoseNotification >= 50)

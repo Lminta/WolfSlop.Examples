@@ -9,6 +9,7 @@ namespace WolfNET.Game;
 
 public readonly record struct PlayerPose(Vector2 Position, Vector2 Direction);
 public readonly record struct DrivingViewState(bool ThirdPerson, bool Paused, float SteeringAngle, float Speed, float CameraYaw);
+public readonly record struct HumanViewState(bool ThirdPerson, bool InAir, bool Crouching, float HandSwing, float HandBob, float HandStrafe, float HandReach);
 
 /// <summary>Owns simulation objects for one map. Browser and GPU lifetimes belong to the host.</summary>
 public sealed class GameScene : IDisposable
@@ -37,6 +38,9 @@ public sealed class GameScene : IDisposable
     };
     public DrivingViewState? DrivingState => Player is CarObject car
         ? new(car.Camera.ThirdPerson, Paused, car.Controller.SteeringAngle, car.Controller.Speed, car.Look.Yaw) : null;
+    public HumanViewState? HumanState => Player is PlayerObject human
+        ? new(human.Camera.ThirdPerson, human.InAir, human.Crouching,
+            human.Animation.HandSwing, human.Animation.HandBob, human.Animation.HandStrafe, human.Animation.HandReach) : null;
     public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
 
     public GameScene(IMap map, ICharacterAppearance character, IKeyboardInput input, IMouseInput mouse,
@@ -125,8 +129,12 @@ public sealed class GameScene : IDisposable
     private void UpdateInteractions(float milliseconds)
     {
         var transform = Player.Transform;
-        if (_input.ConsumeAction() && !Map.Interact(transform.Position, transform.Rotation, Player.InteractionRadius))
-            _requestedMap ??= MapInteraction.FindDestination(Map, transform.Position, transform.Rotation);
+        if (_input.ConsumeAction())
+        {
+            if (Player is PlayerObject human) human.Animation.PlayAction();
+            if (!Map.Interact(transform.Position, transform.Rotation, Player.InteractionRadius))
+                _requestedMap ??= MapInteraction.FindDestination(Map, transform.Position, transform.Rotation);
+        }
         Map.UpdateDoors(milliseconds, transform.Position, Player.InteractionRadius);
     }
 
