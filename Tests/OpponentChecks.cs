@@ -50,6 +50,72 @@ internal static class OpponentChecks
                     rival.Controller.Speed > playerSettings.Asphalt.MaxForwardSpeed + .05f,
                 "Rival AI throttle/braking did not use its individual top speed on a clear straight.");
         }
+        // A faster rival approaches on one side, while the player passes on the other.
+        foreach (var skilled in new[] { false, true })
+        {
+            var rivalSettings = OpponentDriver.CreateCarSettings(playerSettings, skilled);
+            var driver = new OpponentDriver(straightRoute, straightMap, rivalSettings, new(), new(40, 500), skilled, gridSide: 0);
+            using var defender = new CarObject(driver, driver, straightMap, rivalSettings)
+                { Transform = new() { Position = new(40, 500), Rotation = Vector2.UnitY } };
+            using var passingPlayer = new CarObject(new FakeKeyboard(), new FakeMouse(), straightMap, playerSettings)
+                { Transform = new() { Position = new(41.2f, 494), Rotation = Vector2.UnitY } };
+            using var rival = new CarObject(new FakeKeyboard(), new FakeMouse(), straightMap, opponent.Settings)
+                { Transform = new() { Position = new(38.8f, 495), Rotation = Vector2.UnitY } };
+            defender.Controller.ResolveCarContact(defender.Transform.Position, Vector2.UnitY * 16);
+            passingPlayer.Controller.ResolveCarContact(passingPlayer.Transform.Position, Vector2.UnitY * 20);
+            rival.Controller.ResolveCarContact(rival.Transform.Position, Vector2.UnitY * 23);
+            var traffic = new[] { defender, rival, passingPlayer };
+            for (var frame = 0; frame < 120; frame++) driver.Update(defender, traffic, 1f / 120, passingPlayer);
+            Check(driver.Steering < -.025f, "Opponent covered the faster rival instead of the passing player.");
+        }
+        // Once the player is ahead, a rival must not keep the blue car trapped in a blocking duel.
+        var chaseBlueDriver = new OpponentDriver(straightRoute, straightMap, opponent.Settings, new(), new(40, 200), gridSide: 0);
+        var chaseGreenDriver = new OpponentDriver(straightRoute, straightMap, green.Settings, new(), new(41.1f, 195), skilled: true, gridSide: 0);
+        using (var chasingBlue = new CarObject(chaseBlueDriver, chaseBlueDriver, straightMap, opponent.Settings)
+            { Transform = new() { Position = new(40, 200), Rotation = Vector2.UnitY } })
+        using (var chasingGreen = new CarObject(chaseGreenDriver, chaseGreenDriver, straightMap, green.Settings)
+            { Transform = new() { Position = new(41.1f, 195), Rotation = Vector2.UnitY } })
+        using (var leadingPlayer = new CarObject(new FakeKeyboard { KeyState = new() { Forward = true } }, new FakeMouse(), straightMap, playerSettings)
+            { Transform = new() { Position = new(40, 230), Rotation = Vector2.UnitY } })
+        {
+            chasingBlue.Controller.ResolveCarContact(chasingBlue.Transform.Position, Vector2.UnitY * 20);
+            chasingGreen.Controller.ResolveCarContact(chasingGreen.Transform.Position, Vector2.UnitY * 22);
+            leadingPlayer.Controller.ResolveCarContact(leadingPlayer.Transform.Position, Vector2.UnitY * playerSettings.Asphalt.MaxForwardSpeed);
+            var traffic = new[] { leadingPlayer, chasingBlue, chasingGreen };
+            for (var frame = 0; frame < 120 * 20; frame++)
+            {
+                leadingPlayer.Update(1000f / 120);
+                chaseBlueDriver.Update(chasingBlue, traffic, 1f / 120, leadingPlayer);
+                chaseGreenDriver.Update(chasingGreen, traffic, 1f / 120, leadingPlayer);
+                chasingBlue.Update(1000f / 120);
+                chasingGreen.Update(1000f / 120);
+                for (var a = 0; a < traffic.Length; a++)
+                    for (var b = a + 1; b < traffic.Length; b++) CarContact.Resolve(traffic[a], traffic[b], straightMap, false, false);
+            }
+            var gap = leadingPlayer.Transform.Position.Y - chasingBlue.Transform.Position.Y;
+            Console.WriteLine($"Player chase: blue gap {gap:F1} blocks, blue {chasingBlue.Controller.Speed:F1}, green {chasingGreen.Controller.Speed:F1} blocks/s.");
+            Check(gap < 27 && chasingBlue.Controller.Speed > playerSettings.Asphalt.MaxForwardSpeed,
+                "Blue did not break off its rival fight and close the player's lead at its own configured speed.");
+            Check(chasingGreen.Transform.Position.Y > 545 && chasingGreen.Controller.Speed > 18,
+                "Green stayed trapped in a rival battle instead of resuming racing.");
+        }
+        // A normal player launch must not leave both rivals crawling in their grid lanes.
+        using (var launch = new GameScene(loaded.Map, loaded.Character,
+            new FakeKeyboard { KeyState = new() { Forward = true } }, new FakeMouse(), new()))
+        {
+            for (var frame = 0; frame < 20; frame++) launch.Update(250);
+            for (var frame = 0; frame < 60 * 4; frame++) launch.Update(1000f / 60);
+            Console.WriteLine($"Launch speeds: blue {launch.Opponent!.Controller.Speed:F1}, green {launch.SecondOpponent!.Controller.Speed:F1}.");
+            Check(launch.Opponent.Controller.Speed > 12 && launch.SecondOpponent.Controller.Speed > 12,
+                "Opponents crawled in their launch or blocking lanes while the player accelerated away.");
+            for (var frame = 0; frame < 60 * 2; frame++) launch.Update(1000f / 60);
+            var player = (CarObject)launch.Player;
+            Console.WriteLine($"Launch: player {player.Transform.Position}, blue {launch.Opponent!.Transform.Position}, green {launch.SecondOpponent!.Transform.Position}.");
+
+            Check(launch.Opponent.Transform.Position.Y - player.Transform.Position.Y < 12 &&
+                launch.SecondOpponent.Transform.Position.Y - player.Transform.Position.Y < 12,
+                "Opponents lost the player on the opening straight through unnecessary rival fighting.");
+        }
         // Both driver profiles defend either passing lane against any faster racer.
         var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
         foreach (var skilled in new[] { false, true })
@@ -217,6 +283,7 @@ internal static class OpponentChecks
         var raceSamples = new int[2];
         var raceMud = new int[2];
         var raceSlow = new int[2];
+        var raceSpeeds = new[] { new List<float>(), new List<float>() };
         var trafficWorst = new[] { new Dictionary<(int, int), int>(), new Dictionary<(int, int), int>() };
         for (var i = 0; i < 60 * 1200 && scene.RaceState?.Opponents.Any(r => !r.Finished) == true; i++)
         {
@@ -228,6 +295,7 @@ internal static class OpponentChecks
                 {
                     if (scene.RaceState!.Value.Opponents[racer].Finished) continue;
                     raceSamples[racer]++;
+                    raceSpeeds[racer].Add(racers[racer].Controller.Speed);
                     if (OffRoad(racers[racer]))
                     {
                         raceMud[racer]++;
@@ -253,6 +321,10 @@ internal static class OpponentChecks
         {
             Console.WriteLine($"Traffic {racer}: mud {100f * raceMud[racer] / raceSamples[racer]:F1}%, slow {raceSlow[racer]}, worst {string.Join("; ", trafficWorst[racer].OrderByDescending(p => p.Value).Take(6))}");
             Check(raceMud[racer] < raceSamples[racer] * .01f, "Opponent spent too much of a traffic race off the asphalt.");
+            raceSpeeds[racer].Sort();
+            var median = raceSpeeds[racer][raceSpeeds[racer].Count / 2];
+            Check(median >= 15 && median <= 16.5f,
+                $"Opponent median race pace regressed outside the 15-16 blocks/s target: {median:F2} blocks/s.");
         }
         var greenResult = scene.RaceState!.Value.Opponents[1];
         Console.WriteLine($"Green car: {greenResult.TotalMilliseconds / 1000:F1}s, laps {greenResult.CompletedLaps}, position {green.Transform.Position}.");
@@ -309,6 +381,8 @@ internal static class OpponentChecks
         SoloLap(false);
         SoloLap(true);
         Check(((CarObject)scene.Player).Controller.Speed == 0, "Parked player moved during the opponent race.");
+        Check(opponent.Controller.Speed == 0 && green.Controller.Speed == 0,
+            "Finished cars retained moving velocities that confused the remaining racers.");
         var opponentFinish = scene.RaceState!.Value.Opponent;
         var finishPose = opponent.Transform;
         scene.Update(250);

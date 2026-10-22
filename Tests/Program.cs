@@ -7,6 +7,11 @@ using WolfNET.Game.Player.Components;
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
 var webRoot = Path.Combine(root, "WolfNET.Game", "wwwroot");
 using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
+if (args.Contains("--opponent-speeds"))
+{
+    await OpponentSpeedReport.RunAsync(http, root);
+    return;
+}
 int assertions = 0;
 void Check(bool condition, string message)
 {

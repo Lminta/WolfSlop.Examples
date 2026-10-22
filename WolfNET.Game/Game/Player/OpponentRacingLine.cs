@@ -67,7 +67,7 @@ internal sealed class OpponentRacingLine
             var b = _points[i];
             var c = Point(i * _spacing + 3);
             var ab = b - a; var bc = c - b;
-            _curvature[i] = 2 * MathF.Abs(ab.X * bc.Y - ab.Y * bc.X) /
+            _curvature[i] = 2 * (ab.X * bc.Y - ab.Y * bc.X) /
                 MathF.Max(.01f, ab.Length() * bc.Length() * Vector2.Distance(a, c));
         }
     }
@@ -79,19 +79,28 @@ internal sealed class OpponentRacingLine
         return Vector2.Lerp(_points[index % _points.Length], _points[(index + 1) % _points.Length], sample - index);
     }
 
+    public Vector2 Direction(float distance) => Vector2.Normalize(Point(distance + 2) - Point(distance - 2));
+
+    public float Curvature(float distance)
+    {
+        var sample = ((distance % _length + _length) % _length) / _spacing;
+        var index = (int)sample;
+        return float.Lerp(_curvature[index % _points.Length], _curvature[(index + 1) % _points.Length], sample - index);
+    }
+
     public float Speed(float distance, bool skilled, float cornerSpeed)
     {
         var speed = float.PositiveInfinity;
         // The grip margins are calibrated to the default corner-speed setting.
         var cornerScale = cornerSpeed / 13;
-        var lateralLimit = _car.Asphalt.MaxLateralAcceleration * (skilled ? .58f : .5f) * cornerScale * cornerScale;
-        lateralLimit = MathF.Min(lateralLimit, _car.Asphalt.MaxLateralAcceleration * .85f);
+        var lateralLimit = _car.Asphalt.MaxLateralAcceleration * (skilled ? .96f : .92f) * cornerScale * cornerScale;
+        lateralLimit = MathF.Min(lateralLimit, _car.Asphalt.MaxLateralAcceleration * .98f);
         for (float ahead = 0; ahead <= 36; ahead += 2)
         {
             var index = (int)(((distance + ahead) % _length + _length) % _length / _spacing) % _points.Length;
-            var curve = MathF.Max(.001f, _curvature[index]);
+            var curve = MathF.Max(.001f, MathF.Abs(_curvature[index]));
             var corner = MathF.Sqrt(lateralLimit / curve);
-            speed = MathF.Min(speed, MathF.Sqrt(corner * corner + 2 * _car.Asphalt.BrakeDeceleration * .75f * MathF.Max(0, ahead - 4)));
+            speed = MathF.Min(speed, MathF.Sqrt(corner * corner + 2 * _car.Asphalt.BrakeDeceleration * .95f * MathF.Max(0, ahead - 1)));
         }
         return speed;
     }
@@ -101,7 +110,7 @@ internal sealed class OpponentRacingLine
         for (float ahead = 0; ahead <= 16; ahead += 2)
         {
             var index = (int)(((distance + ahead) % _length + _length) % _length / _spacing) % _points.Length;
-            if (_curvature[index] > .035f) return false;
+            if (MathF.Abs(_curvature[index]) > .035f) return false;
         }
         return true;
     }

@@ -3,6 +3,8 @@ using WolfNET.Game.InputEvents;
 
 namespace WolfNET.Game.Player;
 
+internal readonly record struct OpponentPace(float Corner, float Recovery, float Obstacle, float Traffic, float Target);
+
 /// <summary>Steers and brakes a normal car along the circuit; never moves its transform directly.</summary>
 public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettings car, RaceSettings settings,
     Vector2 start, bool skilled = false, float gridSide = 1.5f) : IKeyboardInput, ISteeringInput, IMouseInput
@@ -31,12 +33,19 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
     private int _passingSide;
     private CarObject? _defendingAgainst;
     private float _defenseHold;
+    private CarObject? _player;
+    private bool _allowRivalDefense = true;
+    private float _rivalBattleTime;
+    private float _rivalCooldown;
+    private float _passTime;
+    private float? _startingLane;
     public KeyState KeyState { get; private set; }
     public float Steering { get; private set; }
+    internal OpponentPace Pace { get; private set; }
 
-    public void Update(CarObject actor, CarObject other, float seconds) => Update(actor, new[] { other }, seconds);
+    public void Update(CarObject actor, CarObject other, float seconds) => Update(actor, new[] { other }, seconds, other);
 
-    public void Update(CarObject actor, IReadOnlyList<CarObject> others, float seconds)
+    public void Update(CarObject actor, IReadOnlyList<CarObject> others, float seconds, CarObject? player = null)
     {
         if (!float.IsFinite(seconds) || seconds <= 0) return;
         _decisionTime += seconds;
@@ -44,15 +53,35 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         if (_decisionTime + .00001f < 1f / 30) return;
         seconds = _decisionTime;
         _decisionTime = 0;
+        _player = player;
         var body = actor.Transform;
         var speed = actor.Controller.Speed;
         _distance = route.Project(body.Position, _distance);
         var lookAhead = 2.5f + speed * .18f;
         var target = _line.Point(_distance + lookAhead);
-        // Stay alongside the player on the grid, then merge onto the racing line.
-        var gridOffset = Math.Clamp(1 - (_distance - _origin - 15) / 20, 0, 1) * gridSide;
         var tangent = Vector2.Normalize(_line.Point(_distance + 1) - _line.Point(_distance));
-        target += new Vector2(-tangent.Y, tangent.X) * gridOffset;
+        var normal = new Vector2(-tangent.Y, tangent.X);
+        // Launch in our own grid lane, then merge promptly once the cars have room.
+        _startingLane ??= gridSide == 0 ? 0 : Math.Clamp(Vector2.Dot(start - _line.Point(_origin), normal),
+            -MathF.Abs(gridSide), MathF.Abs(gridSide));
+        var gridOffset = Math.Clamp(1 - (_distance - _origin - 5) / 12, 0, 1) * _startingLane.Value;
+        target += normal * gridOffset;
+
+        var playerLead = player == null ? 0 : route.Project(player.Transform.Position, _distance) - _distance;
+        var playerThreat = player != null && playerLead <= 0 && playerLead > -24 &&
+            Vector2.Dot(player.Controller.Velocity - actor.Controller.Velocity, tangent) > -.5f;
+        var chasingPlayer = player != null && playerLead > car.Length + 2;
+        var rivalBattle = _defendingAgainst != null && !ReferenceEquals(_defendingAgainst, player) ||
+            _passingCar != null && !ReferenceEquals(_passingCar, player) && _passingCar.Controller.Speed > 2;
+        _rivalCooldown = MathF.Max(0, _rivalCooldown - seconds);
+        _rivalBattleTime = rivalBattle ? _rivalBattleTime + seconds : MathF.Max(0, _rivalBattleTime - seconds);
+        if (_rivalBattleTime > 3)
+        {
+            _rivalCooldown = 6;
+            _rivalBattleTime = 0;
+        }
+        _allowRivalDefense = _rivalCooldown == 0 &&
+            (player == null || _drivingTime > 8 && !chasingPlayer && !playerThreat);
 
         CarObject? other = null;
         var closest = float.PositiveInfinity;
@@ -71,15 +100,26 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         var side = new Vector2(-body.Rotation.Y, body.Rotation.X);
         var blocked = other != null && ahead > 0 && ahead < 22 && MathF.Abs(Vector2.Dot(relativeCar, side)) < car.Width + .35f;
         var canPass = false;
-        var normal = new Vector2(-tangent.Y, tangent.X);
         var canManeuver = _line.CanManeuver(_distance);
         if (_passingCar != null)
         {
+            _passTime += seconds;
             var relativePass = Vector2.Dot(_passingCar.Transform.Position - body.Position, tangent);
-            if (relativePass < -car.Length - 2 || relativePass > 22 || !canManeuver) _passingCar = null;
+            var rivalPass = !ReferenceEquals(_passingCar, player) && _passingCar.Controller.Speed > 2;
+            var stillBehind = relativePass > car.Length + 1;
+            if (relativePass < -car.Length - 2 || relativePass > 22 || !canManeuver ||
+                rivalPass && stillBehind && (playerThreat || _passTime > 5 || _rivalCooldown > 0))
+            {
+                if (_passTime > 5) _rivalCooldown = 4;
+                _passingCar = null;
+                _passTime = 0;
+            }
         }
         var wantedOffset = 0f;
-        if (_passingCar != null || blocked && ahead < 12 && canManeuver)
+        var allowRivalPass = _rivalCooldown == 0 && !playerThreat && (player == null || _drivingTime > 4);
+        var shouldPass = blocked && ahead < 12 && canManeuver &&
+            (ReferenceEquals(other, player) || other!.Controller.Speed < 1 || allowRivalPass);
+        if (_passingCar != null || shouldPass)
         {
             var passed = _passingCar ?? other!;
             var preferred = _passingCar != null ? _passingSide :
@@ -89,9 +129,11 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
                 if (_passingCar != null && sign != _passingSide) break;
                 var offset = Vector2.Dot(passed.Transform.Position - target, normal) + sign * (car.Width + .4f);
                 var passing = target + normal * offset;
-                if (!_line.LaneClear(_distance, offset, speed * 1.1f + 8) ||
+                if (!PassingLaneAvailable(actor, passed, others, passing, tangent) ||
+                    !_line.LaneClear(_distance, offset, speed * 1.1f + 8) ||
                     !_line.RoadClear(body.Position, passing, body.Rotation, tangent)) continue;
                 wantedOffset = offset;
+                if (!ReferenceEquals(_passingCar, passed)) _passTime = 0;
                 _passingCar = passed;
                 _passingSide = sign;
                 canPass = true;
@@ -105,12 +147,26 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         target += normal * _passingOffset;
 
         // Passing a car ahead takes priority over defending against a car behind.
-        target = Defend(actor, others, target, tangent, blocked || _passingCar != null || MathF.Abs(_passingOffset) > .01f, seconds);
+        var avoidingTraffic = blocked && ahead < car.Length + speed * .35f ||
+            _passingCar != null || MathF.Abs(_passingOffset) > .01f;
+        target = Defend(actor, others, target, tangent, avoidingTraffic, seconds);
 
         var relative = target - body.Position;
         var distance = MathF.Max(relative.Length(), .1f);
         var cross = body.Rotation.X * relative.Y - body.Rotation.Y * relative.X;
         var angle = MathF.Atan(car.Wheelbase * 2 * cross / (distance * distance));
+        // Anticipate the bend through the car's yaw response, then correct heading and lane error.
+        if (speed > 4 && Vector2.Distance(body.Position, _line.Point(_distance)) < 1.5f)
+        {
+            var direction = _line.Direction(_distance);
+            var laneNormal = new Vector2(-direction.Y, direction.X);
+            var laneError = Vector2.Dot(_line.Point(_distance) - body.Position, laneNormal) + gridOffset;
+            var headingError = MathF.Atan2(body.Rotation.X * direction.Y - body.Rotation.Y * direction.X,
+                Vector2.Dot(body.Rotation, direction));
+            var curvature = _line.Curvature(_distance + speed * .9f / car.AngularResponse);
+            angle = MathF.Atan(car.Wheelbase * curvature * 1.3f) + headingError * .65f +
+                MathF.Atan2(laneError * 1.5f, speed + 2) - MathF.Atan2(car.Wheelbase * actor.Controller.AngularVelocity * .3f, speed);
+        }
         if (_defendingAgainst != null || MathF.Abs(_defensiveOffset) > .01f || MathF.Abs(_passingOffset) > .01f)
         {
             var laneDirection = Vector2.Normalize(_line.Point(_distance + 6) - _line.Point(_distance));
@@ -123,11 +179,17 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
             angle = MathF.Atan(car.Wheelbase * yaw / MathF.Max(speed, 3));
         }
         Steering = Math.Clamp(angle / (car.MaxSteeringDegrees * MathF.PI / 180), -1, 1);
-        var targetSpeed = MathF.Min(car.Asphalt.MaxForwardSpeed, _line.Speed(_distance, skilled, settings.OpponentCornerSpeed));
+        var cornerLimit = MathF.Min(car.Asphalt.MaxForwardSpeed, _line.Speed(_distance, skilled, settings.OpponentCornerSpeed));
+        var targetSpeed = cornerLimit;
         // Steering corrections and road recovery need lower speed than a settled racing line.
-        var lateralError = Vector2.Distance(body.Position, _line.Point(_distance));
-        if (lateralError > .8f) targetSpeed = MathF.Min(targetSpeed, 7);
-        targetSpeed = MathF.Min(targetSpeed, _line.ObstacleSpeed(actor));
+        var intendedLane = Vector2.Dot(target - _line.Point(_distance + lookAhead), normal);
+        var lateralError = MathF.Abs(Vector2.Dot(body.Position - _line.Point(_distance), normal) - intendedLane);
+        var changingLane = MathF.Abs(_passingOffset) > .01f || MathF.Abs(_defensiveOffset) > .01f;
+        var recoveryLimit = lateralError > (changingLane ? 2 : .8f) || !OnRoad(body.Position, body.Rotation) ? 7 : float.PositiveInfinity;
+        targetSpeed = MathF.Min(targetSpeed, recoveryLimit);
+        var obstacleLimit = _line.ObstacleSpeed(actor);
+        targetSpeed = MathF.Min(targetSpeed, obstacleLimit);
+        var trafficLimit = float.PositiveInfinity;
         if (blocked && !canPass)
         {
             var leaderSpeed = MathF.Max(0, Vector2.Dot(other!.Controller.Velocity, tangent));
@@ -136,6 +198,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
                 2 * car.Asphalt.BrakeDeceleration * .65f * MathF.Max(0, gap));
             if (ahead < car.Length + 1.5f)
                 followingSpeed = leaderSpeed * Math.Clamp((ahead - car.Length - .2f) / 1.3f, 0, 1);
+            trafficLimit = followingSpeed;
             targetSpeed = MathF.Min(targetSpeed, followingSpeed);
         }
 
@@ -151,8 +214,10 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
             _nextMistake = _drivingTime + 24 + MistakesMade % 3 * 7;
         }
         if (_mistakeRemaining > 0) targetSpeed *= .65f;
+        Pace = new(cornerLimit, recoveryLimit, obstacleLimit, trafficLimit, targetSpeed);
 
-        _stalled = speed < .2f ? _stalled + seconds : 0;
+        var waitingForTraffic = blocked && other!.Controller.Speed > 1;
+        _stalled = speed < .2f && !waitingForTraffic ? _stalled + seconds : 0;
         if (_stalled > 2) { _reverse = 1; _stalled = 0; }
         if (_reverse > 0)
         {
@@ -177,6 +242,8 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         {
             foreach (var challenger in others)
             {
+                var isPlayer = ReferenceEquals(challenger, _player);
+                if (!isPlayer && !_allowRivalDefense) continue;
                 if (ReferenceEquals(challenger, actor) || Vector2.Dot(challenger.Transform.Rotation, tangent) < .7f) continue;
                 var relative = challenger.Transform.Position - body.Position;
                 var behind = -Vector2.Dot(relative, tangent);
@@ -188,7 +255,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
                 if (!holding && (behind < car.Length + .3f || closing < .2f)) continue;
                 var arrival = behind / MathF.Max(.5f, closing);
                 if (!holding && arrival > 7) continue;
-                var priority = holding ? arrival * .5f : arrival;
+                var priority = (holding ? arrival * .5f : arrival) - (isPlayer ? 1000 : 0);
                 if (priority >= soonest) continue;
                 soonest = priority;
                 threat = challenger;
@@ -220,6 +287,20 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         }
         _defensiveOffset = 0;
         return target;
+    }
+
+    private bool PassingLaneAvailable(CarObject actor, CarObject passed, IReadOnlyList<CarObject> others,
+        Vector2 target, Vector2 direction)
+    {
+        var normal = new Vector2(-direction.Y, direction.X);
+        foreach (var other in others)
+        {
+            if (ReferenceEquals(other, actor) || ReferenceEquals(other, passed) || other.Controller.Speed > 2) continue;
+            var ahead = Vector2.Dot(other.Transform.Position - actor.Transform.Position, direction);
+            if (ahead < -car.Length || ahead > 14) continue;
+            if (MathF.Abs(Vector2.Dot(other.Transform.Position - target, normal)) < car.Width + .2f) return false;
+        }
+        return true;
     }
 
     private bool DefensiveLineClear(CarObject actor, IReadOnlyList<CarObject> others, Vector2 target, Vector2 tangent)

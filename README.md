@@ -265,6 +265,10 @@ Their asphalt top speeds follow the player's configured speed automatically: blu
 and green is **3 blocks/s slower** (28 and 22 blocks/s with the current 25 blocks/s player limit).
 Blue occasionally brakes too early for a corner and loses time; green drives a consistent, clean line.
 Both follow a road-centered path, brake ahead of bends, avoid barriers, and check road clearance before passing or defending.
+They launch in their own lanes, prioritize the player over rival duels, and abandon prolonged rival battles to resume racing.
+When the player is ahead, they focus on catching up at their configured speeds.
+Steering anticipates upcoming curvature and compensates yaw response, allowing a median race pace around
+15-16 blocks/s on Pine Loop while retaining road and barrier checks.
 `race.opponentCornerSpeed` adjusts their cornering pace; `race.lapCount` applies to all three racers.
 The Gap row measures the player's delay to the leader, with zero when leading. It starts measuring
 separation at lap finishes and freezes between matching finishes. Pausing freezes the cars and timers.

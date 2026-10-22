@@ -30,6 +30,7 @@ public sealed class GameScene : IDisposable
     private RaceStatus? _cachedRaceState;
     private RaceStatus[] _cachedStatuses = [];
     private double _cachedClock = -1;
+    internal OpponentPace GetOpponentPace(int index) => _rivals[index].Driver.Pace;
     public CarObject? Opponent => _rivals.Count > 0 ? _rivals[0].Car : null;
     public CarObject? SecondOpponent => _rivals.Count > 1 ? _rivals[1].Car : null;
     public IMap Map { get; }
@@ -195,7 +196,7 @@ public sealed class GameScene : IDisposable
         foreach (var rival in _rivals)
         {
             if (rival.Race.Status.Phase == RacePhase.Finished) continue;
-            rival.Driver.Update(rival.Car, _raceCars, milliseconds / 1000);
+            rival.Driver.Update(rival.Car, _raceCars, milliseconds / 1000, playerFinished ? null : car);
             rival.Car.Update(milliseconds);
         }
         for (var i = 0; i < _raceCars.Length; i++)
@@ -205,8 +206,15 @@ public sealed class GameScene : IDisposable
                     _rivals[j - 1].Race.Status.Phase == RacePhase.Finished);
         _raceClock += milliseconds;
         _race.Update(beforePlayer, car.Transform.Position, milliseconds);
+        if (_race.Status.Phase == RacePhase.Finished && !playerFinished)
+            car.Controller.ResolveCarContact(car.Transform.Position, Vector2.Zero);
         for (var i = 0; i < _rivals.Count; i++)
-            _rivals[i].Race.Update(_beforeOpponents[i], _rivals[i].Car.Transform.Position, milliseconds);
+        {
+            var rival = _rivals[i];
+            rival.Race.Update(_beforeOpponents[i], rival.Car.Transform.Position, milliseconds);
+            if (rival.Race.Status.Phase == RacePhase.Finished && rival.Car.Controller.Speed > 0)
+                rival.Car.Controller.ResolveCarContact(rival.Car.Transform.Position, Vector2.Zero);
+        }
     }
 
     public string? ConsumeMapRequest()

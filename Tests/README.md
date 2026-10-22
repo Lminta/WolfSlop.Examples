@@ -13,9 +13,9 @@ jumping, crouching, input, frame timing, scene ownership, doors, car interaction
 car physics and cameras, ordered checkpoint/lap timing, pause behavior,
 sprite animation, and editor persistence/export.
 The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,
-check individual top speeds and throttle/braking, blue mistake events and clean green laps, moving overtakes and defensive lane holding on both sides,
+check individual top speeds and throttle/braking, blue mistake events and clean green laps, launches against an accelerating player, player-priority blocking and chase recovery, moving overtakes and defensive lane holding on both sides,
 standings, grid/pause/finish behavior, car contact and solid boundaries. They measure full-footprint
-asphalt coverage during solo and traffic laps, check recovery from mud and a wall-facing pose, and compare
+asphalt coverage and median pace during solo and traffic laps, check recovery from mud and a wall-facing pose, and compare
 lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
 The Node checks cover editor operations and browser sprite selection/order.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
@@ -25,6 +25,18 @@ Keep regression cases around behavior that could break gameplay or persisted dat
 Exact scenery coordinates, asset counts, exhaustive authored-map cell assertions,
 synthetic GPU pixel fixtures, and separate browser probes for individual features
 have been removed. Visual changes to maps and shaders need manual review.
+
+## Opponent speed measurements
+
+```powershell
+dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds
+```
+
+Loads the shipped gameplay settings and runs three-lap traffic and solo simulations
+on Pine Loop at 120 Hz. Traffic includes both rivals and a parked player. Reports
+time-weighted median, maximum, percentiles, low-speed and mud-contact time, plus the active speed limits
+in blocks/second to `artifacts/opponent-speeds.json`. Countdown and post-finish time
+are excluded. This diagnostic does not change driving behavior.
 
 ## Optional integration checks
 
