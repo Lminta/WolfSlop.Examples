@@ -21,7 +21,13 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
     {
         var maximum = player.Asphalt.MaxForwardSpeed + (skilled ? -3 : 3);
         if (maximum <= 0) throw new InvalidDataException("Player forward speed must exceed 3 blocks/s to create the green rival.");
-        return player with { Asphalt = player.Asphalt with { MaxForwardSpeed = maximum } };
+        return player with { Asphalt = player.Asphalt with
+        {
+            MaxForwardSpeed = maximum,
+            // Green's lower limiter makes the high-speed taper much steeper.
+            // Stronger exit pull lets it keep pace without raising its top speed.
+            Acceleration = player.Asphalt.Acceleration * (skilled ? 3 : 1.2f)
+        } };
     }
 
     private float _stalled;
@@ -100,7 +106,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         var side = new Vector2(-body.Rotation.Y, body.Rotation.X);
         var blocked = other != null && ahead > 0 && ahead < 22 && MathF.Abs(Vector2.Dot(relativeCar, side)) < car.Width + .35f;
         var canPass = false;
-        var canManeuver = _line.CanManeuver(_distance);
+        var canManeuver = CanManeuver(speed);
         if (_passingCar != null)
         {
             _passTime += seconds;
@@ -164,7 +170,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
             var headingError = MathF.Atan2(body.Rotation.X * direction.Y - body.Rotation.Y * direction.X,
                 Vector2.Dot(body.Rotation, direction));
             var curvature = _line.Curvature(_distance + speed * .9f / car.AngularResponse);
-            angle = MathF.Atan(car.Wheelbase * curvature * 1.3f) + headingError * .65f +
+            angle = MathF.Atan(car.Wheelbase * curvature * (skilled ? 1.4f : 1.3f)) + headingError * .65f +
                 MathF.Atan2(laneError * 1.5f, speed + 2) - MathF.Atan2(car.Wheelbase * actor.Controller.AngularVelocity * .3f, speed);
         }
         if (_defendingAgainst != null || MathF.Abs(_defensiveOffset) > .01f || MathF.Abs(_passingOffset) > .01f)
@@ -181,11 +187,12 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         Steering = Math.Clamp(angle / (car.MaxSteeringDegrees * MathF.PI / 180), -1, 1);
         var cornerLimit = MathF.Min(car.Asphalt.MaxForwardSpeed, _line.Speed(_distance, skilled, settings.OpponentCornerSpeed));
         var targetSpeed = cornerLimit;
-        // Steering corrections and road recovery need lower speed than a settled racing line.
+        // Allow ordinary tracking error on a fast bend; slow down for a large
+        // deviation or an actual verge contact, rather than repeatedly braking to 7.
         var intendedLane = Vector2.Dot(target - _line.Point(_distance + lookAhead), normal);
         var lateralError = MathF.Abs(Vector2.Dot(body.Position - _line.Point(_distance), normal) - intendedLane);
         var changingLane = MathF.Abs(_passingOffset) > .01f || MathF.Abs(_defensiveOffset) > .01f;
-        var recoveryLimit = lateralError > (changingLane ? 2 : .8f) || !OnRoad(body.Position, body.Rotation) ? 7 : float.PositiveInfinity;
+        var recoveryLimit = lateralError > (changingLane ? 2 : 1.2f) || !OnRoad(body.Position, body.Rotation) ? 7 : float.PositiveInfinity;
         targetSpeed = MathF.Min(targetSpeed, recoveryLimit);
         var obstacleLimit = _line.ObstacleSpeed(actor);
         targetSpeed = MathF.Min(targetSpeed, obstacleLimit);
@@ -207,7 +214,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         // Blue occasionally misjudges a corner entry and brakes too early, then recovers.
         // Road and barrier checks still apply; errors cost time rather than forcing a crash.
         if (!skilled && _drivingTime >= _nextMistake && speed > 7 && lateralError < .65f &&
-            !canManeuver && !blocked && _passingCar == null && _defendingAgainst == null)
+            !_line.CanManeuver(_distance) && !blocked && _passingCar == null && _defendingAgainst == null)
         {
             MistakesMade++;
             _mistakeRemaining = 1.1f;
@@ -238,7 +245,8 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         var soonest = float.PositiveInfinity;
         CarObject? threat = null;
         _defenseHold = MathF.Max(0, _defenseHold - seconds);
-        if (actor.Controller.SignedSpeed > 2 && _line.CanManeuver(_distance))
+        var canManeuver = CanManeuver(actor.Controller.Speed);
+        if (actor.Controller.SignedSpeed > 2 && canManeuver)
         {
             foreach (var challenger in others)
             {
@@ -274,7 +282,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         }
         _defendingAgainst = threat;
         // Respond early, with a controlled lane change that remains stable at racing speed.
-        var rate = threat == null ? 1f : 2.5f;
+        var rate = threat == null && canManeuver ? 1f : 2.5f;
         var offset = _defensiveOffset + Math.Clamp(desired - _defensiveOffset, -seconds * rate, seconds * rate);
         if (MathF.Abs(offset) < .001f) { _defensiveOffset = 0; return target; }
         for (var attempt = 0; attempt < 24 && MathF.Abs(offset) > .001f; attempt++, offset = MathF.CopySign(MathF.Max(0, MathF.Abs(offset) - .1f), offset))
@@ -322,6 +330,10 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         }
         return true;
     }
+
+    // Leave time to merge before a bend and reserve grip for the lane change.
+    private bool CanManeuver(float speed) => _line.CanManeuver(_distance, MathF.Max(16, speed + 8),
+        MathF.Min(.035f, car.Asphalt.MaxLateralAcceleration * .5f / MathF.Max(64, speed * speed)));
 
     private bool OnRoad(Vector2 point, Vector2 direction) => _line.OnRoad(point, direction);
 

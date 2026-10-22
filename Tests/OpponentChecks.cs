@@ -303,10 +303,18 @@ internal static class OpponentChecks
         var raceMud = new int[2];
         var raceSlow = new int[2];
         var raceSpeeds = new[] { new List<float>(), new List<float>() };
+        var speedIntegrals = new double[2];
         var trafficWorst = new[] { new Dictionary<(int, int), int>(), new Dictionary<(int, int), int>() };
         for (var i = 0; i < 60 * 1200 && scene.RaceState?.Opponents.Any(r => !r.Finished) == true; i++)
         {
+            var beforeTimes = scene.RaceState!.Value.Opponents;
+            var beforeSpeeds = (opponent.Controller.Speed, green.Controller.Speed);
             scene.Update(1000f / 60);
+            var afterTimes = scene.RaceState!.Value.Opponents;
+            speedIntegrals[0] += (afterTimes[0].Finished ? beforeSpeeds.Item1 : opponent.Controller.Speed) *
+                (afterTimes[0].TotalMilliseconds - beforeTimes[0].TotalMilliseconds);
+            speedIntegrals[1] += (afterTimes[1].Finished ? beforeSpeeds.Item2 : green.Controller.Speed) *
+                (afterTimes[1].TotalMilliseconds - beforeTimes[1].TotalMilliseconds);
             if (i % 6 == 0 && i > 120)
             {
                 var racers = new[] { opponent, green };
@@ -342,8 +350,10 @@ internal static class OpponentChecks
             Check(raceMud[racer] < raceSamples[racer] * .01f, "Opponent spent too much of a traffic race off the asphalt.");
             raceSpeeds[racer].Sort();
             var median = raceSpeeds[racer][raceSpeeds[racer].Count / 2];
-            Check(median >= 15 && median <= 16.5f,
-                $"Opponent median race pace regressed outside the 15-16 blocks/s target: {median:F2} blocks/s.");
+            var mean = speedIntegrals[racer] / scene.RaceState!.Value.Opponents[racer].TotalMilliseconds;
+            Console.WriteLine($"Traffic {racer}: mean {mean:F2}, median {median:F2} blocks/s.");
+            Check(mean >= 18.5 && mean <= 19.8,
+                $"Opponent average race pace missed the 19 blocks/s target: {mean:F2} blocks/s.");
         }
         var greenResult = scene.RaceState!.Value.Opponents[1];
         Console.WriteLine($"Green car: {greenResult.TotalMilliseconds / 1000:F1}s, laps {greenResult.CompletedLaps}, position {green.Transform.Position}.");
@@ -370,13 +380,16 @@ internal static class OpponentChecks
             var samples = 0;
             var muddy = 0;
             var slow = 0;
+            double speedIntegral = 0;
             var worst = new Dictionary<(int X, int Y), int>();
             for (var frame = 0; frame < 60 * 300 && race.Status.Phase != RacePhase.Finished; frame++)
             {
                 var before = car.Transform.Position;
+                var beforeTime = race.Status.TotalMilliseconds;
                 driver.Update(car, Array.Empty<CarObject>(), 1f / 60);
                 car.Update(1000f / 60);
                 race.Update(before, car.Transform.Position, 1000f / 60);
+                speedIntegral += car.Controller.Speed * (race.Status.TotalMilliseconds - beforeTime);
                 if (frame % 6 == 0 && frame > 60)
                 {
                     samples++;
@@ -396,6 +409,10 @@ internal static class OpponentChecks
             Check(muddy < samples * .01f, "Opponent repeatedly cut corners or ran wide onto mud on an unobstructed lap.");
             Check(slow == 0, "Unobstructed opponent stalled against track barriers.");
             Check(race.Status.Phase == RacePhase.Finished, "Unobstructed opponent failed to finish a lap.");
+            var mean = speedIntegral / race.Status.TotalMilliseconds;
+            Console.WriteLine($"SOLO {(skilled ? "Green" : "Blue")}: mean {mean:F2} blocks/s.");
+            Check(mean >= 18.5 && mean <= 19.8,
+                $"Unobstructed opponent missed the 19 blocks/s average loop pace: {mean:F2} blocks/s.");
         }
         SoloLap(false);
         SoloLap(true);

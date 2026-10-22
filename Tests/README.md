@@ -17,7 +17,8 @@ away, momentum transfer, finished cars, update-rate independence, and three cars
 The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,
 check individual top speeds and throttle/braking, blue mistake events and clean green laps, launches against an accelerating player, player-priority blocking and chase recovery, moving overtakes and defensive lane holding on both sides,
 standings, grid/pause/finish behavior, car contact and solid boundaries. They measure full-footprint
-asphalt coverage and median pace during solo and traffic laps, check recovery from mud and a wall-facing pose, and compare
+asphalt coverage and a time-weighted mean pace near 19 blocks/s during solo and traffic laps (including launch),
+check recovery from mud and a wall-facing pose, and compare
 lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
 The Node checks cover editor operations and browser sprite selection/order.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
@@ -36,7 +37,7 @@ dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds
 
 Loads the shipped gameplay settings and runs three-lap traffic and solo simulations
 on Pine Loop at 120 Hz. Traffic includes both rivals and a parked player. Reports
-time-weighted median, maximum, percentiles, low-speed and mud-contact time, plus the active speed limits
+time-weighted mean, median, maximum, percentiles, low-speed and mud-contact time, plus the active speed limits and acceleration
 in blocks/second to `artifacts/opponent-speeds.json`. Countdown and post-finish time
 are excluded. This diagnostic does not change driving behavior.
 

@@ -50,17 +50,18 @@ internal static class OpponentSpeedReport
                 throw new InvalidOperationException("Race has no speed samples.");
             }
             var median = Quantile(s => s.Speed, .5);
+            var mean = _samples.Sum(s => s.Speed * s.Milliseconds) / duration;
             var maximum = _samples.Max(s => s.Speed);
             var p95 = Quantile(s => s.Speed, .95);
             var cap = car.Settings.Asphalt.MaxForwardSpeed;
             Console.WriteLine(FormattableString.Invariant($"Limits: corner {Percent(s => s.Pace.Corner <= s.Pace.Recovery && s.Pace.Corner <= s.Pace.Obstacle && s.Pace.Corner <= s.Pace.Traffic):F1}%, obstacle {Percent(s => s.Pace.Obstacle < s.Pace.Corner && s.Pace.Obstacle <= s.Pace.Recovery && s.Pace.Obstacle <= s.Pace.Traffic):F1}%, recovery {Percent(s => s.Pace.Recovery < s.Pace.Corner && s.Pace.Recovery < s.Pace.Obstacle && s.Pace.Recovery <= s.Pace.Traffic):F1}%, traffic {Percent(s => s.Pace.Traffic < s.Pace.Corner && s.Pace.Traffic < s.Pace.Obstacle && s.Pace.Traffic < s.Pace.Recovery):F1}%, target median {Quantile(s => s.Pace.Target,.5):F2}"));
             Console.WriteLine(FormattableString.Invariant(
-                $"{scenario,-12} {driver,-5}: median {median:F3}, max {maximum:F3}, p95 {p95:F3}, cap {cap:F1} blocks/s; race {totalMilliseconds / 1000:F2}s; below 10 {Percent(s => s.Speed < 10):F1}%; mud {Percent(s => s.OffRoad):F1}%; corner planner below 90% cap {Percent(s => s.PlannedSpeed < cap * .9):F1}%"));
+                $"{scenario,-12} {driver,-5}: mean {mean:F3}, median {median:F3}, max {maximum:F3}, p95 {p95:F3}, cap {cap:F1} blocks/s; race {totalMilliseconds / 1000:F2}s; below 10 {Percent(s => s.Speed < 10):F1}%; mud {Percent(s => s.OffRoad):F1}%; corner planner below 90% cap {Percent(s => s.PlannedSpeed < cap * .9):F1}%"));
             return new
             {
                 scenario, driver, samples = _samples.Count, measuredSeconds = duration / 1000,
-                configuredMaximum = cap, median, maximum, p95,
-                mean = _samples.Sum(s => s.Speed * s.Milliseconds) / duration,
+                configuredMaximum = cap, configuredAcceleration = car.Settings.Asphalt.Acceleration, median, maximum, p95,
+                mean,
                 offRoadPercent = Percent(s => s.OffRoad),
                 below1Percent = Percent(s => s.Speed < 1), below7Percent = Percent(s => s.Speed < 7),
                 below10Percent = Percent(s => s.Speed < 10),
@@ -102,7 +103,7 @@ internal static class OpponentSpeedReport
             var final = scene.RaceState!.Value.Opponents;
             for (var i = 0; i < cars.Length; i++)
             {
-                if (!final[i].Finished) throw new Exception("Traffic race did not finish.");
+                if (!final[i].Finished) throw new Exception($"Traffic {i} did not finish: {final[i]}, pose {cars[i].Transform.Position}, speed {cars[i].Controller.Speed:F2}.");
                 results.Add(recorders[i].Summarize(final[i].TotalMilliseconds, final[i].LapTimes));
             }
         }

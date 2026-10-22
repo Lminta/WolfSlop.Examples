@@ -49,8 +49,10 @@ internal sealed class OpponentRacingLine
             }
             _points[i] = chosen;
         }
-        // Smooth lane centers without cutting the full footprint across a verge or barrier.
-        for (var pass = 0; pass < 3; pass++)
+        // Remove the raster route's stair steps before estimating curvature, so
+        // harmless cell edges do not become artificial braking points.
+        // Keep the full footprint clear of verges and barriers while smoothing.
+        for (var pass = 0; pass < 20; pass++)
         {
             var previous = (Vector2[])_points.Clone();
             for (var i = 0; i < count; i++)
@@ -105,12 +107,12 @@ internal sealed class OpponentRacingLine
         return speed;
     }
 
-    public bool CanManeuver(float distance)
+    public bool CanManeuver(float distance, float preview = 16, float maximumCurvature = .035f)
     {
-        for (float ahead = 0; ahead <= 16; ahead += 2)
+        for (float ahead = 0; ahead <= preview; ahead += 2)
         {
             var index = (int)(((distance + ahead) % _length + _length) % _length / _spacing) % _points.Length;
-            if (MathF.Abs(_curvature[index]) > .035f) return false;
+            if (MathF.Abs(_curvature[index]) > maximumCurvature) return false;
         }
         return true;
     }
