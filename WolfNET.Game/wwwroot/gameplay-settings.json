@@ -1,7 +1,7 @@
 {
   "race": {
     "lapCount": 3,
-    "opponentMaxSpeed": 18,
+    "opponentMaxSpeed": 19,
     "opponentCornerSpeed": 13
   },
   "car": {
@@ -23,8 +23,8 @@
     "mudPullStrength": 0.65,
     "steeringWheelDegrees": 180,
     "asphalt": {
-      "maxForwardSpeed": 18,
-      "maxReverseSpeed": 4,
+      "maxForwardSpeed": 20,
+      "maxReverseSpeed": 5,
       "acceleration": 8,
       "reverseAcceleration": 4,
       "brakeDeceleration": 12,

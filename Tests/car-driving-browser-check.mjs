@@ -89,7 +89,7 @@ try {
     await send('Network.enable');
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 850, deviceScaleFactor: 1, mobile: false});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
-        window.__camera = null; window.__avatar = null; window.__opponent = null; window.__carLayers = {}; window.__mapInfo = null;
+        window.__camera = null; window.__avatar = null; window.__opponent = null; window.__greenOpponent = null; window.__carLayers = {}; window.__mapInfo = null;
         window.__lightLayers = [];
         const frames = ${JSON.stringify(carDefinition.atlas.frames)};
         const fetchOriginal = window.fetch;
@@ -145,13 +145,13 @@ try {
             if (buffer.label === 'WolfNET Sprites') {
                 const ints = new Uint32Array(raw, start, words), floats = new Float32Array(raw, start, words);
                 window.__avatar = null;
-                window.__opponent = null;
+                window.__opponent = null; window.__greenOpponent = null;
                 window.__lightLayers = [];
                 for (let i = 0; i < ints.length; i += 8) if (ints[i + 2] === 180 || ints[i + 2] === 181)
                     window.__lightLayers.push(ints[i + 2]);
                 for (let i = 0; i < ints.length; i += 8) if (ints[i + 3] === 0) {
                     const actor = {x: floats[i], y: floats[i + 1], frame: window.__carLayers[ints[i + 2]], width: floats[i + 4], height: floats[i + 5], elevation: floats[i + 6], kind: ints[i + 7]};
-                    if (ints[i + 7] & 32) window.__opponent = actor; else window.__avatar = actor;
+                    if (ints[i + 7] & 32) window.__opponent = actor; else if (ints[i + 7] & 64) window.__greenOpponent = actor; else window.__avatar = actor;
                 }
             }
             return write.call(this, buffer, offset, data, ...args);
@@ -234,7 +234,9 @@ try {
     await waitFor(`!document.querySelector('.race-countdown')`);
     await waitFor(`!!window.__opponent`);
     assert.equal((await evaluate('window.__opponent')).kind & 32, 32, 'Opponent did not request red/blue channel swapping');
-    await snapshot('blue-opponent');
+    await waitFor(`!!window.__greenOpponent`);
+    assert.equal((await evaluate('window.__greenOpponent')).kind & 64, 64, 'Green rival did not request red/green channel swapping');
+    await snapshot('opponents');
     const gapBefore = await evaluate(`document.querySelector('.race-gap').textContent.trim()`);
     await delay(250);
     assert.equal(gapBefore, '—', 'Gap appeared before the first completed lap');
@@ -382,18 +384,20 @@ try {
         }
     }
     await waitFor(`!!document.querySelector('.race-results') && !document.pointerLockElement`);
-    assert(await evaluate(`document.querySelector('.race-opponent-result').textContent.includes('Opponent')`));
-    assert.equal(await evaluate(`document.querySelectorAll('.race-opponent-lap').length`), 2);
-    assert(await evaluate(`!!document.querySelector('.race-gap-ahead')`), 'Player-first finish did not show a positive lead');
-    assert.equal(await evaluate(`document.querySelectorAll('.race-results li').length`), 2);
+    assert.equal(await evaluate(`document.querySelectorAll('.race-standings tbody tr').length`), 3);
+    assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.race-standings tbody td:first-child'), c => c.textContent)`), ['1', '2', '3']);
+    assert(await evaluate(`document.querySelector('.race-standings').textContent.includes('Green car')`));
+    assert.equal(await evaluate(`document.querySelectorAll('.race-lap-results tbody td').length`), 6);
+    assert(await evaluate(`!!document.querySelector('.race-gap-ahead')`), 'Winning player did not show zero gap to leader');
+    assert.equal(await evaluate(`document.querySelectorAll('.race-lap-results tbody tr').length`), 2);
     assert(await evaluate(`document.activeElement === document.querySelector('.race-results button')`), 'Results did not focus restart');
     const resultPose = await camera();
     const resultTime = await evaluate(`document.querySelector('.race-total').textContent`);
-    const opponentTime = await evaluate(`document.querySelector('.race-opponent-result strong').textContent`);
+    const opponentTime = await evaluate(`Array.from(document.querySelectorAll('.race-standings tbody tr')).find(row => row.textContent.includes('Blue car')).lastElementChild.textContent`);
     await delay(500); await key('KeyW', false);
     assert.deepEqual(await camera(), resultPose, 'Finished car kept moving');
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent`), resultTime, 'Finished race time kept increasing');
-    assert.notEqual(await evaluate(`document.querySelector('.race-opponent-result strong').textContent`), opponentTime,
+    assert.notEqual(await evaluate(`Array.from(document.querySelectorAll('.race-standings tbody tr')).find(row => row.textContent.includes('Blue car')).lastElementChild.textContent`), opponentTime,
         'Opponent stopped racing when player results opened');
     await snapshot('results');
     await evaluate(`document.querySelector('.race-results button').click()`);

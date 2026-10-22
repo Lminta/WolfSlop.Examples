@@ -18,14 +18,14 @@ internal sealed class SpriteSelection
     }
 
     public void Resolve(IReadOnlyList<Sprite> sprites, ReadOnlySpan<uint> keys, int count,
-        ReadOnlySpan<int> frames, ReadOnlySpan<float> widths, Sprite? character, Sprite? opponent = null)
+        ReadOnlySpan<int> frames, ReadOnlySpan<float> widths, Sprite? character, Sprite? opponent = null, Sprite? secondOpponent = null)
     {
         _visible.Clear();
         CandidatesExamined = (int)keys[1];
         for (var i = 0; i < count; i++)
         {
             var index = (int)keys[2 + i * 2];
-            var sprite = index < sprites.Count ? sprites[index] : index == sprites.Count ? character!.Value : opponent!.Value;
+            var sprite = index < sprites.Count ? sprites[index] : index == sprites.Count ? character!.Value : index == sprites.Count + 1 ? opponent!.Value : secondOpponent!.Value;
             var frame = frames[index];
             _visible.Add(new(sprite, new(widths[index], sprite.Scale.Y), sprite.TextureLayer + (uint)frame,
                 sprite.ViewKind(frame), BitConverter.UInt32BitsToSingle(keys[3 + i * 2]), index));

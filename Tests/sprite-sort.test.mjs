@@ -55,6 +55,15 @@ assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, false, 0, 0, 0
 assert.equal(output[2], 1, 'Cockpit view hid the opponent along with the player');
 assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, false, 0, 0, 0, true, -5, 0, 1), 0, 'Moving opponent used stale position');
 assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true, false, 0, 0, 0, true, 70, 0, 1), 0, 'Opponent ignored render distance');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true,
+    true, 3, 0, 1, true, 5, 0, 1, true, 7, 0, 1), 3);
+assert.deepEqual([output[2], output[4], output[6]], [2, 1, 0], 'Three cars were not sorted together');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true,
+    false, 0, 0, 0, true, 5, 0, 1, true, 7, 0, 1), 2, 'Cockpit view hid the green rival');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true,
+    false, 0, 0, 0, false, 0, 0, 0, true, -7, 0, 1), 0, 'Green rival used stale position');
+assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true,
+    false, 0, 0, 0, false, 0, 0, 0, true, 70, 0, 1), 0, 'Green rival ignored render distance');
 release();
 console.log(`PASS: browser painter sort matches .NET for ${cases.length} fixtures, including equal distances, partition boundaries, reused buffers, and spare capacity.`);
 console.log(`PASS: browser spatial ordering matches .NET at all ${spatial.views.length} Pine Loop viewpoints.`);

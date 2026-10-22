@@ -170,6 +170,7 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
     // Mips store premultiplied RGBA; blending uses ONE, ONE_MINUS_SRC_ALPHA.
     var color = textureSampleGrad(spriteTextures, spriteSampler, input.uv, i32(input.textureLayer), gradientX, gradientY);
     if ((input.kind & 32u) != 0u) { color = color.bgra; }
+    if ((input.kind & 64u) != 0u) { color = color.grba; }
     var fog = 0.0;
     var visibility = 1.0;
     if (camera.look.z > 0.0) {

@@ -21,20 +21,49 @@ public sealed class GameScene : IDisposable
     private readonly RaceSession? _race;
     private RenderMap? _greenSource;
     private RenderMap? _greenMap;
-    private readonly RaceSession? _opponentRace;
-    private readonly OpponentDriver? _opponentDriver;
+    private sealed record Rival(CarObject Car, OpponentDriver Driver, RaceSession Race, string Name);
+    private readonly List<Rival> _rivals = [];
+    private readonly RaceRoute? _route;
+    private CarObject[] _raceCars = [];
+    private Vector2[] _beforeOpponents = [];
     private double _raceClock;
-    public CarObject? Opponent { get; }
+    private RaceStatus? _cachedRaceState;
+    private RaceStatus[] _cachedStatuses = [];
+    private double _cachedClock = -1;
+    public CarObject? Opponent => _rivals.FirstOrDefault()?.Car;
+    public CarObject? SecondOpponent => _rivals.Skip(1).FirstOrDefault()?.Car;
     public IMap Map { get; }
     public IControlledActor Player { get; }
     public ICharacterAppearance Character { get; }
     public bool Paused { get; private set; }
-    public RaceStatus? RaceState => _race == null ? null : _race.Status with
+    public RaceStatus? RaceState
     {
-        Opponent = _opponentRace is { } rival ? new(rival.Status.CompletedLaps, rival.Status.TotalMilliseconds,
-            rival.Status.LapTimes, rival.Status.Phase == RacePhase.Finished) : null,
-        GapMilliseconds = _opponentRace == null ? null : RaceLapGap.Calculate(_race.Status, _opponentRace.Status, _raceClock)
-    };
+        get
+        {
+            if (_race == null) return null;
+            var statuses = new[] { _race.Status }.Concat(_rivals.Select(r => r.Race.Status)).ToArray();
+            if (_cachedClock == _raceClock && statuses.SequenceEqual(_cachedStatuses)) return _cachedRaceState;
+            _cachedStatuses = statuses;
+            _cachedClock = _raceClock;
+            var racers = new[] { (Name: "You", Player: true, Race: _race, Car: (CarObject)Player) }
+                .Concat(_rivals.Select(r => (Name: r.Name, Player: false, Race: r.Race, Car: r.Car)))
+                .OrderByDescending(r => r.Race.Status.Phase == RacePhase.Finished)
+                .ThenBy(r => r.Race.Status.Phase == RacePhase.Finished ? r.Race.Status.TotalMilliseconds : 0)
+                .ThenByDescending(r => _route == null ? 0 : r.Race.Progress(_route, r.Car.Transform.Position))
+                .ToArray();
+            static OpponentRaceStatus Summary(RaceSession race) => new(race.Status.CompletedLaps,
+                race.Status.TotalMilliseconds, race.Status.LapTimes, race.Status.Phase == RacePhase.Finished);
+            var opponents = _rivals.Select(r => Summary(r.Race)).ToArray();
+            return _cachedRaceState = _race.Status with
+            {
+                Opponent = opponents.Length == 0 ? null : opponents[0],
+                Opponents = opponents,
+                Standings = racers.Select((r, i) => new RaceStanding(r.Name, i + 1, r.Player, Summary(r.Race))).ToArray(),
+                GapMilliseconds = racers[0].Player ? 0 :
+                    RaceLapGap.Calculate(racers[0].Race.Status, _race.Status, _raceClock) is { } gap ? Math.Max(0, gap) : null
+            };
+        }
+    }
     public DrivingViewState? DrivingState => Player is CarObject car
         ? new(car.Camera.ThirdPerson, Paused, car.Controller.SteeringAngle, car.Controller.Speed, car.Look.Yaw) : null;
     public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
@@ -58,19 +87,33 @@ public sealed class GameScene : IDisposable
         if (Player is CarObject && map.RendererMap.Race is { } race) _race = new RaceSession(race, gameplay.Race);
         if (_race != null && map.RendererMap.RaceMinimap is { } minimap)
         {
-            var route = new RaceRoute(minimap);
+            _route = new RaceRoute(minimap);
             var box = new OrientedBoxCollider(map.NavigationMap, gameplay.Car.Length, gameplay.Car.Width);
-            var position = Player.Transform.Position;
+            var origin = Player.Transform.Position;
             var side = new Vector2(-direction.Y, direction.X);
-            foreach (var offset in new[] { side * 1.2f, -side * 1.2f, -direction * 1.5f })
+            for (var i = 0; i < 2; i++)
             {
-                if (!box.CanOccupy(position + offset, direction)) continue;
-                position += offset; break;
+                var offsets = i == 0
+                    ? new[] { side * 1.2f, -side * 1.2f, -direction * 1.5f }
+                    : new[] { -side * 1.2f, -direction * 1.5f, -direction * 3f, side * 2.4f };
+                Vector2? position = null;
+                foreach (var offset in offsets)
+                {
+                    var candidate = origin + offset;
+                    if (!box.CanOccupy(candidate, direction) ||
+                        _rivals.Any(r => Vector2.Distance(r.Car.Transform.Position, candidate) < gameplay.Car.Length + .2f)) continue;
+                    position = candidate;
+                    break;
+                }
+                if (position == null) throw new InvalidDataException("Race grid needs room for two opponents.");
+                var driver = new OpponentDriver(_route, map.NavigationMap, gameplay.Car, gameplay.Race,
+                    position.Value, skilled: i == 1, gridSide: i == 0 ? 1.5f : -1.5f);
+                var rival = new CarObject(driver, driver, map.NavigationMap, gameplay.Car)
+                    { Transform = new Transform { Position = position.Value, Rotation = direction } };
+                _rivals.Add(new(rival, driver, new(map.RendererMap.Race!, gameplay.Race), i == 0 ? "Blue car" : "Green car"));
             }
-            _opponentDriver = new(route, map.NavigationMap, gameplay.Car, gameplay.Race, position);
-            Opponent = new(_opponentDriver, _opponentDriver, map.NavigationMap, gameplay.Car)
-                { Transform = new Transform { Position = position, Rotation = direction } };
-            _opponentRace = new(map.RendererMap.Race!, gameplay.Race);
+            _beforeOpponents = new Vector2[_rivals.Count];
+            _raceCars = new[] { (CarObject)Player }.Concat(_rivals.Select(r => r.Car)).ToArray();
         }
     }
 
@@ -79,20 +122,20 @@ public sealed class GameScene : IDisposable
         if (Player is not CarObject car || Paused == paused) return;
         Paused = paused;
         car.Controller.ResetTiming();
-        Opponent?.Controller.ResetTiming();
+        foreach (var rival in _rivals) rival.Car.Controller.ResetTiming();
     }
 
     public void Update(float deltaMilliseconds)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var playerFinished = _race?.Status.Phase == RacePhase.Finished;
-        if (Paused && !playerFinished || playerFinished && (_opponentRace == null || _opponentRace.Status.Phase == RacePhase.Finished)) return;
+        if (Paused && !playerFinished || playerFinished && _rivals.All(r => r.Race.Status.Phase == RacePhase.Finished)) return;
         if (_race != null)
         {
             _race.BeginCountdown();
-            _opponentRace?.BeginCountdown();
+            foreach (var rival in _rivals) rival.Race.BeginCountdown();
             var frameTime = Math.Clamp(deltaMilliseconds, 0, 250);
-            _opponentRace?.AdvanceStart(frameTime);
+            foreach (var rival in _rivals) rival.Race.AdvanceStart(frameTime);
             deltaMilliseconds = playerFinished ? frameTime : _race.AdvanceStart(frameTime);
             if (_race.Status.Phase == RacePhase.Countdown)
             {
@@ -138,19 +181,24 @@ public sealed class GameScene : IDisposable
     {
         var car = (CarObject)Player;
         var playerFinished = _race!.Status.Phase == RacePhase.Finished;
-        var opponentFinished = _opponentRace!.Status.Phase == RacePhase.Finished;
         var beforePlayer = car.Transform.Position;
-        var beforeOpponent = Opponent!.Transform.Position;
+        for (var i = 0; i < _rivals.Count; i++) _beforeOpponents[i] = _rivals[i].Car.Transform.Position;
         if (!playerFinished) car.Update(milliseconds);
-        if (!opponentFinished)
+        foreach (var rival in _rivals)
         {
-            _opponentDriver!.Update(Opponent, car, milliseconds / 1000);
-            Opponent.Update(milliseconds);
+            if (rival.Race.Status.Phase == RacePhase.Finished) continue;
+            rival.Driver.Update(rival.Car, _raceCars, milliseconds / 1000);
+            rival.Car.Update(milliseconds);
         }
-        CarContact.Resolve(car, Opponent, Map.NavigationMap, playerFinished, opponentFinished);
+        for (var i = 0; i < _raceCars.Length; i++)
+            for (var j = i + 1; j < _raceCars.Length; j++)
+                CarContact.Resolve(_raceCars[i], _raceCars[j], Map.NavigationMap,
+                    i == 0 ? playerFinished : _rivals[i - 1].Race.Status.Phase == RacePhase.Finished,
+                    _rivals[j - 1].Race.Status.Phase == RacePhase.Finished);
         _raceClock += milliseconds;
         _race.Update(beforePlayer, car.Transform.Position, milliseconds);
-        _opponentRace.Update(beforeOpponent, Opponent.Transform.Position, milliseconds);
+        for (var i = 0; i < _rivals.Count; i++)
+            _rivals[i].Race.Update(_beforeOpponents[i], _rivals[i].Car.Transform.Position, milliseconds);
     }
 
     public string? ConsumeMapRequest()
@@ -182,6 +230,7 @@ public sealed class GameScene : IDisposable
                 map, car.Look.Pitch, carView.Elevation, sprite)
                 {
                     Opponent = Opponent == null ? null : Character.CreateSprite(Opponent, carView.Position) with { SwapRedBlue = true },
+                    SecondOpponent = SecondOpponent == null ? null : Character.CreateSprite(SecondOpponent, carView.Position) with { SwapRedGreen = true },
                     FirstPerson = camera.ThirdPerson ? default : new(FirstPersonViewKind.Cockpit,
                         WheelRotation: -Math.Clamp(car.Controller.SteeringAngle / (car.Settings.MaxSteeringDegrees * MathF.PI / 180), -1, 1)
                             * car.Settings.SteeringWheelDegrees * MathF.PI / 180)
@@ -204,6 +253,6 @@ public sealed class GameScene : IDisposable
     {
         _disposed = true;
         _objects.Dispose();
-        Opponent?.Dispose();
+        foreach (var rival in _rivals) rival.Car.Dispose();
     }
 }

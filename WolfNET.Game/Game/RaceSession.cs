@@ -7,6 +7,8 @@ public enum RacePhase { AwaitingStart, Countdown, Racing, Finished }
 public readonly record struct OpponentRaceStatus(int CompletedLaps, double TotalMilliseconds,
     IReadOnlyList<double> LapTimes, bool Finished);
 
+public readonly record struct RaceStanding(string Name, int Place, bool IsPlayer, OpponentRaceStatus Status);
+
 public readonly record struct RaceStatus(int CompletedLaps, double TotalMilliseconds, double LapMilliseconds,
     double? LastLapMilliseconds, bool Started)
 {
@@ -16,6 +18,8 @@ public readonly record struct RaceStatus(int CompletedLaps, double TotalMillisec
     public bool ShowGo { get; init; }
     public IReadOnlyList<double> LapTimes { get; init; } = Array.Empty<double>();
     public OpponentRaceStatus? Opponent { get; init; }
+    public IReadOnlyList<OpponentRaceStatus> Opponents { get; init; } = Array.Empty<OpponentRaceStatus>();
+    public IReadOnlyList<RaceStanding> Standings { get; init; } = Array.Empty<RaceStanding>();
     public double? GapMilliseconds { get; init; }
 }
 
@@ -45,6 +49,9 @@ public sealed class RaceSession
     private double _countdownRemaining = 5000;
     private double _goRemaining = 1000;
     private bool _departed;
+    private RaceRoute? _progressRoute;
+    private float[] _gateDistances = [];
+    private float? _projectedDistance;
     private readonly record struct Gate(Vector2 Center, Vector2 Direction, float HalfWidth)
     {
         public static Gate From(RaceGateDefinition gate) => new(new(gate.Center[0], gate.Center[1]),
@@ -75,6 +82,25 @@ public sealed class RaceSession
         Status = Status with { TotalLaps = settings.LapCount };
         _finish = Gate.From(definition.StartFinish);
         _checkpoints = definition.Checkpoints.Select(Gate.From).ToArray();
+    }
+
+    public float Progress(RaceRoute route, Vector2 position)
+    {
+        if (!ReferenceEquals(_progressRoute, route))
+        {
+            _progressRoute = route;
+            _gateDistances = new[] { _finish }.Concat(_checkpoints).Append(_finish)
+                .Select(g => route.Project(g.Center)).ToArray();
+            _projectedDistance = null;
+        }
+        if (!_departed) return -Vector2.Distance(position, _finish.Center);
+        var previous = _gateDistances[_nextCheckpoint];
+        var next = _gateDistances[_nextCheckpoint + 1];
+        _projectedDistance = route.Project(position, _projectedDistance);
+        var length = (next - previous + route.Length) % route.Length;
+        var distance = ((_projectedDistance.Value - previous) % route.Length + route.Length) % route.Length;
+        return Status.CompletedLaps * (_checkpoints.Length + 1) + _nextCheckpoint +
+            Math.Clamp(distance / MathF.Max(length, .01f), 0, .9999f);
     }
 
     public void BeginCountdown()

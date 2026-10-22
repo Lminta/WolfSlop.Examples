@@ -9,11 +9,11 @@
         <div><dt>Laps</dt><dd class="race-laps">@race.CompletedLaps/@race.TotalLaps</dd></div>
         <div><dt>Total</dt><dd class="race-total">@Time(race.TotalMilliseconds)</dd></div>
         <div><dt>Lap</dt><dd class="race-lap">@Time(race.LapMilliseconds)</dd></div>
-        <div><dt>Last</dt><dd class="race-last">@(race.LastLapMilliseconds is { } last ? Time(last) : "—")</dd></div>
+        <div><dt>Last</dt><dd class="race-last">@(race.LastLapMilliseconds is { } last ? Time(last) : "\u2014")</dd></div>
         @if (race.Opponent != null)
         {
-            <div><dt>Gap</dt><dd class="race-gap @(race.GapMilliseconds > 0 ? "race-gap-ahead" : race.GapMilliseconds < 0 ? "race-gap-behind" : null)">
-                @(race.GapMilliseconds is { } gap ? (gap >= 0 ? "+" : "−") + (Math.Abs(gap) / 1000).ToString("0.00", CultureInfo.InvariantCulture) + "s" : "—")
+            <div><dt title="Time to race leader">Gap</dt><dd class="race-gap @(race.GapMilliseconds > 0 ? "race-gap-behind" : race.GapMilliseconds == 0 ? "race-gap-ahead" : null)">
+                @(race.GapMilliseconds is { } gap ? (gap > 0 ? "+" : "") + (gap / 1000).ToString("0.00", CultureInfo.InvariantCulture) + "s" : "\u2014")
             </dd></div>
         }
     </dl>

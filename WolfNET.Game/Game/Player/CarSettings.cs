@@ -2,7 +2,7 @@ namespace WolfNET.Game.Player;
 
 public sealed record CarSurfaceSettings
 {
-    public float MaxForwardSpeed { get; init; } = 18;
+    public float MaxForwardSpeed { get; init; } = 19;
     public float MaxReverseSpeed { get; init; } = 4;
     public float Acceleration { get; init; } = 8;
     public float ReverseAcceleration { get; init; } = 4;

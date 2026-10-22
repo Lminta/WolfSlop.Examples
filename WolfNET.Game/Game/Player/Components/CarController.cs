@@ -104,7 +104,10 @@ public sealed class CarController : ComponentBase
             var maximum = throttle > 0 ? surface.MaxForwardSpeed : surface.MaxReverseSpeed;
             var acceleration = throttle > 0 ? surface.Acceleration : surface.ReverseAcceleration;
             var ratio = MathF.Max(0, longitudinal * throttle) / maximum;
-            var engine = acceleration * MathF.Max(0, 1 - ratio * ratio);
+            var taper = MathF.Max(0, 1 - ratio * ratio);
+            // Keep launch torque, but stretch out the final part of forward acceleration.
+            if (throttle > 0) taper /= 1 + 3 * ratio * ratio;
+            var engine = acceleration * taper;
             longitudinal += throttle * engine * seconds;
         }
 

@@ -27,8 +27,20 @@ internal static class CarPhysicsChecks
         Check(earlyAcceleration > asphalt.Controller.Speed - laterSpeed && earlyAcceleration > 0,
             "Car acceleration must weaken as speed approaches its limit.");
         Advance(asphalt.Controller, 20);
-        Check(asphalt.Controller.Speed <= 18.001f && asphalt.Controller.Speed > 17.1f,
+        Check(asphalt.Controller.Speed <= new CarSettings().Asphalt.MaxForwardSpeed + .001f &&
+              asphalt.Controller.Speed > new CarSettings().Asphalt.MaxForwardSpeed * .95f,
             "Asphalt forward speed did not approach its configured maximum.");
+
+        float SpeedGain(float initialSpeed)
+        {
+            var rig = Create();
+            rig.Controller.ResolveCarContact(rig.Actor.Transform.Position, new(initialSpeed, 0));
+            rig.Keys.KeyState = new() { Forward = true };
+            Advance(rig.Controller, .25f);
+            return rig.Controller.Speed - initialSpeed;
+        }
+        Check(SpeedGain(5) > 1.1f && SpeedGain(17) < .2f && SpeedGain(17) < SpeedGain(5) * .15f,
+            "High-speed acceleration did not taper strongly while preserving low-speed pull.");
 
         var mud = Create(surface: _ => "mud");
         mud.Keys.KeyState = new() { Forward = true };
@@ -66,8 +78,8 @@ internal static class CarPhysicsChecks
         firstPartial.Controller.Update(1000f / 120);
         Check(MathF.Abs(firstPartial.Controller.Speed * 120 - 5.2f) < .001f,
             "Mixed contact did not apply exactly half of the asphalt-to-mud acceleration penalty.");
-        Advance(shallow.Controller, 25);
-        Check(MathF.Abs(shallow.Controller.Speed - 13) < .01f,
+        Advance(shallow.Controller, 45);
+        Check(MathF.Abs(shallow.Controller.Speed - (noPull.Asphalt.MaxForwardSpeed + noPull.OffRoad.MaxForwardSpeed) * .5f) < .01f,
             "Partly off-road forward speed did not approach the halfway limit.");
         var footprintPatch = Create(noPull, point => (int)point.X == 100 && (int)point.Y == 100 ? "mud" : "asphalt",
             position: new(100.5f, 100.5f));
@@ -108,8 +120,9 @@ internal static class CarPhysicsChecks
         overspeedEdge.Keys.KeyState = new() { Forward = true }; Advance(overspeedEdge.Controller, 5);
         var beforePartial = overspeedEdge.Controller.Speed;
         mixedContact = true; overspeedEdge.Controller.Update(1000f / 120);
-        var expectedPartial = 13 + (beforePartial - 13) * MathF.Exp(-noPull.OffRoad.SurfacePenaltyCoefficient * .5f / 120);
-        Check(overspeedEdge.Controller.Speed > 13 && MathF.Abs(overspeedEdge.Controller.Speed - expectedPartial) < .001f,
+        var mixedLimit = (noPull.Asphalt.MaxForwardSpeed + noPull.OffRoad.MaxForwardSpeed) * .5f;
+        var expectedPartial = mixedLimit + (beforePartial - mixedLimit) * MathF.Exp(-noPull.OffRoad.SurfacePenaltyCoefficient * .5f / 120);
+        Check(overspeedEdge.Controller.Speed > mixedLimit && MathF.Abs(overspeedEdge.Controller.Speed - expectedPartial) < .001f,
             "Mixed contact clamped speed or failed to halve the progressive mud penalty coefficient.");
 
         var coast = Create();

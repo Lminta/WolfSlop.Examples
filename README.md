@@ -208,17 +208,17 @@ The 10° road-wheel steering limit and 0.65-block wheelbase give a low-speed
 turning radius of approximately **3.7 blocks**. Steering builds progressively;
 angular speed is limited by both travel speed and available tire grip, including
 while braking, so the car cannot keep pivoting as it slows to a stop.
-Engine acceleration tapers near the speed limit. Asphalt provides stronger grip
+Engine acceleration tapers strongly at higher speeds, stretching out the approach to the speed limit. Asphalt provides stronger grip
 and rolling friction than off-road terrain. Grass and mud share handling; the
 `surfacePenaltyCoefficient` progressively removes excess speed rather than
 snapping the car to a lower limit. Any mixed asphalt/off-road footprint receives
 a fixed half penalty (`partialMudPenalty: 0.5`), independent of overlap area.
-Its handling and limits lie halfway between the profiles: **13 blocks/s** forward
+Its handling and limits lie halfway between the profiles: **13.5 blocks/s** forward
 and **3 blocks/s** reverse by default. Unequal left/right mud contact pulls the
 car toward that side, with strength controlled by `mudPullStrength` (radians/s
 at the asphalt speed limit); stationary cars do not rotate. Fully paved and
 fully off-road footprints use their full respective profiles.
-Defaults are **18 blocks/s** forward and
+Defaults are **19 blocks/s** forward and
 **4 blocks/s** reverse on asphalt, **8** and **2** off-road.
 
 Edit [gameplay-settings.json](WolfNET.Game/wwwroot/gameplay-settings.json) and

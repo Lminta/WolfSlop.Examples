@@ -21,24 +21,42 @@
             <section class="race-results" role="dialog" aria-modal="true" aria-labelledby="race-results-title">
                 <h1 id="race-results-title">Race finished!</h1>
                 <p class="race-result-total">Total <strong>@Time(race.TotalMilliseconds)</strong></p>
-                @if (race.Opponent is { } opponent)
-                {
-                    <p class="race-opponent-result">Opponent <strong>@Time(opponent.TotalMilliseconds)</strong>
-                        @if (!opponent.Finished) { <small>Racing · @opponent.CompletedLaps/@race.TotalLaps laps</small> }
-                    </p>
-                    <div class="race-results-columns"><span>Lap</span><span>You</span><span>Opponent</span></div>
-                }
-                <ol>
-                    @for (var i = 0; i < race.LapTimes.Count; i++)
-                    {
-                        <li><span>Lap @(i + 1)</span><strong>@Time(race.LapTimes[i])</strong>
-                            @if (race.Opponent is { } rival)
-                            {
-                                <strong class="race-opponent-lap">@(rival.LapTimes.Count > i ? Time(rival.LapTimes[i]) : "—")</strong>
-                            }
-                        </li>
-                    }
-                </ol>
+                <table class="race-standings">
+                    <thead><tr><th>Place</th><th>Driver</th><th>Time</th></tr></thead>
+                    <tbody>
+                        @foreach (var standing in race.Standings)
+                        {
+                            <tr class="@(standing.IsPlayer ? "race-player-result" : null)">
+                                <td>@standing.Place</td><th scope="row">@standing.Name</th>
+                                <td>@Time(standing.Status.TotalMilliseconds)
+                                    @if (!standing.Status.Finished)
+                                    {
+                                        <small>Racing &middot; @standing.Status.CompletedLaps/@race.TotalLaps laps</small>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <table class="race-lap-results">
+                    <thead><tr><th>Lap</th><th>You</th>
+                        @for (var rival = 0; rival < race.Opponents.Count; rival++)
+                        {
+                            <th>@(rival == 0 ? "Blue car" : "Green car")</th>
+                        }
+                    </tr></thead>
+                    <tbody>
+                        @for (var i = 0; i < race.LapTimes.Count; i++)
+                        {
+                            <tr><th scope="row">@(i + 1)</th><td>@Time(race.LapTimes[i])</td>
+                                @foreach (var rival in race.Opponents)
+                                {
+                                    <td>@(rival.LapTimes.Count > i ? Time(rival.LapTimes[i]) : "\u2014")</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
                 <button @ref="_restartButton" type="button" @onclick="OnRestart">Restart race</button>
             </section>
         </div>

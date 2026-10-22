@@ -21,5 +21,6 @@ public readonly record struct RenderFrame(
     Sprite? Character)
 {
     public Sprite? Opponent { get; init; }
+    public Sprite? SecondOpponent { get; init; }
     public FirstPersonView FirstPerson { get; init; }
 }

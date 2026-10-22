@@ -194,20 +194,15 @@ canvas {
 }
 .race-results h1 { margin: 0 0 .5em; font-size: 1.5em; }
 .race-result-total { margin: 0 0 .6em; }
-.race-opponent-result { margin: 0 0 .6em; }
-.race-opponent-result small { display: block; color: #abc6e8; font-size: .7em; }
-.race-results-columns, .race-results li:has(.race-opponent-lap) {
-    display: grid;
-    grid-template-columns: 5ch 1fr 1fr;
-    gap: .7em;
-    text-align: right;
-}
-.race-results-columns { color: #adbeca; font-size: .75em; margin-bottom: .3em; }
-.race-results-columns > :first-child, .race-results li > :first-child { text-align: left; }
-.race-results li > :first-child { white-space: nowrap; }
+.race-results table { width: 100%; border-collapse: collapse; margin: 0 0 1em; font-variant-numeric: tabular-nums; }
+.race-results th, .race-results td { padding: .35em .2em; text-align: right; }
+.race-results thead { color: #adbeca; font-size: .75em; }
+.race-results th:first-child, .race-results td:first-child { text-align: left; }
+.race-standings th[scope="row"] { text-align: left; }
+.race-standings small { display: block; color: #abc6e8; font-size: .65em; }
+.race-player-result { color: #c5f4a0; }
+.race-lap-results { font-size: .8em; }
 .race-results strong { font-style: italic; font-variant-numeric: tabular-nums; }
-.race-results ol { list-style: none; padding: 0; margin: 0 0 1em; }
-.race-results li { display: flex; justify-content: space-between; gap: 1em; }
 .race-results button {
     border: 2px solid #c5f4a0;
     border-radius: 6px;
