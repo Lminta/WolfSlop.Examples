@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../WolfNET.Game/Audio/IAudioBackend.cs" Link="Audio/IAudioBackend.cs" />
+    <Compile Include="../WolfNET.Game/Audio/SoundSettings.cs" Link="Audio/SoundSettings.cs" />
+    <Compile Include="../WolfNET.Game/Audio/MusicPlayer.cs" Link="Audio/MusicPlayer.cs" />
     <Compile Include="../WolfNET.Game/Game/RaceRoute.cs" Link="Game/RaceRoute.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/OpponentRacingLine.cs" Link="Game/OpponentRacingLine.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/OpponentDriver.cs" Link="Game/OpponentDriver.cs" />

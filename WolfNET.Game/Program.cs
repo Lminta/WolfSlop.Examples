@@ -5,6 +5,7 @@ using SpawnDev.BlazorJS;
 using WolfNET;
 using WolfNET.Game;
 using WolfNET.Graphics;
+using WolfNET.Audio;
 
 Console.WriteLine("[C#] Creating Blazor host");
 
@@ -31,6 +32,10 @@ var gameplaySettings = await http.GetFromJsonAsync<GameplaySettings>("gameplay-s
     ?? throw new InvalidDataException("Gameplay settings must contain a JSON object.");
 gameplaySettings.Validate();
 builder.Services.AddSingleton(gameplaySettings);
+var soundSettings = await http.GetFromJsonAsync<SoundSettings>("sound-settings.json")
+    ?? throw new InvalidDataException("Sound settings must contain a JSON object.");
+soundSettings.Validate();
+builder.Services.AddSingleton(soundSettings);
 builder.Services.AddSingleton<WebGpuRenderer>();
 builder.Services.AddSingleton<ISceneRenderer>(services => services.GetRequiredService<WebGpuRenderer>());
 builder.Services.AddSingleton<GameSceneLoader>();

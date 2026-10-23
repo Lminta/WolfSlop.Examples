@@ -5,6 +5,7 @@ using WolfNET.Game.Core;
 using WolfNET.Game.InputEvents;
 using WolfNET.Game.Player;
 using WolfNET.Graphics;
+using WolfNET.Audio;
 
 namespace WolfNET.Game;
 
@@ -23,12 +24,14 @@ public sealed class Wolf : IDisposable
     private CancellationTokenSource? _pendingLoad;
     private GameScene? _scene;
     private BrowserInput? _input;
+    private MusicPlayer? _audio;
     private TextureCatalog? _sceneTextures;
     private bool _disposed;
     private int _frameGeneration;
     private double _lastPoseNotification = double.NegativeInfinity;
     private double _lastDrivingNotification = double.NegativeInfinity;
     private readonly GameplaySettings _gameplay;
+    private readonly SoundSettings _sound;
     private double _fpsSampleStart = double.NaN;
     private int _fpsFrameCount;
     private double _lastRaceNotification = double.NegativeInfinity;
@@ -53,13 +56,15 @@ public sealed class Wolf : IDisposable
     public event Action<int?>? FramesPerSecondChanged;
     public event Action<RaceStatus>? RaceStateChanged;
 
-    public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js, GameplaySettings gameplay)
+    public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js,
+        GameplaySettings gameplay, SoundSettings sound)
     {
         settings.Validate();
         RendererSettings = settings;
         _renderer = renderer;
         _loader = loader;
         _gameplay = gameplay;
+        _sound = sound;
         _js = js;
         _timing = new FrameTiming(settings.TargetFPS);
         _window = js.Get<Window>("window");
@@ -85,6 +90,15 @@ public sealed class Wolf : IDisposable
             if (reportProgress != null) await reportProgress("Loading map and objects...");
             var loaded = await _loader.LoadAsync(mapPath, token);
             await _renderer.PrepareSceneAsync(loaded.Map.RendererMap, token, reportProgress, loaded.Character);
+            try
+            {
+                if (loaded.Map.Music is { Tracks.Length: > 0 } music)
+                    _audio = new MusicPlayer(new BrowserAudioBackend(canvas), music, _sound);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[AUDIO] Music unavailable: {ex.Message}");
+            }
             if (reportProgress != null) await reportProgress("Entering scene...");
             token.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -145,6 +159,18 @@ public sealed class Wolf : IDisposable
             // Recapture resumes from the preserved pose, without spending the
             // fraction of this frame that elapsed before controls were active.
             _scene.Update(wasPaused != _scene.Paused ? 0 : deltaTime);
+            var musicRace = _scene.PlayerRaceState;
+            var musicVolume = 1f;
+            if (musicRace is { Phase: RacePhase.Countdown } countdown)
+            {
+                var progress = countdown.CountdownProgress;
+                // Smoothstep starts softly and reaches full volume with a flat
+                // slope at GO. Simulation progress also freezes during pauses.
+                musicVolume = _sound.CountdownVolumeScale(progress);
+            }
+            _audio?.SetPlaying(!_scene.Paused &&
+                (musicRace == null || musicRace.Value.Phase is RacePhase.Countdown or RacePhase.Racing), musicVolume);
+            _audio?.Update();
             if (_scene.PlayerRaceState is { Phase: RacePhase.Finished } && _input.Mouse.IsLocked)
             {
                 _input.Keyboard.Reset();
@@ -246,6 +272,8 @@ public sealed class Wolf : IDisposable
         _fpsFrameCount = 0;
         FramesPerSecond = null;
         FramesPerSecondChanged?.Invoke(null);
+        _audio?.Dispose();
+        _audio = null;
         _input?.Dispose();
         _scene?.Dispose();
         _input = null;

@@ -44,6 +44,11 @@ var definition = new MapDefinition
         .Select(y => x == 0 || y == 0 || x == 8 || y == 8 ? 1 : 0).ToArray()).ToArray(),
     PlayerStart = new() { X = 4.5f, Y = 4.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2 }
 };
+
+new MusicDefinition().Validate();
+Reject(() => new MusicDefinition { Tracks = [" "] }.Validate(), "Music must reject empty track paths");
+Reject(() => new MusicDefinition { CrossfadeSeconds = float.NaN }.Validate(), "Music must reject invalid fade times");
+Reject(() => new MusicDefinition { Volume = 1.1f }.Validate(), "Music must reject volume above one");
 var objects = new Dictionary<int, MapObjectDefinition>
 {
     [0] = new PassageDefinition { Id = 0, RaycastTransparent = true, Collides = false },
@@ -147,6 +152,7 @@ assertions += await RaceSessionChecks.RunAsync(http, webRoot);
 assertions += await OpponentChecks.RunAsync(http);
 assertions += await RacePropScaleChecks.RunAsync(http);
 assertions += SpriteAnimationChecks.Run();
+assertions += AudioChecks.Run(webRoot);
 await SpriteSelectionFixtures.WriteAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (map loading/editing, walking, driving, scenes, animation, and editor persistence).");
 

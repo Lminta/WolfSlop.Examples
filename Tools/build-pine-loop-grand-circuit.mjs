@@ -408,7 +408,11 @@ const race = {
             direction: direction(exit, entry), halfWidth: 3.5 }];
     })
 };
-const map = { objects, race, worldMap: grid, playerStart: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
+const music = {
+    tracks: fs.readdirSync(path.join(web, 'music')).filter(name => /\.mp3$/i.test(name)).sort()
+        .map(name => `music/${name}`)
+};
+const map = { objects, race, music, worldMap: grid, playerStart: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
     moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15, jumpRise: .4, jumpLength: 2,
     jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
     sky: { texture: 'textures/skyboxes/countryside_sky.jpg', rotationDegrees: 110 },

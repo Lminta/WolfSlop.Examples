@@ -16,6 +16,7 @@ public sealed class GameMap : IMap
     public NavigationMap NavigationMap { get; } = new();
     public ulong Revision => RendererMap.Revision;
     public PlayerStartDefinition PlayerStart => _definition.PlayerStart;
+    public MusicDefinition? Music => _definition.Music;
     public Vector2 PlayerStartPosition => new(_definition.PlayerStart.X, _definition.PlayerStart.Y);
     public Vector2 PlayerStartDirection => Vector2.Normalize(new Vector2(
         _definition.PlayerStart.DirectionX, _definition.PlayerStart.DirectionY));

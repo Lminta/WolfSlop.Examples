@@ -260,6 +260,28 @@ and timing, releases the mouse, and shows total and individual lap times with a
 restart button. Set `race.lapCount` in `WolfNET.Game/wwwroot/gameplay-settings.json`
 to change the race length (default: 3). Restarting loads a fresh grid and countdown;
 leaving the map also resets the session.
+Music starts with the countdown at 15% of its configured volume and smoothly
+reaches normal volume at GO. Pausing driving also pauses music and the fade.
+Pine Loop plays every MP3 currently
+in `WolfNET.Game/wwwroot/music` in order, repeating the queue with a three-second
+crossfade (including the last track back to the first). Restarting resets music
+to the first track; leaving the map releases both streams.
+Edit `WolfNET.Game/wwwroot/sound-settings.json` and reload to change
+`masterVolume` (0–1, default 1), `musicVolume` (0–1, default 0.65),
+`musicCrossfadeSeconds` (nonnegative, default 3; zero disables blending), and
+`countdownStartVolume` (0–1, default 0.15; a fraction of normal music volume).
+Master volume scales all music, including any per-map volume override.
+Maps can define a `music` object with `tracks` (paths relative to `wwwroot`),
+and optional `crossfadeSeconds` and `volume` overrides. Omitted overrides use
+the sound settings; Pine Loop stores only its playlist. Omit `music` for silence.
+Playback uses streamed media elements
+and [Web Audio mixing](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource),
+with only the current and upcoming tracks loaded. `Audio/MusicPlayer.cs` owns
+the queue, fades, pause state, and failed-file handling in portable C#. Its
+`IAudioBackend`/`IAudioStream` interfaces isolate playback primitives;
+`BrowserAudioBackend` implements them using the existing C# browser bindings.
+A future native host can supply another backend and call `MusicPlayer.Update`
+from its game loop. Other audio channels can be added separately.
 Pine Loop's checkpoint sequence permits its existing Mud Express shortcut.
 The map's optional `race` metadata stores a `startFinish` gate and ordered
 `checkpoints`; each gate has `center`, forward `direction`, and `halfWidth`.
@@ -285,6 +307,10 @@ first, the opponent continues while results are open and its final time fills in
 when it finishes. Restart resets both cars, timers, and lap comparisons.
 
 Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
+The normal checks include portable C# music queue and lifecycle tests.
+With a Chromium debug session and the game running, use
+`node Tests/music-browser-check.mjs <debug-port> <game-url>` to check real MP3
+streaming, countdown timing, crossfades, queue repetition, and cleanup.
 With the game and a WebGPU browser running, use
 `node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual
 driving input, both views, pause/resume, cockpit alignment, and walking-map restoration.

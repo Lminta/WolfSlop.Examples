@@ -33,15 +33,18 @@ internal static class RaceSessionChecks
         }
         session.BeginCountdown();
         Check(session.Status is { Phase: RacePhase.Countdown, CountdownNumber: 5 }, "Countdown did not begin at five.");
+        Near(session.Status.CountdownProgress, 0, "Countdown progress must start at zero.");
         session.Update(new(5, 6), new(5, 4), 1000);
         Check(session.Status.TotalMilliseconds == 0, "Driving or timing was allowed before GO.");
         for (var number = 4; number >= 1; number--)
         {
             Near(session.AdvanceStart(1000), 0, "Countdown time leaked into racing.");
             Check(session.Status.CountdownNumber == number, "Countdown skipped a number.");
+            Near(session.Status.CountdownProgress, (5 - number) / 5.0, "Countdown progress must follow active simulation time.");
         }
         Near(session.AdvanceStart(1100), 100, "GO did not preserve the racing fraction of its frame.");
         Check(session.Status is { Phase: RacePhase.Racing, ShowGo: true, CountdownNumber: null }, "Countdown did not switch to GO.");
+        Near(session.Status.CountdownProgress, 1, "Countdown progress must reach one at GO.");
         session.Update(new(5, 6), new(5, 4), 200);
         Check(session.Status.Started && session.Status.CompletedLaps == 0, "The initial finish crossing counted as a completed lap.");
         Near(session.Status.TotalMilliseconds, 200, "Race time did not begin at GO.");

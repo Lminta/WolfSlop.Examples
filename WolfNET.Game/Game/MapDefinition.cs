@@ -12,6 +12,24 @@ public sealed record MapDefinition
     public SkyDefinition? Sky { get; init; }
     public RaceMinimapDefinition? RaceMinimap { get; init; }
     public RaceDefinition? Race { get; init; }
+    public MusicDefinition? Music { get; init; }
+}
+
+public sealed record MusicDefinition
+{
+    // Asset paths relative to wwwroot, in repeating playback order.
+    public string[] Tracks { get; init; } = [];
+    // Optional per-map overrides; otherwise sound-settings.json supplies defaults.
+    public float? CrossfadeSeconds { get; init; }
+    public float? Volume { get; init; }
+
+    public void Validate()
+    {
+        if (Tracks == null || Tracks.Any(string.IsNullOrWhiteSpace) ||
+            CrossfadeSeconds is { } fade && (!float.IsFinite(fade) || fade < 0) ||
+            Volume is { } volume && (!float.IsFinite(volume) || volume < 0 || volume > 1))
+            throw new InvalidDataException("Music needs nonempty track paths, a finite nonnegative crossfadeSeconds, and volume between zero and one.");
+    }
 }
 
 // Invisible timing gates. These are metadata, never rendered or placed in the collision grid.

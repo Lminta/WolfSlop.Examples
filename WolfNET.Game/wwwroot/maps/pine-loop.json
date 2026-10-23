@@ -1,4 +1,11 @@
 {
+  "music": {
+    "tracks": [
+      "music/alex-morgan-phonk-aggressive-drift-night-573644.mp3",
+      "music/kulakovka-danger-music-620575.mp3",
+      "music/kulakovka-gym-phonk-620567.mp3"
+    ]
+  },
   "objects": {
     "500": "../objects/raceway/passage-asphalt.json",
     "501": "../objects/raceway/passage-grass.json",

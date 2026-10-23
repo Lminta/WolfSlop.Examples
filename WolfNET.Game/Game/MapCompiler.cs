@@ -176,6 +176,7 @@ public sealed class MapCompiler
 
     public (RenderMap Renderer, bool[][] Walkable, bool[][] Jumpable, bool[][] Crouchable, string[][] Surfaces) Compile(MapDefinition definition, ulong revision)
     {
+        definition.Music?.Validate();
         if (definition.Sky is { } sky && (string.IsNullOrWhiteSpace(sky.Texture) || !float.IsFinite(sky.RotationDegrees)))
             throw new InvalidDataException("Sky needs a texture path and a finite rotationDegrees.");
         var map = definition.WorldMap;

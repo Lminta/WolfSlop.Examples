@@ -15,6 +15,7 @@ public readonly record struct RaceStatus(int CompletedLaps, double TotalMillisec
     public RacePhase Phase { get; init; }
     public int TotalLaps { get; init; }
     public int? CountdownNumber { get; init; }
+    public float CountdownProgress { get; init; }
     public bool ShowGo { get; init; }
     public IReadOnlyList<double> LapTimes { get; init; } = Array.Empty<double>();
     public OpponentRaceStatus? Opponent { get; init; }
@@ -46,7 +47,8 @@ public static class RaceLapGap
 /// <summary>Tracks ordered forward gate crossings and active simulation time for one scene.</summary>
 public sealed class RaceSession
 {
-    private double _countdownRemaining = 5000;
+    private const double CountdownMilliseconds = 5000;
+    private double _countdownRemaining = CountdownMilliseconds;
     private double _goRemaining = 1000;
     private bool _departed;
     private RaceRoute? _progressRoute;
@@ -119,6 +121,7 @@ public sealed class RaceSession
             var countdownTime = Math.Min(milliseconds, _countdownRemaining);
             _countdownRemaining -= countdownTime;
             milliseconds -= (float)countdownTime;
+            Status = Status with { CountdownProgress = (float)(1 - _countdownRemaining / CountdownMilliseconds) };
             Status = _countdownRemaining > 0
                 ? Status with { CountdownNumber = (int)Math.Ceiling(_countdownRemaining / 1000) }
                 : Status with { Phase = RacePhase.Racing, CountdownNumber = null, Started = true, ShowGo = true };
