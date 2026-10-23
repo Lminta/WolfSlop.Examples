@@ -12,7 +12,7 @@
         <div><dt>Last</dt><dd class="race-last">@(race.LastLapMilliseconds is { } last ? Time(last) : "\u2014")</dd></div>
         @if (race.Opponent != null)
         {
-            <div><dt title="Time to race leader">Gap</dt><dd class="race-gap @(race.GapMilliseconds > 0 ? "race-gap-behind" : race.GapMilliseconds == 0 ? "race-gap-ahead" : null)">
+            <div><dt title="Lap-finish gap to leader, or first opponent when leading">Gap</dt><dd class="race-gap @(race.GapMilliseconds > 0 ? "race-gap-behind" : race.GapMilliseconds <= 0 ? "race-gap-ahead" : null)">
                 @(race.GapMilliseconds is { } gap ? (gap > 0 ? "+" : "") + (gap / 1000).ToString("0.00", CultureInfo.InvariantCulture) + "s" : "\u2014")
             </dd></div>
         }

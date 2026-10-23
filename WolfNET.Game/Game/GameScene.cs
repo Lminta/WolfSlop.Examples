@@ -64,13 +64,19 @@ public sealed class GameScene : IDisposable
             static OpponentRaceStatus Summary(RaceSession race) => new(race.Status.CompletedLaps,
                 race.Status.TotalMilliseconds, race.Status.LapTimes, race.Status.Phase == RacePhase.Finished);
             var opponents = _rivals.Select(r => Summary(r.Race)).ToArray();
+            // When leading, measure to the first opponent across the matching lap line.
+            // Their order on the road can change after that crossing without changing the gap.
+            var gapReference = racers[0].Player
+                ? _rivals.OrderByDescending(r => r.Race.Status.CompletedLaps)
+                    .ThenBy(r => r.Race.Status.LapTimes.Sum()).FirstOrDefault()?.Race
+                : racers[0].Race;
             return _cachedRaceState = _race.Status with
             {
                 Opponent = opponents.Length == 0 ? null : opponents[0],
                 Opponents = opponents,
                 Standings = racers.Select((r, i) => new RaceStanding(r.Name, i + 1, r.Player, Summary(r.Race))).ToArray(),
-                GapMilliseconds = racers[0].Player ? 0 :
-                    RaceLapGap.Calculate(racers[0].Race.Status, _race.Status, _raceClock) is { } gap ? Math.Max(0, gap) : null
+                GapMilliseconds = gapReference == null ? null :
+                    RaceLapGap.Calculate(gapReference.Status, _race.Status, _raceClock)
             };
         }
     }

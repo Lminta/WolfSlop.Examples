@@ -486,25 +486,52 @@ internal static class OpponentChecks
         }
         var gates = loaded.Map.RendererMap.Race!;
         Cross(gates.StartFinish);
+        Check(playerFirst.RaceState?.GapMilliseconds == null, "Leading player showed a gap before completing a lap.");
         for (var lap = 0; lap < 3; lap++)
         {
             foreach (var gate in gates.Checkpoints) Cross(gate);
             Cross(gates.StartFinish);
+            Check(playerFirst.RaceState?.GapMilliseconds is <= 0 and > -20,
+                "Leading player's lap finish did not start or reset the gap.");
+            if (lap != 0) continue;
+            var initialGap = playerFirst.RaceState!.Value.GapMilliseconds!.Value;
+            playerFirst.Update(250);
+            var growingGap = playerFirst.RaceState!.Value.GapMilliseconds!.Value;
+            Check(Math.Abs(growingGap - initialGap + 250) < .01,
+                "Leading player's lap gap did not count while waiting for an opponent.");
+            playerFirst.SetPaused(true);
+            playerFirst.Update(250);
+            Check(playerFirst.RaceState?.GapMilliseconds == growingGap, "Leading lap gap counted while paused.");
+            playerFirst.SetPaused(false);
+            for (var i = 0; i < 5000 && playerFirst.RaceState!.Value.Opponents.All(r => r.CompletedLaps == 0); i++)
+                playerFirst.Update(250);
+            var matchedLap = playerFirst.RaceState!.Value;
+            var firstLapFinish = matchedLap.Opponents.Where(r => r.CompletedLaps > 0).Min(r => r.LapTimes[0]);
+            Check(Math.Abs(matchedLap.GapMilliseconds!.Value - (matchedLap.LapTimes[0] - firstLapFinish)) < .01,
+                "Leading lap gap did not stop at the first opponent's matching lap finish.");
+            playerFirst.Update(250);
+            Check(playerFirst.RaceState?.GapMilliseconds == matchedLap.GapMilliseconds,
+                "Leading lap gap changed after the first opponent completed the lap.");
         }
         Check(playerFirst.RaceState is { Phase: RacePhase.Finished, Opponent.Finished: false }, "Player-first finish did not open results while the opponent was racing.");
         playerFirst.Update(250);
-        Check(playerFirst.RaceState?.GapMilliseconds == 0, "Leading player did not show zero gap to the leader.");
+        Check(playerFirst.RaceState?.GapMilliseconds < -250, "Winning player's gap stopped before an opponent finished.");
         playerFirst.SetPaused(true); // Pointer capture releases when results open.
         var stoppedPose = playerFirst.PlayerPose;
         var stoppedTime = playerFirst.RaceState!.Value.TotalMilliseconds;
+        for (var i = 0; i < 5000 && playerFirst.RaceState!.Value.Opponents.All(r => !r.Finished); i++) playerFirst.Update(250);
+        var firstOpponentResult = playerFirst.RaceState!.Value;
+        var firstOpponentFinish = firstOpponentResult.Opponents.Where(r => r.Finished).Min(r => r.TotalMilliseconds);
+        Check(Math.Abs(firstOpponentResult.GapMilliseconds!.Value - (stoppedTime - firstOpponentFinish)) < .01,
+            "Winning player's gap did not stop when the first opponent finished.");
         for (var i = 0; i < 5000 && playerFirst.RaceState?.Opponents.Any(r => !r.Finished) == true; i++) playerFirst.Update(250);
         var finalResults = playerFirst.RaceState ?? throw new Exception("Race results disappeared.");
         Check(finalResults.Opponent is { Finished: true, LapTimes.Count: 3 }, "Opponent did not finish while player results were open.");
         Check(playerFirst.PlayerPose == stoppedPose && finalResults.TotalMilliseconds == stoppedTime,
             "Player moved or kept timing while waiting for opponent results.");
         Check(finalResults.Opponents.All(r => r.Finished), "Results stopped before both rivals finished.");
-        Check(finalResults.GapMilliseconds == 0 && finalResults.Standings[0].IsPlayer,
-            "Winning player did not retain first place and zero gap to the leader.");
+        Check(finalResults.GapMilliseconds == firstOpponentResult.GapMilliseconds && finalResults.Standings[0].IsPlayer,
+            "Winning player did not retain first place and the gap to the first opponent's finish.");
         Console.WriteLine($"PASS: {count} opponent assertions.");
         return count;
     }
