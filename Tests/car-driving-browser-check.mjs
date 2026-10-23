@@ -10,7 +10,7 @@ const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
 let id = 0;
-const pending = new Map(), errors = [], missing = [], requests = new Set();
+const pending = new Map(), errors = [], missing = [], requests = new Set(), logs = [];
 
 function send(method, params = {}) {
     return new Promise((resolve, reject) => {
@@ -36,6 +36,7 @@ socket.onmessage = event => {
         errors.push(JSON.stringify(message.params));
     } else if (message.method === 'Runtime.consoleAPICalled') {
         const text = message.params.args.map(arg => arg.value ?? arg.description ?? '').join(' ');
+        logs.push(text);
         if (/Initialization failed|Frame failed|Uncaptured error|Could not load map/.test(text)) errors.push(text);
     } else if (message.method === 'Network.requestWillBeSent') {
         requests.add(new URL(message.params.request.url).pathname);
@@ -54,9 +55,16 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function waitFor(expression) {
     for (let attempt = 0; attempt < 600; attempt++) {
         assert.deepEqual(errors, []);
+        const error = await evaluate(`document.querySelector('.game-error')?.textContent`);
+        if (error) throw Error(error);
         if (await evaluate(expression)) return;
         await delay(100);
     }
+    fs.mkdirSync('artifacts/car-driving', {recursive: true});
+    fs.writeFileSync('artifacts/car-driving/failure.json', JSON.stringify({expression, logs,
+        state: await evaluate(`({text:document.body.innerText, locked:!!document.pointerLockElement,
+            options:document.querySelector('.race-difficulty')?.outerHTML})`)}, null, 2));
+    await snapshot('failure');
     throw Error('Timed out: ' + expression);
 }
 
@@ -79,6 +87,12 @@ async function capture() {
 }
 async function camera() { return evaluate('window.__camera'); }
 function distance(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+async function selectDifficulty(label) {
+    await evaluate(`Array.from(document.querySelectorAll('.difficulty-options button')).find(button => button.textContent.trim() === ${JSON.stringify(label)}).click()`);
+    await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.car-paused') &&
+        document.querySelector('.difficulty-options button[aria-pressed="true"]')?.textContent.trim() === ${JSON.stringify(label)}`);
+    assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00', 'Difficulty change did not reset the race');
+}
 async function snapshot(name) {
     const capture = await send('Page.captureScreenshot', {format: 'png'});
     fs.writeFileSync(`artifacts/car-driving/${name}.png`, Buffer.from(capture.data, 'base64'));
@@ -168,6 +182,17 @@ try {
     await waitFor(`document.querySelector('.race-timing')`);
     assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/3');
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
+    assert.equal(await evaluate(`document.querySelector('.difficulty-options button[aria-pressed="true"]').textContent.trim()`), 'Normal');
+    assert(await evaluate(`(() => {
+        const options = document.querySelector('.race-difficulty');
+        const description = options.previousElementSibling;
+        return description.tagName === 'P' && options.getBoundingClientRect().top >= description.getBoundingClientRect().bottom;
+    })()`), 'Difficulty buttons are not beneath the map description');
+    await selectDifficulty('Easy');
+    await snapshot('difficulty-easy');
+    await selectDifficulty('Normal');
+    const gridOpponents = await evaluate(`Array.from(document.querySelectorAll('.race-minimap-opponents circle'), c => [c.getAttribute('cx'), c.getAttribute('cy')])`);
+    console.log('PASS difficulty: normal default, buttons below map description, and switching either way resets the race.');
     assert(await evaluate(`window.__lightLayers.includes(180) && !window.__lightLayers.includes(181)`), 'Starting signal did not render red');
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('W accelerate')`));
     assert(![...requests].some(url => /player-character|main-character-atlas|first-person-hands/.test(url)), 'Race map loaded human textures');
@@ -347,6 +372,22 @@ try {
 
     await evaluate('document.exitPointerLock()');
     await waitFor('!document.pointerLockElement');
+    await evaluate(`document.querySelector('.race-restart').click()`);
+    await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.car-paused') &&
+        document.querySelector('.race-total')?.textContent.trim() === '0:00.00'`);
+    await waitFor(`window.__camera[0] === ${parked[0]} && window.__camera[1] === ${parked[1]}`);
+    assert.deepEqual(await camera(), parked, 'Mid-race restart did not reset the player pose and camera');
+    assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/3');
+    assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.race-minimap-opponents circle'), c => [c.getAttribute('cx'), c.getAttribute('cy')])`),
+        gridOpponents, 'Mid-race restart did not return both opponents to their grid positions');
+    assert.equal(await evaluate(`document.querySelector('.difficulty-options button[aria-pressed="true"]').textContent.trim()`), 'Normal');
+    await capture();
+    await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);
+    await snapshot('mid-race-restart');
+    console.log('PASS mid-race restart: player, opponents, laps, timers, and countdown reset with difficulty retained.');
+
+    await evaluate('document.exitPointerLock()');
+    await waitFor('!document.pointerLockElement');
     await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button => button.textContent.trim() === 'Showcase').click()`);
     await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-timing')`);
     await waitFor(`window.__mapInfo?.[0] === 34 && !document.querySelector('.loading-overlay') && document.querySelector('.controls-hint').textContent.includes('Space jump')`);
@@ -369,6 +410,7 @@ try {
     // invisible gate sequence and configure two laps to verify gameplay settings.
     await send('Page.navigate', {url: base + '/?map=pine-loop&short-race'});
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.race-timing') && !!document.querySelector('.car-paused')`);
+    await selectDifficulty('Easy');
     await capture();
     await waitFor(`!!document.querySelector('.race-go')`);
     await key('KeyW');
@@ -405,6 +447,8 @@ try {
     await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-results') &&
         document.querySelector('.race-total')?.textContent.trim() === '0:00.00' && !!document.querySelector('.car-paused')`);
     assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/2');
+    assert.equal(await evaluate(`document.querySelector('.difficulty-options button[aria-pressed="true"]').textContent.trim()`), 'Easy',
+        'Restart did not retain the selected difficulty');
     assert(await evaluate(`window.__lightLayers.includes(180)`), 'Restart did not reset red lights');
     await capture();
     await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);

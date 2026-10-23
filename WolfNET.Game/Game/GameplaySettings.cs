@@ -19,11 +19,14 @@ public sealed record GameplaySettings
 {
     public CarSettings Car { get; init; } = new();
     public RaceSettings Race { get; init; } = new();
+    public OpponentSettings Opponents { get; init; } = new();
     public void Validate()
     {
         if (Car == null) throw new InvalidDataException("Gameplay settings need a car configuration.");
         Car.Validate();
         if (Race == null) throw new InvalidDataException("Gameplay settings need a race configuration.");
         Race.Validate();
+        if (Opponents == null) throw new InvalidDataException("Gameplay settings need opponent profiles.");
+        Opponents.Validate(Car);
     }
 }

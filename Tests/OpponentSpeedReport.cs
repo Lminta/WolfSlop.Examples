@@ -11,7 +11,7 @@ internal static class OpponentSpeedReport
     private sealed record Sample(double Speed, double PlannedSpeed, double Milliseconds, bool OffRoad, OpponentPace Pace);
 
     private sealed class Recorder(string scenario, string driver, CarObject car, RaceRoute route,
-        NavigationMap map, RaceSettings settings, bool skilled)
+        NavigationMap map, RaceSettings settings, OpponentProfileSettings profile)
     {
         private readonly List<Sample> _samples = [];
         private readonly OpponentRacingLine _line = new(route, map, car.Settings);
@@ -23,7 +23,7 @@ internal static class OpponentSpeedReport
             if (milliseconds <= 0) return;
             _progress = route.Project(car.Transform.Position, _progress);
             var planned = MathF.Min(car.Settings.Asphalt.MaxForwardSpeed,
-                _line.Speed(_progress.Value, skilled, settings.OpponentCornerSpeed));
+                _line.Speed(_progress.Value, profile.CornerGripFraction, settings.OpponentCornerSpeed));
             var position = car.Transform.Position;
             var heading = car.Transform.Rotation;
             var extent = new Vector2(car.Settings.Length * MathF.Abs(heading.X) + car.Settings.Width * MathF.Abs(heading.Y),
@@ -35,7 +35,7 @@ internal static class OpponentSpeedReport
             _samples.Add(new(speed, planned, milliseconds, offRoad, pace));
         }
 
-        public object Summarize(double totalMilliseconds, IReadOnlyList<double> lapTimes)
+        public object Summarize(double totalMilliseconds, IReadOnlyList<double> lapTimes, int mistakes)
         {
             var duration = _samples.Sum(s => s.Milliseconds);
             double Percent(Func<Sample, bool> condition) => _samples.Where(condition).Sum(s => s.Milliseconds) / duration * 100;
@@ -59,7 +59,7 @@ internal static class OpponentSpeedReport
                 $"{scenario,-12} {driver,-5}: mean {mean:F3}, median {median:F3}, max {maximum:F3}, p95 {p95:F3}, cap {cap:F1} blocks/s; race {totalMilliseconds / 1000:F2}s; below 10 {Percent(s => s.Speed < 10):F1}%; mud {Percent(s => s.OffRoad):F1}%; corner planner below 90% cap {Percent(s => s.PlannedSpeed < cap * .9):F1}%"));
             return new
             {
-                scenario, driver, samples = _samples.Count, measuredSeconds = duration / 1000,
+                scenario, driver, profile, mistakes, samples = _samples.Count, measuredSeconds = duration / 1000,
                 configuredMaximum = cap, configuredAcceleration = car.Settings.Asphalt.Acceleration, median, maximum, p95,
                 mean,
                 offRoadPercent = Percent(s => s.OffRoad),
@@ -77,19 +77,22 @@ internal static class OpponentSpeedReport
         }
     }
 
-    public static async Task RunAsync(HttpClient http, string root)
+    public static async Task RunAsync(HttpClient http, string root, RaceDifficulty? difficulty = null)
     {
         var gameplay = await http.GetFromJsonAsync<GameplaySettings>("gameplay-settings.json")
             ?? throw new InvalidDataException("Missing gameplay settings.");
         gameplay.Validate();
+        var selectedDifficulty = difficulty ?? gameplay.Opponents.DefaultDifficulty;
+        var profiles = gameplay.Opponents.Get(selectedDifficulty);
+        Console.WriteLine($"Difficulty: {selectedDifficulty}");
         var loaded = await new GameSceneLoader(http, new(), gameplay).LoadAsync("maps/pine-loop.json");
         var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
         var results = new List<object>();
-        using (var scene = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), gameplay))
+        using (var scene = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), gameplay, selectedDifficulty))
         {
             var cars = new[] { scene.Opponent!, scene.SecondOpponent! };
             var recorders = cars.Select((car, i) => new Recorder("Traffic", i == 0 ? "Blue" : "Green",
-                car, route, loaded.Map.NavigationMap, gameplay.Race, i == 1)).ToArray();
+                car, route, loaded.Map.NavigationMap, gameplay.Race, profiles.Get(i == 1))).ToArray();
             for (var frame = 0; frame < 120 * 1800 && scene.RaceState!.Value.Opponents.Any(s => !s.Finished); frame++)
             {
                 var before = scene.RaceState!.Value.Opponents;
@@ -104,16 +107,17 @@ internal static class OpponentSpeedReport
             for (var i = 0; i < cars.Length; i++)
             {
                 if (!final[i].Finished) throw new Exception($"Traffic {i} did not finish: {final[i]}, pose {cars[i].Transform.Position}, speed {cars[i].Controller.Speed:F2}.");
-                results.Add(recorders[i].Summarize(final[i].TotalMilliseconds, final[i].LapTimes));
+                results.Add(recorders[i].Summarize(final[i].TotalMilliseconds, final[i].LapTimes, scene.GetOpponentMistakes(i)));
             }
         }
         for (var i = 0; i < 2; i++)
         {
             var skilled = i == 1;
-            var settings = OpponentDriver.CreateCarSettings(gameplay.Car, skilled);
+            var profile = profiles.Get(skilled);
+            var settings = OpponentDriver.CreateCarSettings(gameplay.Car, profile);
             var start = loaded.Map.PlayerStart;
             var position = new Vector2(start.X, start.Y);
-            var driver = new OpponentDriver(route, loaded.Map.NavigationMap, settings, gameplay.Race, position, skilled, gridSide: 0);
+            var driver = new OpponentDriver(route, loaded.Map.NavigationMap, settings, gameplay.Race, position, skilled, gridSide: 0, profile: profile);
             using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, settings)
             {
                 Transform = new() { Position = position, Rotation = Vector2.Normalize(new(start.DirectionX, start.DirectionY)) }
@@ -121,7 +125,7 @@ internal static class OpponentSpeedReport
             var race = new RaceSession(loaded.Map.RendererMap.Race!, gameplay.Race);
             race.BeginCountdown();
             race.AdvanceStart(5000);
-            var recorder = new Recorder("Solo", skilled ? "Green" : "Blue", car, route, loaded.Map.NavigationMap, gameplay.Race, skilled);
+            var recorder = new Recorder("Solo", skilled ? "Green" : "Blue", car, route, loaded.Map.NavigationMap, gameplay.Race, profile);
             for (var frame = 0; frame < 120 * 1800 && race.Status.Phase != RacePhase.Finished; frame++)
             {
                 var before = car.Transform.Position;
@@ -132,13 +136,13 @@ internal static class OpponentSpeedReport
                 recorder.Add(race.Status.TotalMilliseconds - beforeTime, car.Controller.Speed, driver.Pace);
             }
             if (race.Status.Phase != RacePhase.Finished) throw new Exception("Solo race did not finish.");
-            results.Add(recorder.Summarize(race.Status.TotalMilliseconds, race.Status.LapTimes));
+            results.Add(recorder.Summarize(race.Status.TotalMilliseconds, race.Status.LapTimes, driver.MistakesMade));
         }
-        var output = Path.Combine(root, "artifacts", "opponent-speeds.json");
+        var output = Path.Combine(root, "artifacts", selectedDifficulty == RaceDifficulty.Easy ? "opponent-speeds-easy.json" : "opponent-speeds.json");
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         File.WriteAllText(output, JsonSerializer.Serialize(new
         {
-            units = "blocks/s", map = "pine-loop", laps = gameplay.Race.LapCount, simulationHz = 120,
+            units = "blocks/s", map = "pine-loop", difficulty = selectedDifficulty.ToString(), laps = gameplay.Race.LapCount, simulationHz = 120,
             method = "Time-weighted samples from GO to each car's finish; countdown and post-finish time excluded. Traffic uses the normal three-car scene with a parked player. Solo removes all other cars.",
             gameplay, results
         }, new JsonSerializerOptions { WriteIndented = true }));

@@ -12,16 +12,16 @@ internal static class AudioChecks
         MusicDefinition Definition(float fade = 3, params string[] tracks) => new()
             { Tracks = tracks.Length == 0 ? ["music/a.mp3", "music/b.mp3"] : tracks, CrossfadeSeconds = fade };
 
-        var sound = JsonSerializer.Deserialize<SoundSettings>(File.ReadAllText(Path.Combine(webRoot, "sound-settings.json")),
+        var sound = JsonSerializer.Deserialize<SoundSettings>(File.ReadAllText(Path.Combine(webRoot, "audio-settings.json")),
             new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         sound.Validate();
         Near(sound.CountdownVolumeScale(0), sound.CountdownStartVolume, "Countdown must use its configured starting volume.");
         Near(sound.CountdownVolumeScale(1), 1, "Countdown must reach normal volume at GO.");
-        var customSound = new SoundSettings { MasterVolume = .5f, MusicVolume = .4f,
+        var customSound = new SoundSettings { Volume = .5f, MusicVolume = .4f,
             MusicCrossfadeSeconds = 0, CountdownStartVolume = .2f };
         Near(customSound.CountdownVolumeScale(.5f), .6, "Countdown ramp must honor its configured starting volume.");
         foreach (var invalid in new SoundSettings[] {
-            new() { MasterVolume = float.NaN }, new() { MusicVolume = 1.1f },
+            new() { Volume = float.NaN }, new() { MusicVolume = 1.1f },
             new() { MusicCrossfadeSeconds = -1 }, new() { CountdownStartVolume = -.1f } })
         {
             var rejected = false;
@@ -49,6 +49,15 @@ internal static class AudioChecks
             configuredBackend.Streams[0].Position = 9;
             music.Update();
             Check(!configuredBackend.Streams[1].Paused, "Per-map crossfade must override the global default.");
+        }
+
+        configuredBackend = new();
+        using (var music = new MusicPlayer(configuredBackend, playlist with { Volume = 1 }, new SoundSettings { Volume = 0 }))
+        {
+            music.SetPlaying(true);
+            music.Update();
+            Check(configuredBackend.Streams.Count == 0, "Volume zero must not open or preload music streams, including map overrides.");
+            Check(configuredBackend.ResumeCalls == 0 && configuredBackend.Volume == 0, "Volume zero must not start the audio backend.");
         }
 
         var backend = new FakeBackend();
@@ -210,6 +219,7 @@ internal static class AudioChecks
         public List<FakeStream> Streams { get; } = [];
         public float Volume;
         public bool Disposed;
+        public int ResumeCalls;
         public IAudioStream OpenStream(string path)
         {
             var stream = new FakeStream(path);
@@ -217,7 +227,7 @@ internal static class AudioChecks
             return stream;
         }
         public void SetVolume(float volume) => Volume = volume;
-        public void Resume() { }
+        public void Resume() => ResumeCalls++;
         public void Dispose() => Disposed = true;
     }
 

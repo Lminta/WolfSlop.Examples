@@ -74,6 +74,19 @@
     @if (_selectedMap == PineLoopMap)
     {
         <p>Follow the outdoor circuit from the five-wide starting grid through wide passing sections and narrow forest lanes. Pass the northern tunnel, tire-lined bends, grandstand, and three pit boxes.</p>
+        <div class="race-difficulty">
+            <span>Difficulty</span>
+            <div class="difficulty-options" role="group" aria-label="Race difficulty">
+                <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Normal)"
+                        aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Normal ? "true" : "false")"
+                        @onclick="() => SelectDifficultyAsync(RaceDifficulty.Normal)">Normal</button>
+                <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Easy)"
+                        aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Easy ? "true" : "false")"
+                        @onclick="() => SelectDifficultyAsync(RaceDifficulty.Easy)">Easy</button>
+            </div>
+            <small>Changing difficulty restarts the race.</small>
+        </div>
+        <button type="button" class="race-restart" disabled="@_loading" @onclick="RestartRaceAsync">Restart race</button>
     }
     @if (_selectedMap == ShowcaseMap)
     {

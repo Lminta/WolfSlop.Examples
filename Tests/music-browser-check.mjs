@@ -5,8 +5,8 @@ import fs from 'node:fs';
 
 const musicDefinition = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/maps/pine-loop.json', 'utf8')).music;
 const playlist = musicDefinition.tracks;
-const soundSettings = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/sound-settings.json', 'utf8'));
-const musicVolume = soundSettings.masterVolume * (musicDefinition.volume ?? soundSettings.musicVolume);
+const soundSettings = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/audio-settings.json', 'utf8'));
+const musicVolume = soundSettings.volume * (musicDefinition.volume ?? soundSettings.musicVolume);
 
 const port = process.argv[2] ?? '9387';
 const base = process.argv[3] ?? 'http://127.0.0.1:5025';

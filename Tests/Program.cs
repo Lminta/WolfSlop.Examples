@@ -9,7 +9,7 @@ var webRoot = Path.Combine(root, "WolfNET.Game", "wwwroot");
 using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
 if (args.Contains("--opponent-speeds"))
 {
-    await OpponentSpeedReport.RunAsync(http, root);
+    await OpponentSpeedReport.RunAsync(http, root, args.Contains("--easy") ? RaceDifficulty.Easy : null);
     return;
 }
 int assertions = 0;
@@ -150,6 +150,7 @@ assertions += CarContactChecks.Run();
 assertions += CarCameraChecks.Run();
 assertions += await RaceSessionChecks.RunAsync(http, webRoot);
 assertions += await OpponentChecks.RunAsync(http);
+assertions += await OpponentDifficultyChecks.RunAsync(http);
 assertions += await RacePropScaleChecks.RunAsync(http);
 assertions += SpriteAnimationChecks.Run();
 assertions += AudioChecks.Run(webRoot);

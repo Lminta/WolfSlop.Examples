@@ -147,7 +147,7 @@ internal static class OpponentChecks
             for (var distance = 0f; distance < route.Length; distance += route.Length / 12)
                 Check(shared.Point(distance) == independent.Point(distance) &&
                     shared.Curvature(distance) == independent.Curvature(distance) &&
-                    shared.Speed(distance, true, 13) == independent.Speed(distance, true, 13),
+                    shared.Speed(distance, .96f, 13) == independent.Speed(distance, .96f, 13),
                     "Sharing a racing corridor changed the rival's geometry or its own grip/braking limits.");
         }
         foreach (var skilled in new[] { false, true })

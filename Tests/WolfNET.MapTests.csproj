@@ -16,6 +16,7 @@
     <Compile Include="../WolfNET.Game/Game/RaceSession.cs" Link="Game/RaceSession.cs" />
     <Compile Include="../WolfNET.Game/Graphics/SpriteSelection.cs" Link="Graphics/SpriteSelection.cs" />
     <Compile Include="../WolfNET.Game/Game/GameplaySettings.cs" Link="Game/GameplaySettings.cs" />
+    <Compile Include="../WolfNET.Game/Game/OpponentSettings.cs" Link="Game/OpponentSettings.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/CarSettings.cs" Link="Game/CarSettings.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/IControlledActor.cs" Link="Game/IControlledActor.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/CarObject.cs" Link="Game/CarObject.cs" />

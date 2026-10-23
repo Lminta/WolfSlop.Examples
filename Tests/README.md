@@ -20,6 +20,9 @@ standings, grid/pause/finish behavior, car contact and solid boundaries. They me
 asphalt coverage and a time-weighted mean pace near 19 blocks/s during solo and traffic laps (including launch),
 check recovery from mud and a wall-facing pose, and compare
 lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
+Difficulty checks load the shipped JSON, validate and round-trip the profile structs,
+check overrides and speed offsets, and simulate easy solo laps and a three-lap traffic race.
+They verify the 16-17 blocks/s target, more blue mistakes, clean green driving, and asphalt coverage.
 The Node checks cover editor operations, browser sprite selection/order, and
 texture upload filtering, mip coverage, cancellation, and bitmap cleanup.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
@@ -34,13 +37,15 @@ have been removed. Visual changes to maps and shaders need manual review.
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds
+dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds --easy
 ```
 
 Loads the shipped gameplay settings and runs three-lap traffic and solo simulations
 on Pine Loop at 120 Hz. Traffic includes both rivals and a parked player. Reports
 time-weighted mean, median, maximum, percentiles, low-speed and mud-contact time, plus the active speed limits and acceleration
 in blocks/second to `artifacts/opponent-speeds.json`. Countdown and post-finish time
-are excluded. This diagnostic does not change driving behavior.
+are excluded. `--easy` measures the easy profiles and writes `artifacts/opponent-speeds-easy.json`.
+Both reports include the effective profiles and mistake counts. This diagnostic does not change driving behavior.
 
 ## Optional integration checks
 
@@ -63,8 +68,8 @@ node Tests/editor-browser-check.mjs 9246 http://127.0.0.1:5080
 The game smoke check covers startup, movement, input capture, shader-rendered hands
 and their F gesture, map switching, texture cleanup, and failed-load recovery.
 The driving check covers real input, shader cockpit/steering and chase views,
-countdown control locking, start lights, configured lap limits and results,
-restart, pause/resume, and returning to walking. Its short-race fixture changes
+countdown control locking, start lights, difficulty switching beneath the map description, configured lap limits and results,
+mid-race and results-screen restarts with the selected difficulty, pause/resume, and returning to walking. Its short-race fixture changes
 invisible gates and the configured lap limit to exercise finishing on the real starting straight. The editor browser
 check covers its UI; disk saves are covered by the native and API checks.
 

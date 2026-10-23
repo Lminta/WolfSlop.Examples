@@ -1,5 +1,5 @@
 {
-  "masterVolume": 1,
+  "volume": 1,
   "musicVolume": 0.65,
   "musicCrossfadeSeconds": 3,
   "countdownStartVolume": 0.15

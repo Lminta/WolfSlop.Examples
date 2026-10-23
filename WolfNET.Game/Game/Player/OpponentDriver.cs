@@ -7,26 +7,29 @@ internal readonly record struct OpponentPace(float Corner, float Recovery, float
 
 /// <summary>Steers and brakes a normal car along the circuit; never moves its transform directly.</summary>
 public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettings car, RaceSettings settings,
-    Vector2 start, bool skilled = false, float gridSide = 1.5f, OpponentDriver? racingLineSource = null) : IKeyboardInput, ISteeringInput, IMouseInput
+    Vector2 start, bool skilled = false, float gridSide = 1.5f, OpponentDriver? racingLineSource = null,
+    OpponentProfileSettings? profile = null) : IKeyboardInput, ISteeringInput, IMouseInput
 {
+    private readonly OpponentProfileSettings _profile = profile ?? OpponentProfileSettings.Normal(skilled);
     private readonly OpponentRacingLine _line = new(route, map, car, racingLineSource?._line);
     private float _distance = route.Project(start);
     private readonly float _origin = route.Project(start);
     private float _drivingTime;
-    private float _nextMistake = 20;
+    private float _nextMistake = (profile ?? OpponentProfileSettings.Normal(skilled)).Mistakes.FirstAfterSeconds;
     private float _mistakeRemaining;
     public int MistakesMade { get; private set; }
 
     public static CarSettings CreateCarSettings(CarSettings player, bool skilled)
+        => CreateCarSettings(player, OpponentProfileSettings.Normal(skilled));
+
+    public static CarSettings CreateCarSettings(CarSettings player, OpponentProfileSettings profile)
     {
-        var maximum = player.Asphalt.MaxForwardSpeed + (skilled ? -3 : 3);
-        if (maximum <= 0) throw new InvalidDataException("Player forward speed must exceed 3 blocks/s to create the green rival.");
+        profile.Validate(player);
+        var maximum = player.Asphalt.MaxForwardSpeed + profile.MaxSpeedOffset;
         return player with { Asphalt = player.Asphalt with
         {
             MaxForwardSpeed = maximum,
-            // Green's lower limiter makes the high-speed taper much steeper.
-            // Stronger exit pull lets it keep pace without raising its top speed.
-            Acceleration = player.Asphalt.Acceleration * (skilled ? 3 : 1.2f)
+            Acceleration = player.Asphalt.Acceleration * profile.AccelerationMultiplier
         } };
     }
 
@@ -170,7 +173,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
             var headingError = MathF.Atan2(body.Rotation.X * direction.Y - body.Rotation.Y * direction.X,
                 Vector2.Dot(body.Rotation, direction));
             var curvature = _line.Curvature(_distance + speed * .9f / car.AngularResponse);
-            angle = MathF.Atan(car.Wheelbase * curvature * (skilled ? 1.4f : 1.3f)) + headingError * .65f +
+            angle = MathF.Atan(car.Wheelbase * curvature * _profile.SteeringCurvatureGain) + headingError * .65f +
                 MathF.Atan2(laneError * 1.5f, speed + 2) - MathF.Atan2(car.Wheelbase * actor.Controller.AngularVelocity * .3f, speed);
         }
         if (_defendingAgainst != null || MathF.Abs(_defensiveOffset) > .01f || MathF.Abs(_passingOffset) > .01f)
@@ -185,7 +188,7 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
             angle = MathF.Atan(car.Wheelbase * yaw / MathF.Max(speed, 3));
         }
         Steering = Math.Clamp(angle / (car.MaxSteeringDegrees * MathF.PI / 180), -1, 1);
-        var cornerLimit = MathF.Min(car.Asphalt.MaxForwardSpeed, _line.Speed(_distance, skilled, settings.OpponentCornerSpeed));
+        var cornerLimit = MathF.Min(car.Asphalt.MaxForwardSpeed, _line.Speed(_distance, _profile.CornerGripFraction, settings.OpponentCornerSpeed));
         var targetSpeed = cornerLimit;
         // Allow ordinary tracking error on a fast bend; slow down for a large
         // deviation or an actual verge contact, rather than repeatedly braking to 7.
@@ -213,14 +216,15 @@ public sealed class OpponentDriver(RaceRoute route, NavigationMap map, CarSettin
         _mistakeRemaining = MathF.Max(0, _mistakeRemaining - seconds);
         // Blue occasionally misjudges a corner entry and brakes too early, then recovers.
         // Road and barrier checks still apply; errors cost time rather than forcing a crash.
-        if (!skilled && _drivingTime >= _nextMistake && speed > 7 && lateralError < .65f &&
+        if (_profile.Mistakes.Enabled && _drivingTime >= _nextMistake && speed > 7 && lateralError < .65f &&
             !_line.CanManeuver(_distance) && !blocked && _passingCar == null && _defendingAgainst == null)
         {
             MistakesMade++;
-            _mistakeRemaining = 1.1f;
-            _nextMistake = _drivingTime + 24 + MistakesMade % 3 * 7;
+            _mistakeRemaining = _profile.Mistakes.DurationSeconds;
+            _nextMistake = _drivingTime + _profile.Mistakes.IntervalSeconds +
+                MistakesMade % 3 * _profile.Mistakes.VariationSeconds;
         }
-        if (_mistakeRemaining > 0) targetSpeed *= .65f;
+        if (_mistakeRemaining > 0) targetSpeed *= _profile.Mistakes.SpeedMultiplier;
         Pace = new(cornerLimit, recoveryLimit, obstacleLimit, trafficLimit, targetSpeed);
 
         var waitingForTraffic = blocked && other!.Controller.Speed > 1;

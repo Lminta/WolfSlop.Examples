@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Game.InputEvents;
+using WolfNET.Game;
 using WolfNET.Graphics;
 
 namespace WolfNET.Pages;
@@ -100,14 +101,14 @@ public partial class Home
         }
     }
 
-    private async Task SelectMapAsync(string mapPath)
+    private async Task SelectMapAsync(string mapPath, RaceDifficulty? difficulty = null)
     {
         if (_loading || _disposed || _canvasElement == null) return;
         _loading = true;
         _error = null;
         try
         {
-            await Wolf.SwitchMapAsync(_canvasElement, mapPath, _lifetime.Token, ShowLoadingProgressAsync);
+            await Wolf.SwitchMapAsync(_canvasElement, mapPath, _lifetime.Token, ShowLoadingProgressAsync, difficulty);
             ObserveMouse();
             _selectedMap = mapPath;
         }
@@ -124,8 +125,11 @@ public partial class Home
         }
     }
 
-    private Task RestartRaceAsync() => Wolf.CurrentMapPath is { } path
+    private Task RestartRaceAsync() => _selectedMap is { } path
         ? SelectMapAsync(path) : Task.CompletedTask;
+
+    private Task SelectDifficultyAsync(RaceDifficulty difficulty) => _selectedMap is { } path && Wolf.Difficulty != difficulty
+        ? SelectMapAsync(path, difficulty) : Task.CompletedTask;
 
     private void OnMapSwitchRequested(string mapPath)
     {

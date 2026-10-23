@@ -19,7 +19,7 @@ public sealed record MusicDefinition
 {
     // Asset paths relative to wwwroot, in repeating playback order.
     public string[] Tracks { get; init; } = [];
-    // Optional per-map overrides; otherwise sound-settings.json supplies defaults.
+    // Optional per-map overrides; otherwise audio-settings.json supplies defaults.
     public float? CrossfadeSeconds { get; init; }
     public float? Volume { get; init; }
 

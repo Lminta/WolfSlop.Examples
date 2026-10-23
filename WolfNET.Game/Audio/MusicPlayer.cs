@@ -24,9 +24,9 @@ public sealed class MusicPlayer : IDisposable
         sound ??= new();
         sound.Validate();
         _backend = backend;
-        _tracks = (string[])music.Tracks.Clone();
         _crossfadeSeconds = music.CrossfadeSeconds ?? sound.MusicCrossfadeSeconds;
-        _volume = sound.MasterVolume * (music.Volume ?? sound.MusicVolume);
+        _volume = sound.GetMusicVolume(music);
+        _tracks = _volume > 0 ? (string[])music.Tracks.Clone() : [];
         backend.SetVolume(0);
         try
         {
@@ -55,6 +55,7 @@ public sealed class MusicPlayer : IDisposable
     public void SetPlaying(bool playing, float volumeScale = 1)
     {
         if (_disposed) return;
+        if (_volume == 0) playing = false;
         if (!float.IsFinite(volumeScale) || volumeScale < 0 || volumeScale > 1)
             throw new ArgumentOutOfRangeException(nameof(volumeScale));
         var playbackChanged = _playing != playing;

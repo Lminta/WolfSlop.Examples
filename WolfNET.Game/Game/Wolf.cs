@@ -49,6 +49,7 @@ public sealed class Wolf : IDisposable
     public IMap Map => _scene?.Map ?? throw new InvalidOperationException("No scene is running.");
     public RendererSettings RendererSettings { get; }
     public string? CurrentMapPath { get; private set; }
+    public RaceDifficulty Difficulty { get; private set; }
     public int? FramesPerSecond { get; private set; }
     public event Action<string>? MapSwitchRequested;
     public event Action<PlayerPose>? PlayerPoseChanged;
@@ -64,6 +65,7 @@ public sealed class Wolf : IDisposable
         _renderer = renderer;
         _loader = loader;
         _gameplay = gameplay;
+        Difficulty = gameplay.Opponents.DefaultDifficulty;
         _sound = sound;
         _js = js;
         _timing = new FrameTiming(settings.TargetFPS);
@@ -74,7 +76,7 @@ public sealed class Wolf : IDisposable
         _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/showcase.json", cancellationToken);
 
     public async Task SwitchMapAsync(HTMLCanvasElement canvas, string mapPath, CancellationToken cancellationToken = default,
-        Func<string, Task>? reportProgress = null)
+        Func<string, Task>? reportProgress = null, RaceDifficulty? difficulty = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
@@ -92,7 +94,7 @@ public sealed class Wolf : IDisposable
             await _renderer.PrepareSceneAsync(loaded.Map.RendererMap, token, reportProgress, loaded.Character);
             try
             {
-                if (loaded.Map.Music is { Tracks.Length: > 0 } music)
+                if (loaded.Map.Music is { Tracks.Length: > 0 } music && _sound.GetMusicVolume(music) > 0)
                     _audio = new MusicPlayer(new BrowserAudioBackend(canvas), music, _sound);
             }
             catch (Exception ex)
@@ -104,7 +106,8 @@ public sealed class Wolf : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             input = new BrowserInput(canvas, _js);
-            scene = new GameScene(loaded.Map, loaded.Character, input.Keyboard, input.Mouse, RendererSettings, _gameplay);
+            var selectedDifficulty = difficulty ?? Difficulty;
+            scene = new GameScene(loaded.Map, loaded.Character, input.Keyboard, input.Mouse, RendererSettings, _gameplay, selectedDifficulty);
             scene.SetPaused(!input.Mouse.IsLocked);
             _input = input;
             _scene = scene;
@@ -112,6 +115,7 @@ public sealed class Wolf : IDisposable
             scene = null;
             _sceneTextures = loaded.Map.RendererMap.Textures;
             CurrentMapPath = mapPath;
+            Difficulty = selectedDifficulty;
             _clock.Restart();
             _lastPoseNotification = double.NegativeInfinity;
             _lastDrivingNotification = double.NegativeInfinity;

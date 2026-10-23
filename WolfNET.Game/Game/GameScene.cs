@@ -31,12 +31,14 @@ public sealed class GameScene : IDisposable
     private RaceStatus[] _cachedStatuses = [];
     private double _cachedClock = -1;
     internal OpponentPace GetOpponentPace(int index) => _rivals[index].Driver.Pace;
+    internal int GetOpponentMistakes(int index) => _rivals[index].Driver.MistakesMade;
     public CarObject? Opponent => _rivals.Count > 0 ? _rivals[0].Car : null;
     public CarObject? SecondOpponent => _rivals.Count > 1 ? _rivals[1].Car : null;
     public IMap Map { get; }
     public IControlledActor Player { get; }
     public ICharacterAppearance Character { get; }
     public bool Paused { get; private set; }
+    public RaceDifficulty Difficulty { get; }
     // Phase checks need only the player's session, not projected opponent standings.
     public RaceStatus? PlayerRaceState => _race?.Status;
     public RaceStatus? RaceState
@@ -77,9 +79,11 @@ public sealed class GameScene : IDisposable
     public PlayerPose PlayerPose => new(Player.Transform.Position, Player.Transform.Rotation);
 
     public GameScene(IMap map, ICharacterAppearance character, IKeyboardInput input, IMouseInput mouse,
-        RendererSettings settings, GameplaySettings? gameplay = null)
+        RendererSettings settings, GameplaySettings? gameplay = null, RaceDifficulty? difficulty = null)
     {
         gameplay ??= new();
+        Difficulty = difficulty ?? gameplay.Opponents.DefaultDifficulty;
+        var profiles = gameplay.Opponents.Get(Difficulty);
         Map = map;
         Character = character;
         _input = input;
@@ -114,10 +118,11 @@ public sealed class GameScene : IDisposable
                     break;
                 }
                 if (position == null) throw new InvalidDataException("Race grid needs room for two opponents.");
-                var rivalSettings = OpponentDriver.CreateCarSettings(gameplay.Car, skilled: i == 1);
+                var profile = profiles.Get(i == 1);
+                var rivalSettings = OpponentDriver.CreateCarSettings(gameplay.Car, profile);
                 var driver = new OpponentDriver(_route, map.NavigationMap, rivalSettings, gameplay.Race,
                     position.Value, skilled: i == 1, gridSide: i == 0 ? 1.5f : -1.5f,
-                    racingLineSource: _rivals.Count == 0 ? null : _rivals[0].Driver);
+                    racingLineSource: _rivals.Count == 0 ? null : _rivals[0].Driver, profile: profile);
                 var rival = new CarObject(driver, driver, map.NavigationMap, rivalSettings)
                     { Transform = new Transform { Position = position.Value, Rotation = direction } };
                 _rivals.Add(new(rival, driver, new(map.RendererMap.Race!, gameplay.Race), i == 0 ? "Blue car" : "Green car"));

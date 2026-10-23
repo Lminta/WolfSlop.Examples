@@ -107,12 +107,12 @@ internal sealed class OpponentRacingLine
         return float.Lerp(_curvature[index % _points.Length], _curvature[(index + 1) % _points.Length], sample - index);
     }
 
-    public float Speed(float distance, bool skilled, float cornerSpeed)
+    public float Speed(float distance, float cornerGripFraction, float cornerSpeed)
     {
         var speed = float.PositiveInfinity;
         // The grip margins are calibrated to the default corner-speed setting.
         var cornerScale = cornerSpeed / 13;
-        var lateralLimit = _car.Asphalt.MaxLateralAcceleration * (skilled ? .96f : .92f) * cornerScale * cornerScale;
+        var lateralLimit = _car.Asphalt.MaxLateralAcceleration * cornerGripFraction * cornerScale * cornerScale;
         lateralLimit = MathF.Min(lateralLimit, _car.Asphalt.MaxLateralAcceleration * .98f);
         for (float ahead = 0; ahead <= 36; ahead += 2)
         {

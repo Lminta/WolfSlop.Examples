@@ -266,11 +266,12 @@ Pine Loop plays every MP3 currently
 in `WolfNET.Game/wwwroot/music` in order, repeating the queue with a three-second
 crossfade (including the last track back to the first). Restarting resets music
 to the first track; leaving the map releases both streams.
-Edit `WolfNET.Game/wwwroot/sound-settings.json` and reload to change
-`masterVolume` (0–1, default 1), `musicVolume` (0–1, default 0.65),
+Edit `WolfNET.Game/wwwroot/audio-settings.json` and reload to change
+`volume` (0–1, default 1), `musicVolume` (0–1, default 0.65),
 `musicCrossfadeSeconds` (nonnegative, default 3; zero disables blending), and
 `countdownStartVolume` (0–1, default 0.15; a fraction of normal music volume).
-Master volume scales all music, including any per-map volume override.
+`volume` scales all music, including any per-map volume override. Set it to `0`
+to turn music off entirely: no audio context is created and tracks are not loaded.
 Maps can define a `music` object with `tracks` (paths relative to `wwwroot`),
 and optional `crossfadeSeconds` and `volume` overrides. Omitted overrides use
 the sound settings; Pine Loop stores only its playlist. Omit `music` for silence.
@@ -290,7 +291,7 @@ These gates create no sprites, collision geometry, or visible checkpoint markers
 Blue and green opponents share the player's car physics, collision footprint, and surface penalties.
 Their asphalt top speeds follow the player's configured speed automatically: blue is **3 blocks/s faster**,
 and green is **3 blocks/s slower** (28 and 22 blocks/s with the current 25 blocks/s player limit).
-Asphalt acceleration is tuned separately for corner exits: blue uses 1.2 times the player's
+In normal difficulty, asphalt acceleration is tuned separately for corner exits: blue uses 1.2 times the player's
 acceleration and green uses 3 times, compensating for its steeper taper near the lower speed limit.
 Blue occasionally brakes too early for a corner and loses time; green drives a consistent, clean line.
 Both follow a road-centered path, brake ahead of bends, avoid barriers, and check road clearance before passing or defending.
@@ -300,6 +301,19 @@ The racing line smooths the raster route before estimating curvature. Steering a
 and compensates yaw response, targeting an average loop pace around 19 blocks/s on Pine Loop.
 Passing and defending reserve grip and time to merge before bends; road and barrier checks remain active.
 `race.opponentCornerSpeed` adjusts their cornering pace; `race.lapCount` applies to all three racers.
+`opponents` in `gameplay-settings.json` contains `defaultDifficulty` (`normal` by default)
+and separate `normal` and `easy` groups, each with `blue` and `green` profiles.
+Each profile configures `maxSpeedOffset` relative to the player, `accelerationMultiplier`,
+`cornerGripFraction`, `steeringCurvatureGain`, and `mistakes`. Mistake timing uses seconds:
+`firstAfterSeconds`, `intervalSeconds`, `variationSeconds`, and `durationSeconds`;
+`speedMultiplier` scales the planned speed during the mistake, and `enabled` can disable them.
+Easy blue brakes early more often and for longer. Easy green remains consistent, with a top speed
+5 blocks/s below the player (20 blocks/s at the default player limit) and gentler acceleration.
+Easy targets an average loop pace around 16-17 blocks/s.
+The Normal/Easy buttons beneath Pine Loop's description start a fresh race with the selected profiles.
+The selection carries through race restarts and map switches; reloading the app uses the JSON default.
+The Restart race button below the difficulty controls reloads the entire race, resetting all cars,
+laps, timers, and the countdown while keeping the selected difficulty.
 The Gap row measures the player's delay to the leader, with zero when leading. It starts measuring
 separation at lap finishes and freezes between matching finishes. Pausing freezes the cars and timers.
 Results show both racers' total and individual lap times. If the player finishes
