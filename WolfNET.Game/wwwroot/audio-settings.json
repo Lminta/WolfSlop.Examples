@@ -2,11 +2,12 @@
   "volume": 1,
   "musicVolume": 0.15,
   "musicCrossfadeSeconds": 3,
-  "countdownStartVolume": 0.15,
+  "countdownStartVolume": 0.01,
   "sfx": {
     "volume": 1,
     "engineVolume": 0.7,
     "brakeVolume": 0.6,
+    "mudVolume": 0.65,
     "impactVolume": 1,
     "countdownVolume": 0.9,
     "crowdVolume": 0.6,
@@ -28,7 +29,10 @@
       "impactCar": ["sounds/impact-car-1.wav", "sounds/impact-car-2.wav", "sounds/impact-car-3.wav"],
       "countdownTick": ["sounds/countdown-tick.wav"],
       "countdownGo": ["sounds/countdown-go.wav"],
-      "crowd": ["sounds/crowd-1.wav", "sounds/crowd-2.wav", "sounds/crowd-3.wav"]
+      "crowd": ["sounds/crowd-1.wav", "sounds/crowd-2.wav", "sounds/crowd-3.wav"],
+      "mudSlow": ["sounds/mud-slow-1.wav", "sounds/mud-slow-2.wav", "sounds/mud-slow-3.wav"],
+      "mudMid": ["sounds/mud-mid-1.wav", "sounds/mud-mid-2.wav", "sounds/mud-mid-3.wav"],
+      "mudHigh": ["sounds/mud-high-1.wav", "sounds/mud-high-2.wav", "sounds/mud-high-3.wav"]
     }
   }
 }

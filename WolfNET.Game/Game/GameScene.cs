@@ -159,7 +159,8 @@ public sealed class GameScene : IDisposable
             var car = _raceCars[i];
             var controller = car.Controller;
             _audioCars[i] = new(i, car.Transform.Position, controller.Speed, car.Settings.Asphalt.MaxForwardSpeed,
-                controller.Throttle, controller.Acceleration, controller.Braking);
+                controller.Throttle, controller.Acceleration, controller.Braking, controller.OnMud,
+                car.Settings.OffRoad.MaxForwardSpeed);
         }
         return new(frame.Position, frame.Direction, _audioCars, _audioImpacts,
             _race?.Status.Phase, _race?.Status.CountdownNumber, active, seconds);

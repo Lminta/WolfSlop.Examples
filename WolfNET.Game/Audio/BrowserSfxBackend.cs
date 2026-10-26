@@ -66,10 +66,11 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         catch { backend.Dispose(); throw; }
     }
 
-    public ISfxVoice? Play(SfxCue cue, bool loop, float phase = 0, int emitterId = 0)
+    public ISfxVoice? Play(SfxCue cue, bool loop, float phase = 0, int emitterId = 0, int? variantIndex = null)
     {
         if (_disposed || !_clips.TryGetValue(cue, out var clips) || clips.Count == 0) return null;
-        var index = _variants.Select(cue, clips.Count, emitterId);
+        var index = variantIndex is { } selected
+            ? (int)(Math.Abs((long)selected) % clips.Count) : _variants.Select(cue, clips.Count, emitterId);
         var voice = new Voice(this, clips[index], loop, phase);
         _voices.Add(voice);
         return voice;

@@ -18,6 +18,17 @@ internal static class CarPhysicsChecks
         }
 
         var asphalt = Create();
+        var fullMudContact = Create(surface: _ => "mud");
+        var partialMudContact = Create(surface: position => position.Y >= 100 ? "mud" : "asphalt");
+        asphalt.Controller.Update(1000f / 120);
+        fullMudContact.Controller.Update(1000f / 120);
+        partialMudContact.Controller.Update(1000f / 120);
+        Check(!asphalt.Controller.OnMud, "Fully paved footprint must not report mud contact.");
+        Check(fullMudContact.Controller.OnMud && partialMudContact.Controller.OnMud,
+            "Partial and full mud contact must expose the same sound trigger.");
+        partialMudContact.Actor.Transform = new() { Position = new(100, 98), Rotation = Vector2.UnitX };
+        partialMudContact.Controller.Update(1000f / 120);
+        Check(!partialMudContact.Controller.OnMud, "Mud contact must clear when the entire footprint returns to asphalt.");
         asphalt.Keys.KeyState = new() { Forward = true };
         Advance(asphalt.Controller, .5f);
         var earlyAcceleration = asphalt.Controller.Speed;

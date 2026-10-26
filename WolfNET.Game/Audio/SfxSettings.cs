@@ -5,6 +5,7 @@ public sealed record SfxSettings
     public float Volume { get; init; } = .8f;
     public float EngineVolume { get; init; } = .6f;
     public float BrakeVolume { get; init; } = .5f;
+    public float MudVolume { get; init; } = .65f;
     public float ImpactVolume { get; init; } = .85f;
     public float CountdownVolume { get; init; } = .8f;
     public float CrowdVolume { get; init; } = .3f;
@@ -27,12 +28,15 @@ public sealed record SfxSettings
         [SfxCue.ImpactCar] = ["sounds/impact-car-1.wav", "sounds/impact-car-2.wav", "sounds/impact-car-3.wav"],
         [SfxCue.CountdownTick] = ["sounds/countdown-tick.wav"],
         [SfxCue.CountdownGo] = ["sounds/countdown-go.wav"],
-        [SfxCue.Crowd] = ["sounds/crowd-1.wav", "sounds/crowd-2.wav", "sounds/crowd-3.wav"]
+        [SfxCue.Crowd] = ["sounds/crowd-1.wav", "sounds/crowd-2.wav", "sounds/crowd-3.wav"],
+        [SfxCue.MudSlow] = ["sounds/mud-slow-1.wav", "sounds/mud-slow-2.wav", "sounds/mud-slow-3.wav"],
+        [SfxCue.MudMid] = ["sounds/mud-mid-1.wav", "sounds/mud-mid-2.wav", "sounds/mud-mid-3.wav"],
+        [SfxCue.MudHigh] = ["sounds/mud-high-1.wav", "sounds/mud-high-2.wav", "sounds/mud-high-3.wav"]
     };
 
     public void Validate()
     {
-        var volumes = new[] { Volume, EngineVolume, BrakeVolume, ImpactVolume, CountdownVolume, CrowdVolume };
+        var volumes = new[] { Volume, EngineVolume, BrakeVolume, MudVolume, ImpactVolume, CountdownVolume, CrowdVolume };
         if (volumes.Any(value => !float.IsFinite(value) || value < 0 || value > 1) ||
             !float.IsFinite(ReferenceDistance) || ReferenceDistance <= 0 ||
             !float.IsFinite(MaxDistance) || MaxDistance <= ReferenceDistance ||

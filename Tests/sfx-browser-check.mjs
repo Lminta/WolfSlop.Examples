@@ -7,6 +7,7 @@ const port = process.argv[2] ?? '9387', base = process.argv[3] ?? 'http://127.0.
 const settings = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/audio-settings.json', 'utf8'));
 const clips = Object.entries(settings.sfx.clips);
 const realSounds = process.argv.includes('--real');
+const mudCheck = process.argv.includes('--mud');
 function wave(seconds, frequency) {
     const rate = 24000, samples = Math.round(seconds * rate), data = Buffer.alloc(44 + samples * 2);
     data.write('RIFF'); data.writeUInt32LE(data.length - 8, 4); data.write('WAVEfmt ', 8);
@@ -51,6 +52,14 @@ socket.onmessage = async event => {
         const {requestId, request} = message.params;
         const path = decodeURIComponent(new URL(request.url).pathname).slice(1);
         requests.push(path);
+        if (mudCheck && path.startsWith('objects/raceway/passage-')) {
+            const passage = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/' + path, 'utf8'));
+            if (passage.surface === 'asphalt') passage.surface = 'mud';
+            await send('Fetch.fulfillRequest', {requestId, responseCode:200,
+                responseHeaders:[{name:'Content-Type',value:'application/json'}],
+                body:Buffer.from(JSON.stringify(passage)).toString('base64')});
+            return;
+        }
         if (realSounds && path.startsWith('sounds/')) { await send('Fetch.continueRequest', {requestId}); return; }
         const body = path === 'audio-settings.json'
             ? Buffer.from(JSON.stringify(mute ? {...settings, volume: 0} : settings)).toString('base64') : fixtures.get(path)?.toString('base64');
@@ -84,7 +93,8 @@ async function key(code, key, virtual, down) {
 try {
     await send('Page.enable'); await send('Runtime.enable');
     await send('Emulation.setFocusEmulationEnabled', {enabled:true}); await send('Page.bringToFront');
-    await send('Fetch.enable', {patterns:[{urlPattern:'*/sounds/*.wav'}, {urlPattern:'*/audio-settings.json'}]});
+    await send('Fetch.enable', {patterns:[{urlPattern:'*/sounds/*.wav'}, {urlPattern:'*/audio-settings.json'},
+        ...(mudCheck ? [{urlPattern:'*/objects/raceway/passage-*.json'}] : [])]});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
         window.__contexts = [];
         window.AudioContext = new Proxy(window.AudioContext, {construct(target,args) {
@@ -141,6 +151,11 @@ try {
     await key('KeyW','w',87,true);
     await delay(1200);
     await waitFor(`__cueVoices('engineLoad',true).length > 0 && __cueVoices('engineIdle',true)[0].source.playbackRate.value > .8`);
+    if (mudCheck) {
+        await waitFor(`__cueVoices('mudSlow',true).length > 0`);
+        await waitFor(`__cueVoices('mudMid').length > 0`);
+        await waitFor(`__cueVoices('mudHigh').length > 0`);
+    }
     await key('Space',' ',32,true);
     await waitFor(`__cueVoices('brakes').length > 0`);
     await key('Space',' ',32,false); await key('KeyW','w',87,false);
@@ -164,7 +179,7 @@ try {
     assert.equal(await evaluate('__contexts.length'), 0);
     assert(!requests.slice(previousRequests).some(path=>path.startsWith('sounds/')));
     assert.deepEqual(errors, []);
-    console.log(`PASS: C# SFX backend, WAV decoding, distinct engines per car, randomized braking, mono downmix/stereo placement, countdown/GO, pause/resume, cleanup, and zero-volume bypass (${realSounds ? 'actual generated sounds' : 'temporary test tones'}).`);
+    console.log(`PASS: C# SFX backend, WAV decoding, distinct engines per car, randomized braking, ${mudCheck ? 'mud rolling, ' : ''}mono downmix/stereo placement, countdown/GO, pause/resume, cleanup, and zero-volume bypass (${realSounds ? 'actual generated sounds' : 'temporary test tones'}).`);
 } finally {
     socket.close();
     await fetch(`http://127.0.0.1:${port}/json/close/${target.id}`);

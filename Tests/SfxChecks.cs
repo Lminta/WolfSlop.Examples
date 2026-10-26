@@ -26,6 +26,12 @@ internal static class SfxChecks
         foreach (var cue in new[] { SfxCue.CountdownTick, SfxCue.CountdownGo })
             Check(Enumerable.Range(0, 30).All(_ => variants.Select(cue, 3) == 0), "Countdown clips must remain consistent.");
         Check(variants.Select(SfxCue.EngineIdle, 1, 2) == 0, "Engines must fall back safely when fewer variants are supplied.");
+        Check(SfxSystem.MudBand(0, 9) == SfxCue.MudSlow && SfxSystem.MudBand(2.99f, 9) == SfxCue.MudSlow,
+            "First speed third must select slow mud.");
+        Check(SfxSystem.MudBand(3, 9) == SfxCue.MudMid && SfxSystem.MudBand(5.99f, 9) == SfxCue.MudMid,
+            "Second speed third must select mid mud, including its lower boundary.");
+        Check(SfxSystem.MudBand(6, 9) == SfxCue.MudHigh && SfxSystem.MudBand(30, 9) == SfxCue.MudHigh,
+            "Final speed third and speeds exceeding the mud limit must select high mud.");
         foreach (var cue in new[] { SfxCue.Brakes, SfxCue.ImpactHard, SfxCue.ImpactMetal, SfxCue.ImpactWood, SfxCue.ImpactRubber, SfxCue.ImpactCar, SfxCue.Crowd })
         {
             var picks = Enumerable.Range(0, 30).Select(_ => variants.Select(cue, 3)).ToArray();
@@ -160,6 +166,51 @@ internal static class SfxChecks
             Check(backend.Paused && backend.Voices.Count == 0, "Master volume zero must disable SFX.");
         }
 
+        backend = new();
+        using (var system = new SfxSystem(backend, settings, [], Vector2.Zero, new Random(37)))
+        {
+            CarSfxState MudCar(int id, float speed, bool mud) => new(id, new(2, 0), speed, 25, 0, 0, 0, mud, 9);
+            static bool IsMud(Voice voice) => voice.Cue is SfxCue.MudSlow or SfxCue.MudMid or SfxCue.MudHigh;
+            Voice Latest(int id = 0) => backend.Voices.Last(voice => IsMud(voice) && voice.EmitterId == id);
+            system.Update(Frame([MudCar(0, 2, true), MudCar(1, 2, true)]));
+            var mudVoices = backend.Voices.Where(IsMud).ToArray();
+            Check(mudVoices.Length == 2 && mudVoices.All(voice => voice.Loop && voice.Cue == SfxCue.MudSlow), "Moving cars with any mud contact must play a slow mud loop.");
+            var selected = mudVoices[0].VariantIndex;
+            var otherSelected = mudVoices[1].VariantIndex;
+            Check(selected is >= 0 and <= 2 && otherSelected is >= 0 and <= 2, "Each mud entry must select a valid numbered variant.");
+            Near(mudVoices[0].Volume, mudVoices[1].Volume, "Identical speed/contact must give the same mud volume for every car.");
+            system.Update(Frame([MudCar(0, 4, true), MudCar(1, 2, true)]));
+            var mid = Latest();
+            Check(mid.Cue == SfxCue.MudMid && mid.VariantIndex == selected && mid.Loop && mudVoices[0].Disposed,
+                "Entering the mid band must change sound but preserve the visit's variant number.");
+            Check(Latest(1).VariantIndex == otherSelected && !mudVoices[1].Disposed, "One car's band change must not affect another car's mud loop.");
+            system.Update(Frame([MudCar(0, 6, true)]));
+            var high = Latest();
+            Check(high.Cue == SfxCue.MudHigh && high.VariantIndex == selected && mid.Disposed,
+                "Entering the high band must use the matching variant and release mid.");
+            Near(high.Pitch, 1, "Recorded mud speed bands must play at their original pitch.");
+            system.Update(Frame([MudCar(0, 2, true)]));
+            var slow = Latest();
+            Check(slow.Cue == SfxCue.MudSlow && slow.VariantIndex == selected && high.Disposed, "Slowing down must return to the same numbered slow clip.");
+            system.Update(Frame([MudCar(0, 2, true)], active: false));
+            Check(backend.Paused && !slow.Disposed, "Pausing must preserve the mud loop.");
+            system.Update(Frame([MudCar(0, 2, true)]));
+            Check(Latest() == slow && !slow.Disposed, "Resuming must not select another mud variant.");
+            system.Update(Frame([MudCar(0, 0, true)]));
+            Check(slow.Disposed, "Stationary cars on mud must be silent.");
+            system.Update(Frame([MudCar(0, 2, true)]));
+            var restarted = Latest();
+            Check(!restarted.Disposed && restarted.VariantIndex == selected, "Movement after stopping on mud must preserve the visit's variant.");
+            system.Update(Frame([MudCar(0, 2, true) with { Position = new(100, 0) }]));
+            Check(restarted.Disposed, "Out-of-range mud sources must release their voices.");
+            system.Update(Frame([MudCar(0, 2, true)]));
+            Check(Latest().VariantIndex == selected, "Returning to hearing range must preserve the mud entry variant.");
+            system.Update(Frame([MudCar(0, 2, false)]));
+            Check(Latest().Disposed, "Leaving mud must stop its loop.");
+            system.Update(Frame([MudCar(0, 2, true)]));
+            Check(Latest().VariantIndex != selected, "A fresh mud entry must select a different variant without an immediate repeat.");
+        }
+
         var nav = new NavigationMap();
         var walkable = Enumerable.Range(0, 10).Select(x => Enumerable.Range(0, 10).Select(y => x > 0 && y > 0 && x < 9 && y < 9).ToArray()).ToArray();
         nav.Replace(walkable, walkable.Select(c => new bool[c.Length]).ToArray(), walkable.Select(c => new bool[c.Length]).ToArray());
@@ -193,22 +244,23 @@ internal static class SfxChecks
     {
         public List<Voice> Voices { get; } = [];
         public bool Paused, Disposed, Missing;
-        public ISfxVoice? Play(SfxCue cue, bool loop, float phase = 0, int emitterId = 0)
+        public ISfxVoice? Play(SfxCue cue, bool loop, float phase = 0, int emitterId = 0, int? variantIndex = null)
         {
             if (Missing) return null;
-            var voice = new Voice(cue, loop, phase, emitterId);
+            var voice = new Voice(cue, loop, phase, emitterId, variantIndex);
             Voices.Add(voice);
             return voice;
         }
         public void SetPaused(bool paused) => Paused = paused;
         public void Dispose() => Disposed = true;
     }
-    private sealed class Voice(SfxCue cue, bool loop, float phase, int emitterId) : ISfxVoice
+    private sealed class Voice(SfxCue cue, bool loop, float phase, int emitterId, int? variantIndex) : ISfxVoice
     {
         public SfxCue Cue { get; } = cue;
         public bool Loop { get; } = loop;
         public float Phase { get; } = phase;
         public int EmitterId { get; } = emitterId;
+        public int? VariantIndex { get; } = variantIndex;
         public bool Ended, Disposed;
         public float Volume, Pan, Pitch;
         public bool Finished => Ended;

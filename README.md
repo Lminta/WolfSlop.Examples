@@ -286,8 +286,21 @@ from its game loop. Other audio channels can be added separately.
 
 Sound effects run in C# through `Audio/SfxSystem.cs` and `ISfxBackend`.
 Player and opponent engine layers react to throttle, acceleration, and speed;
-brake loops require actual braking while moving. World impacts use the struck
-object's `impactMaterial` (`hard`, `metal`, `wood`, `rubber`), and car contacts
+brake loops require actual braking while moving.
+
+Mud sounds divide each car's configured full-mud forward speed limit into equal
+thirds: slow below 1/3, mid from 1/3 to below 2/3, and high from 2/3 upward.
+Partial and full off-road contact (including grass) use the same thresholds;
+speeds above the mud limit stay in the high band. At the default 8 blocks/s
+limit, the boundaries are approximately 2.67 and 5.33 blocks/s.
+Each fresh mud entry picks a random variant number (1–3), avoiding the previous
+entry's number. That number stays matched across `mud-slow-N.wav`,
+`mud-mid-N.wav`, and `mud-high-N.wav` as speed changes. Sounds loop at their
+recorded pitch. Pauses, stops on mud, and leaving hearing range preserve the
+selection; returning fully to asphalt ends the visit. Stopped cars are silent.
+Adjust `sfx.mudVolume` and the three clip arrays in `audio-settings.json`.
+
+World impacts use the struck object's `impactMaterial` (`hard`, `metal`, `wood`, `rubber`), and car contacts
 have their own cue. Closing speed controls impact volume, with cooldowns to avoid
 repeated hits from continuous contact. Countdown beeps play at 5–1 and GO from
 the start/finish gantry. Objects with `ambientSound: "crowd"` emit crowd loops;
@@ -364,6 +377,8 @@ loading bypass. The test supplies sounds through browser request interception
 and does not write placeholder audio into the game.
 Add `--real` to load the actual generated WAVs and check distinct engine buffers,
 random braking variants, stereo downmix, and countdown playback.
+Add `--mud` to that test to temporarily serve road surfaces as mud and verify
+rolling-sound playback through the actual driving physics without changing map files.
 With the game and a WebGPU browser running, use
 `node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual
 driving input, both views, pause/resume, cockpit alignment, and walking-map restoration.

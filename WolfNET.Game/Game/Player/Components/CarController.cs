@@ -25,6 +25,7 @@ public sealed class CarController : ComponentBase
     public float Throttle { get; private set; }
     public float Braking { get; private set; }
     public float Acceleration { get; private set; }
+    public bool OnMud { get; private set; }
     public event Action<BoxImpact>? WorldImpact;
 
     public CarController(ObjectBase parent, IKeyboardInput input, INavigationMap navigation,
@@ -195,6 +196,7 @@ public sealed class CarController : ComponentBase
             leftMud |= _halfFootprint.OverlapsCell(leftCenter, forward, x, y);
             rightMud |= _halfFootprint.OverlapsCell(rightCenter, forward, x, y);
         }
+        OnMud = mud;
         var profile = !mud ? _settings.Asphalt : asphalt ? _mixedSurface : _settings.OffRoad;
         return (profile, (leftMud ? 1 : 0) - (rightMud ? 1 : 0));
     }

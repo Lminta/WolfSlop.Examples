@@ -55,3 +55,31 @@ Settings: `volume: 0` disables all audio loading. `sfx.volume: 0` disables only
 effects. Tune category volumes and distance limits in map blocks under `sfx`.
 Restart/reload after adding clips or changing settings. Crowd and engine loops,
 one shots, and their clocks pause with the game and are released on map changes.
+
+## Mud driving
+
+The active mud sounds are now your nine generated files:
+
+- `mud-slow-1.wav`, `mud-slow-2.wav`, `mud-slow-3.wav`
+- `mud-mid-1.wav`, `mud-mid-2.wav`, `mud-mid-3.wav`
+- `mud-high-1.wav`, `mud-high-2.wav`, `mud-high-3.wav`
+
+Each car's full-mud forward speed limit is divided into equal thirds. The first
+third uses slow, the second mid, and the last high; exceeding the limit stays
+high. Partial and full contact use identical thresholds. Each fresh mud entry
+randomly chooses a variant number, avoiding an immediate repeat, and retains
+that number across all three bands. The current clip loops until the speed band
+changes or movement stops. Pausing, stopping on mud, or going out of hearing
+range does not choose another number; leaving mud does. Clips play at their
+recorded pitch. Tune `sfx.mudVolume` in the audio settings.
+
+The older synthesized `mud.wav` and its generator are no longer used by the
+active settings. For future replacement clips, adapt this original prompt to
+slow, moderate, or high speed, keeping each four-second recording loopable:
+
+> Close dry mono recording of car tires continuously rolling through soft wet
+> mud at a steady moderate speed. Low gritty tire rumble, thick damp squelching,
+> small irregular soft wet spatters, consistent texture and intensity. No engine,
+> no brakes or squealing, no voices, music, wind or reverb. No pass-by or speed
+> change. Seamless four-second loop with matching beginning and end, no leading
+> or trailing silence and no fade in or fade out.

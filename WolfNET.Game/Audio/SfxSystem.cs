@@ -18,12 +18,18 @@ public sealed class SfxSystem : IDisposable
     private readonly Dictionary<int, double> _impactTimes = [];
     private readonly Dictionary<int, float> _engineLoad = [];
     private readonly HashSet<(int, SfxCue)> _wanted = [];
+    private readonly Dictionary<int, int> _mudVisits = [];
+    private readonly Dictionary<int, int> _previousMudVariants = [];
+    private readonly HashSet<int> _mudContacts = [];
+    private readonly Random _random;
+    private readonly int _mudVariantCount;
     private RacePhase? _previousPhase;
     private int? _previousNumber;
     private double _clock;
     private bool _disposed;
 
-    public SfxSystem(ISfxBackend backend, SoundSettings sound, IEnumerable<Vector2> crowds, Vector2 countdownPosition)
+    public SfxSystem(ISfxBackend backend, SoundSettings sound, IEnumerable<Vector2> crowds, Vector2 countdownPosition,
+        Random? random = null)
     {
         sound.Validate();
         _backend = backend;
@@ -31,6 +37,10 @@ public sealed class SfxSystem : IDisposable
         _volume = sound.Volume * _settings.Volume;
         _crowds = crowds.ToArray();
         _countdownPosition = countdownPosition;
+        _random = random ?? Random.Shared;
+        _mudVariantCount = new[] { SfxCue.MudSlow, SfxCue.MudMid, SfxCue.MudHigh }
+            .Select(cue => _settings.Clips.TryGetValue(cue, out var files) ? files.Length : 0)
+            .Where(count => count > 0).DefaultIfEmpty(1).Min();
     }
 
     public static (float Gain, float Pan) SpatialMix(Vector2 listener, Vector2 forward, Vector2 source,
@@ -55,6 +65,7 @@ public sealed class SfxSystem : IDisposable
         var seconds = float.IsFinite(frame.Seconds) ? Math.Clamp(frame.Seconds, 0, .25f) : 0;
         _clock += seconds;
         _wanted.Clear();
+        _mudContacts.Clear();
         for (var i = _shots.Count - 1; i >= 0; i--)
         {
             var shot = _shots[i];
@@ -74,7 +85,9 @@ public sealed class SfxSystem : IDisposable
             if (car.Braking > 0 && car.Speed > 1)
                 SetLoop(car.Id, SfxCue.Brakes, car.Position,
                     _settings.BrakeVolume * car.Braking * Math.Clamp(car.Speed / 10, 0, 1), .85f + .3f * speed, frame);
+            UpdateMud(car, frame);
         }
+        foreach (var id in _mudVisits.Keys.Where(id => !_mudContacts.Contains(id)).ToArray()) _mudVisits.Remove(id);
         foreach (var impact in frame.Impacts)
         {
             if (impact.Speed < _settings.MinimumImpactSpeed ||
@@ -109,6 +122,33 @@ public sealed class SfxSystem : IDisposable
         }
     }
 
+    public static SfxCue MudBand(float speed, float mudMaxSpeed)
+    {
+        var limit = float.IsFinite(mudMaxSpeed) && mudMaxSpeed > 0 ? mudMaxSpeed : 8;
+        // Use the full-mud forward limit for both partial and full contact;
+        // asphalt top speed would make the high band unreachable on mud.
+        return speed < limit / 3 ? SfxCue.MudSlow : speed < limit * (2f / 3) ? SfxCue.MudMid : SfxCue.MudHigh;
+    }
+
+    private void UpdateMud(CarSfxState car, SfxFrame frame)
+    {
+        if (!car.OnMud) return;
+        _mudContacts.Add(car.Id);
+        if (!_mudVisits.TryGetValue(car.Id, out var variant))
+        {
+            var hasPrevious = _previousMudVariants.TryGetValue(car.Id, out var previous) && previous < _mudVariantCount;
+            variant = _mudVariantCount == 1 ? 0 : _random.Next(_mudVariantCount - (hasPrevious ? 1 : 0));
+            if (_mudVariantCount > 1 && hasPrevious && variant >= previous) variant++;
+            _mudVisits[car.Id] = variant;
+            _previousMudVariants[car.Id] = variant;
+        }
+        // Stops and loss of hearing range release the voice, but preserve the
+        // visit's selected variant until the car actually leaves the mud.
+        if (car.Speed <= .2f) return;
+        SetLoop(car.Id, MudBand(car.Speed, car.MudMaxSpeed), car.Position,
+            _settings.MudVolume * Math.Clamp(car.Speed / 6, 0, 1), 1, frame, variant);
+    }
+
     private void Mix(ISfxVoice voice, SfxFrame frame, Vector2 position, float volume, float pitch, bool crowd = false)
     {
         var spatial = SpatialMix(frame.ListenerPosition, frame.ListenerForward, position,
@@ -116,7 +156,7 @@ public sealed class SfxSystem : IDisposable
         voice.SetMix(_volume * volume * spatial.Gain, spatial.Pan, pitch);
     }
 
-    private void SetLoop(int id, SfxCue cue, Vector2 position, float volume, float pitch, SfxFrame frame)
+    private void SetLoop(int id, SfxCue cue, Vector2 position, float volume, float pitch, SfxFrame frame, int? variantIndex = null)
     {
         var limit = cue == SfxCue.Crowd ? _settings.CrowdMaxDistance : _settings.MaxDistance;
         if (volume <= .001f || Vector2.DistanceSquared(position, frame.ListenerPosition) >= limit * limit) return;
@@ -126,7 +166,7 @@ public sealed class SfxSystem : IDisposable
         {
             if (_loops.Count + _shots.Count >= _settings.MaxVoices) return;
             var phase = cue == SfxCue.Crowd ? (Math.Abs(id) * .381966f) % 1 : 0;
-            var voice = _backend.Play(cue, true, phase, id);
+            var voice = _backend.Play(cue, true, phase, id, variantIndex);
             if (voice == null) return;
             _loops[key] = loop = new(voice, cue);
         }
@@ -151,6 +191,7 @@ public sealed class SfxSystem : IDisposable
         foreach (var loop in _loops.Values) loop.Voice.Dispose();
         foreach (var shot in _shots) shot.Voice.Dispose();
         _loops.Clear(); _shots.Clear();
+        _mudVisits.Clear(); _previousMudVariants.Clear();
         _backend.Dispose();
     }
 }
