@@ -176,7 +176,7 @@ internal static class SfxChecks
         }
 
         backend = new();
-        using (var system = new SfxSystem(backend, settings, [], Vector2.Zero, new Random(37)))
+        using (var system = new SfxSystem(backend, settings with { Sfx = settings.Sfx with { MudEntrySeconds = 0 } }, [], Vector2.Zero, new Random(37)))
         {
             CarSfxState MudCar(int id, float speed, bool mud) => new(id, new(2, 0), speed, 25, 0, 0, 0, mud, 9);
             static bool IsMud(Voice voice) => voice.Cue is SfxCue.MudSlow or SfxCue.MudMid or SfxCue.MudHigh;
@@ -220,6 +220,30 @@ internal static class SfxChecks
             Check(Latest().Disposed, "Leaving mud must stop its loop.");
             system.Update(Frame([MudCar(0, 2, true)]));
             Check(Latest().VariantIndex != selected, "A fresh mud entry must select a different variant without an immediate repeat.");
+        }
+
+        backend = new();
+        using (var system = new SfxSystem(backend, settings with { Sfx = settings.Sfx with { MudEntrySeconds = .25f } }, [], Vector2.Zero))
+        {
+            CarSfxState MudCar(int id = 0, bool mud = true) => new(id, new(2, 0), 2, 25, 0, 0, 0, mud);
+            int MudCount() => backend.Voices.Count(voice => voice.Cue == SfxCue.MudSlow);
+            system.Update(Frame([MudCar()], seconds: .249f));
+            Check(MudCount() == 0, "Mud sound must stay silent before 0.25 seconds of contact.");
+            system.Update(Frame([MudCar()], active: false, seconds: .25f));
+            Check(MudCount() == 0, "Paused time must not advance the mud entry threshold.");
+            system.Update(Frame([MudCar()], seconds: .001f));
+            Check(MudCount() == 1, "Continuous contact must start mud audio at the threshold.");
+            var qualified = backend.Voices.Last(voice => voice.Cue == SfxCue.MudSlow);
+            system.Update(Frame([MudCar(mud: false)]));
+            Check(qualified.Disposed, "Leaving mud must immediately stop qualified mud audio.");
+            system.Update(Frame([MudCar()], seconds: .1f));
+            system.Update(Frame([MudCar(mud: false)]));
+            system.Update(Frame([MudCar()], seconds: .2f));
+            Check(MudCount() == 1, "Separate brief grazes must not accumulate toward the threshold.");
+            system.Update(Frame([MudCar(), MudCar(1)], seconds: .05f));
+            Check(MudCount() == 2, "A new continuous visit must qualify independently of another car.");
+            system.Update(Frame([MudCar(), MudCar(1)], seconds: .2f));
+            Check(MudCount() == 3, "Each car must have its own mud entry timer.");
         }
 
         var nav = new NavigationMap();

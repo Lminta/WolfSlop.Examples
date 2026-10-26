@@ -299,6 +299,9 @@ entry's number. That number stays matched across `mud-slow-N.wav`,
 recorded pitch. Pauses, stops on mud, and leaving hearing range preserve the
 selection; returning fully to asphalt ends the visit. Stopped cars are silent.
 Adjust `sfx.mudVolume` and the three clip arrays in `audio-settings.json`.
+`sfx.mudEntrySeconds` requires continuous contact before the sound starts
+(default 0.25 seconds); brief edge grazes stay silent. Returning to asphalt
+resets the timer, and pauses do not advance it. Set this to 0 for immediate sound.
 Quiet generated mud clips receive playback gain calculated from their mono RMS,
 targeting -18 dBFS where peak headroom allows (maximum boost: 32×). Original
 files remain unchanged. Moving mud uses the configured category volume in all

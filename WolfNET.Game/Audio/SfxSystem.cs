@@ -19,6 +19,7 @@ public sealed class SfxSystem : IDisposable
     private readonly Dictionary<int, float> _engineLoad = [];
     private readonly HashSet<(int, SfxCue)> _wanted = [];
     private readonly Dictionary<int, int> _mudVisits = [];
+    private readonly Dictionary<int, float> _mudContactSeconds = [];
     private readonly Dictionary<int, int> _previousMudVariants = [];
     private readonly HashSet<int> _mudContacts = [];
     private readonly Random _random;
@@ -85,9 +86,10 @@ public sealed class SfxSystem : IDisposable
             if (car.Braking > 0 && car.Speed > 1)
                 SetLoop(car.Id, SfxCue.Brakes, car.Position,
                     _settings.BrakeVolume * car.Braking * Math.Clamp(car.Speed / 10, 0, 1), .85f + .3f * speed, frame);
-            UpdateMud(car, frame);
+            UpdateMud(car, frame, seconds);
         }
         foreach (var id in _mudVisits.Keys.Where(id => !_mudContacts.Contains(id)).ToArray()) _mudVisits.Remove(id);
+        foreach (var id in _mudContactSeconds.Keys.Where(id => !_mudContacts.Contains(id)).ToArray()) _mudContactSeconds.Remove(id);
         foreach (var impact in frame.Impacts)
         {
             if (impact.Speed < _settings.MinimumImpactSpeed ||
@@ -130,10 +132,15 @@ public sealed class SfxSystem : IDisposable
         return speed < limit / 3 ? SfxCue.MudSlow : speed < limit * (2f / 3) ? SfxCue.MudMid : SfxCue.MudHigh;
     }
 
-    private void UpdateMud(CarSfxState car, SfxFrame frame)
+    private void UpdateMud(CarSfxState car, SfxFrame frame, float seconds)
     {
         if (!car.OnMud) return;
         _mudContacts.Add(car.Id);
+        var contactTime = MathF.Min(_settings.MudEntrySeconds, _mudContactSeconds.GetValueOrDefault(car.Id) + seconds);
+        _mudContactSeconds[car.Id] = contactTime;
+        // A brief graze must neither play a sound nor consume a new variant.
+        // Leaving mud resets this per-car timer; paused time never reaches here.
+        if (contactTime + .000001f < _settings.MudEntrySeconds) return;
         if (!_mudVisits.TryGetValue(car.Id, out var variant))
         {
             var hasPrevious = _previousMudVariants.TryGetValue(car.Id, out var previous) && previous < _mudVariantCount;
@@ -192,6 +199,7 @@ public sealed class SfxSystem : IDisposable
         foreach (var shot in _shots) shot.Voice.Dispose();
         _loops.Clear(); _shots.Clear();
         _mudVisits.Clear(); _previousMudVariants.Clear();
+        _mudContactSeconds.Clear();
         _backend.Dispose();
     }
 }

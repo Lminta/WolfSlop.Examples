@@ -72,6 +72,8 @@ that number across all three bands. The current clip loops until the speed band
 changes or movement stops. Pausing, stopping on mud, or going out of hearing
 range does not choose another number; leaving mud does. Clips play at their
 recorded pitch. Tune `sfx.mudVolume` in the audio settings.
+`sfx.mudEntrySeconds` defaults to 0.25 seconds of continuous contact, suppressing
+short edge grazes. Leaving mud resets the timer; pauses freeze it.
 Quiet mud recordings are boosted automatically at load time based on their
 downmixed RMS, with a peak headroom limit and maximum 32× gain. The original
 WAV files are not rewritten. The volume setting remains a 0–1 multiplier,

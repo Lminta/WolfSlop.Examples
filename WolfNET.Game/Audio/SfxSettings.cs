@@ -6,6 +6,7 @@ public sealed record SfxSettings
     public float EngineVolume { get; init; } = .6f;
     public float BrakeVolume { get; init; } = .5f;
     public float MudVolume { get; init; } = .65f;
+    public float MudEntrySeconds { get; init; } = .25f;
     public float ImpactVolume { get; init; } = .85f;
     public float CountdownVolume { get; init; } = .8f;
     public float CrowdVolume { get; init; } = .3f;
@@ -38,6 +39,7 @@ public sealed record SfxSettings
     {
         var volumes = new[] { Volume, EngineVolume, BrakeVolume, MudVolume, ImpactVolume, CountdownVolume, CrowdVolume };
         if (volumes.Any(value => !float.IsFinite(value) || value < 0 || value > 1) ||
+            !float.IsFinite(MudEntrySeconds) || MudEntrySeconds < 0 ||
             !float.IsFinite(ReferenceDistance) || ReferenceDistance <= 0 ||
             !float.IsFinite(MaxDistance) || MaxDistance <= ReferenceDistance ||
             !float.IsFinite(CrowdMaxDistance) || CrowdMaxDistance <= ReferenceDistance ||
