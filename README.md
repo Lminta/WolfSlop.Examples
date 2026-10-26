@@ -238,6 +238,12 @@ blocks, speeds blocks/second, accelerations blocks/second², response coefficien
 (`asphalt`, `mud`, `grass`; default `mud`) supplies physics independently of floor
 artwork, so painted grid tiles and the covered tunnel retain asphalt handling.
 
+The `cameraShake` section tunes mud amplitude, entry delay, speed scaling,
+fade rates and frequencies, plus impact amplitude, speed thresholds, duration,
+frequencies and horizontal kick. Amplitudes use radians, durations and entry delay
+use seconds, and frequencies use Hz. Set `mudAmplitude` or `impactAmplitude` to
+zero to disable that effect. Partial mud contact retains half strength.
+
 **V** toggles the transparent cockpit and chase view without changing motion.
 The chase camera can orbit through full revolutions, including looking backward,
 independently of steering, and recenters after one second without mouse movement.

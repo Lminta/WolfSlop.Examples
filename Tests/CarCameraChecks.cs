@@ -135,7 +135,77 @@ internal static class CarCameraChecks
         Check(briefContact.Shake.Length() > 0 && briefContact.Shake.Length() < .0003f,
             "Sustained mud contact did not ease into shake after the entry delay.");
 
-        Console.WriteLine($"PASS: {count} car camera assertions (free look, recentering, views, field of view, wall clearance, and mud shake).");
+        var gentleImpact = new CarCamera();
+        var hardImpact = new CarCamera();
+        gentleImpact.TriggerImpact(.5f);
+        Check(gentleImpact.Shake == Vector2.Zero, "Gentle rubbing triggered impact shake.");
+        gentleImpact.TriggerImpact(3);
+        hardImpact.TriggerImpact(20);
+        Check(gentleImpact.Shake.Length() > 0 && hardImpact.Shake.Length() > gentleImpact.Shake.Length() * 5,
+            "Impact shake did not grow with collision speed.");
+        var hardKick = hardImpact.Shake;
+        hardImpact.TriggerImpact(1);
+        PositionNear(hardImpact.Shake, hardKick, "A minor contact replaced a stronger impact kick.");
+        gentleImpact.UpdateShake(.2f, 0, 0);
+        hardImpact.UpdateShake(.2f, 0, 0);
+        Check(gentleImpact.Shake == Vector2.Zero && hardImpact.Shake.Length() > .0001f,
+            "Harder impacts must last longer and remain visible after the car stops.");
+        hardImpact.UpdateShake(.25f, 0, 0);
+        hardImpact.UpdateShake(.11f, 0, 0);
+        Check(hardImpact.Shake == Vector2.Zero, "Impact shake did not settle back to zero.");
+        hardImpact.TriggerImpact(100);
+        Near(hardImpact.Shake.Y, .05f, "Extreme impacts exceeded the maximum kick amplitude.");
+        hardImpact.Reset();
+        Check(hardImpact.Shake == Vector2.Zero, "Reset retained impact shake.");
+
+        var singleImpactFrame = new CarCamera();
+        var multipleImpactFrames = new CarCamera();
+        singleImpactFrame.TriggerImpact(12);
+        multipleImpactFrames.TriggerImpact(12);
+        singleImpactFrame.UpdateShake(.1f, 0, 0);
+        for (var i = 0; i < 10; i++) multipleImpactFrames.UpdateShake(.01f, 0, 0);
+        PositionNear(singleImpactFrame.Shake, multipleImpactFrames.Shake,
+            "Impact shake changed with the update rate.");
+
+        var customSettings = new CameraShakeSettings
+        {
+            MudAmplitude = .008f, MudEntryDelay = .2f,
+            ImpactAmplitude = .1f, ImpactMinSpeed = 2, ImpactFullStrengthSpeed = 10,
+            ImpactMinDuration = .1f, ImpactMaxDuration = .2f, ImpactYawScale = .25f
+        };
+        var custom = new CarCamera(customSettings);
+        custom.UpdateShake(.15f, 8, 1);
+        Check(custom.Shake == Vector2.Zero, "Custom mud entry delay was ignored.");
+        custom.UpdateShake(.1f, 8, 1);
+        Check(custom.Shake.Length() > 0, "Custom mud shake never activated.");
+        custom.Reset();
+        custom.TriggerImpact(1);
+        Check(custom.Shake == Vector2.Zero, "Custom impact speed threshold was ignored.");
+        custom.TriggerImpact(10);
+        Near(custom.Shake.Y, .1f, "Custom impact amplitude or full-strength speed was ignored.");
+        Near(custom.Shake.X, .025f, "Custom impact yaw scale was ignored.");
+        custom.UpdateShake(.21f, 0, 0);
+        Check(custom.Shake == Vector2.Zero, "Custom impact duration was ignored.");
+        var disabled = new CarCamera(new() { MudAmplitude = 0, ImpactAmplitude = 0 });
+        disabled.UpdateShake(.25f, 8, 1);
+        disabled.TriggerImpact(20);
+        Check(disabled.Shake == Vector2.Zero, "Zero amplitudes failed to disable camera shake.");
+
+        foreach (var invalid in new CameraShakeSettings[]
+        {
+            new() { MudAmplitude = -1 }, new() { MudEntryDelay = float.NaN },
+            new() { MudFullStrengthSpeed = 0 }, new() { MudFadeInRate = 0 },
+            new() { ImpactMinSpeed = 20 }, new() { ImpactMaxDuration = .01f },
+            new() { ImpactHighSpeedFrequency = float.PositiveInfinity }
+        })
+        {
+            var rejected = false;
+            try { new GameplaySettings { CameraShake = invalid }.Validate(); }
+            catch (InvalidDataException) { rejected = true; }
+            Check(rejected, "Invalid camera shake settings were accepted.");
+        }
+
+        Console.WriteLine($"PASS: {count} car camera assertions (free look, recentering, views, field of view, wall clearance, mud and impact shake).");
         return count;
     }
 

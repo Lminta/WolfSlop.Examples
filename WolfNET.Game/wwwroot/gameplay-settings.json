@@ -1,4 +1,24 @@
 {
+  "cameraShake": {
+    "mudAmplitude": 0.004,
+    "mudEntryDelay": 0.1,
+    "mudFullStrengthSpeed": 4,
+    "mudFadeInRate": 10,
+    "mudFadeOutRate": 18,
+    "mudYawFrequency": 5,
+    "mudYawDetailFrequency": 9,
+    "mudPitchFrequency": 7,
+    "mudPitchDetailFrequency": 11,
+    "impactMinSpeed": 0.75,
+    "impactFullStrengthSpeed": 20,
+    "impactAmplitude": 0.05,
+    "impactMinDuration": 0.15,
+    "impactMaxDuration": 0.55,
+    "impactLowSpeedFrequency": 10,
+    "impactHighSpeedFrequency": 6,
+    "impactYawScale": 0.45,
+    "impactYawFrequencyScale": 0.8
+  },
   "race": {
     "lapCount": 3,
     "opponentCornerSpeed": 13

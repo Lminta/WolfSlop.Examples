@@ -175,6 +175,13 @@ internal static class CarContactChecks
             }
         }
 
+        using (var crashing = Create(new(50.5f, 40), new(20, 0), heading: Vector2.UnitX))
+        {
+            for (var frame = 0; frame < 6; frame++) crashing.Update(Step * 1000);
+            Check(crashing.Controller.Speed < .1f && crashing.Look.Shake.Length() > .0001f,
+                "A wall impact failed to shake the camera after stopping the car.");
+        }
+
         Console.WriteLine($"PASS: {assertions} car contact assertions.");
         return assertions;
     }

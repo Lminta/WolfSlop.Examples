@@ -11,21 +11,24 @@ public sealed class CarObject : ObjectBase, IControlledActor
     private readonly IMouseInput _mouse;
     public CarSettings Settings { get; }
     public CameraComponent Camera { get; }
-    public CarCamera Look { get; } = new();
+    public CarCamera Look { get; }
     public CarController Controller { get; }
     public bool InAir => false;
     public bool Crouching => false;
     public int AnimationFrame => 0;
     public float InteractionRadius => MathF.Sqrt(Settings.Length * Settings.Length + Settings.Width * Settings.Width) * .5f;
 
-    public CarObject(IKeyboardInput input, IMouseInput mouse, NavigationMap map, CarSettings settings)
+    public CarObject(IKeyboardInput input, IMouseInput mouse, NavigationMap map, CarSettings settings,
+        CameraShakeSettings? shakeSettings = null)
     {
         _input = input;
         _mouse = mouse;
         Settings = settings;
+        Look = new CarCamera(shakeSettings);
         Camera = new CameraComponent(this);
         Controller = new CarController(this, input, map,
             position => map.GetSurface((int)MathF.Floor(position.X), (int)MathF.Floor(position.Y)), settings);
+        Controller.WorldImpact += impact => Look.TriggerImpact(impact.Speed);
         AddComponent(Controller);
     }
 

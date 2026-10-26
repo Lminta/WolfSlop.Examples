@@ -24,9 +24,11 @@ internal static class OpponentDifficultyChecks
 
         var gameplay = (await http.GetFromJsonAsync<GameplaySettings>("gameplay-settings.json"))!;
         gameplay.Validate();
+        Check(gameplay.CameraShake == new CameraShakeSettings(), "JSON camera shake settings differ from the code defaults.");
         Check(gameplay.Opponents == new OpponentSettings(), "JSON opponent profiles differ from the code defaults.");
         Check(gameplay.Opponents.DefaultDifficulty == RaceDifficulty.Normal, "Normal is not the default difficulty.");
         var roundTrip = JsonSerializer.Deserialize<GameplaySettings>(JsonSerializer.Serialize(gameplay))!;
+        Check(roundTrip.CameraShake == gameplay.CameraShake, "Camera shake settings did not survive JSON serialization.");
         Check(roundTrip.Opponents == gameplay.Opponents, "Opponent structs did not survive JSON serialization.");
         Reject(gameplay with { Opponents = gameplay.Opponents with { DefaultDifficulty = (RaceDifficulty)999 } });
         Reject(gameplay with { Opponents = gameplay.Opponents with { Easy = null! } });
@@ -42,6 +44,14 @@ internal static class OpponentDifficultyChecks
         }) Reject(gameplay with { Opponents = gameplay.Opponents with { Easy = gameplay.Opponents.Easy with { Blue = bad } } });
 
         var loaded = await new GameSceneLoader(http, new(), gameplay).LoadAsync("maps/pine-loop.json");
+        using (var configured = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(),
+                   gameplay with { CameraShake = gameplay.CameraShake with { ImpactAmplitude = .1f } }))
+        {
+            var player = (CarObject)configured.Player;
+            player.Look.TriggerImpact(20);
+            Check(MathF.Abs(configured.CaptureFrame().Pitch - .1f) < .0001f,
+                "Gameplay camera shake settings did not reach the player camera and rendered frame.");
+        }
         var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
         var easyDefault = gameplay with { Opponents = gameplay.Opponents with { DefaultDifficulty = RaceDifficulty.Easy } };
         using (var easy = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), easyDefault))

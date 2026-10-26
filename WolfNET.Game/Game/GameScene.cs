@@ -100,7 +100,7 @@ public sealed class GameScene : IDisposable
         var start = map.PlayerStart;
         var direction = Vector2.Normalize(new(start.DirectionX, start.DirectionY));
         Player = start.Controller == "car"
-            ? new CarObject(input, mouse, map.NavigationMap, gameplay.Car)
+            ? new CarObject(input, mouse, map.NavigationMap, gameplay.Car, gameplay.CameraShake)
             : new PlayerObject(input, mouse, map.NavigationMap, start);
         Player.Transform = new Transform { Position = new(start.X, start.Y), Rotation = direction };
         Player.Camera.Plane = new Vector2(direction.Y, -direction.X) * settings.CameraPlaneScale;
@@ -132,7 +132,7 @@ public sealed class GameScene : IDisposable
                 var driver = new OpponentDriver(_route, map.NavigationMap, rivalSettings, gameplay.Race,
                     position.Value, skilled: i == 1, gridSide: i == 0 ? 1.5f : -1.5f,
                     racingLineSource: _rivals.Count == 0 ? null : _rivals[0].Driver, profile: profile);
-                var rival = new CarObject(driver, driver, map.NavigationMap, rivalSettings)
+                var rival = new CarObject(driver, driver, map.NavigationMap, rivalSettings, gameplay.CameraShake)
                     { Transform = new Transform { Position = position.Value, Rotation = direction } };
                 _rivals.Add(new(rival, driver, new(map.RendererMap.Race!, gameplay.Race), i == 0 ? "Blue car" : "Green car"));
             }
@@ -246,8 +246,12 @@ public sealed class GameScene : IDisposable
                 var collision = CarContact.Resolve(_raceCars[i], _raceCars[j], Map.NavigationMap, milliseconds / 1000,
                     i == 0 ? playerFinished : _rivals[i - 1].Race.Status.Phase == RacePhase.Finished,
                     _rivals[j - 1].Race.Status.Phase == RacePhase.Finished);
-                if (collision is { } hit && _audioImpacts.Count < 64)
-                    _audioImpacts.Add(new(100 + i * 16 + j, hit.Position, "car", hit.Speed));
+                if (collision is { } hit)
+                {
+                    if (i == 0 && !playerFinished) car.Look.TriggerImpact(hit.Speed);
+                    if (_audioImpacts.Count < 64)
+                        _audioImpacts.Add(new(100 + i * 16 + j, hit.Position, "car", hit.Speed));
+                }
             }
         _raceClock += milliseconds;
         _race.Update(beforePlayer, car.Transform.Position, milliseconds);
@@ -286,7 +290,7 @@ public sealed class GameScene : IDisposable
         if (Player is CarObject car)
         {
             var carView = car.Look.View(car.Transform, camera.ThirdPerson, map, car.Settings);
-            var shake = car.Controller.Speed > 0 && _race?.Status.Phase != RacePhase.Finished
+            var shake = _race?.Status.Phase != RacePhase.Finished
                 ? car.Look.Shake : Vector2.Zero;
             var direction = car.Look.Direction(car.Transform);
             var cosine = MathF.Cos(shake.X);
