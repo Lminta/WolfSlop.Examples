@@ -17,6 +17,20 @@ public sealed class GameMap : IMap
     public ulong Revision => RendererMap.Revision;
     public PlayerStartDefinition PlayerStart => _definition.PlayerStart;
     public MusicDefinition? Music => _definition.Music;
+    public IReadOnlyList<Vector2> CrowdPositions { get; private set; } = [];
+
+    public string GetImpactMaterial(int x, int y) => x >= 0 && x < _definition.WorldMap.Length &&
+        y >= 0 && y < _definition.WorldMap[x].Length && Objects.TryGetValue(_definition.WorldMap[x][y], out var obj)
+            ? obj.ImpactMaterial : "hard";
+
+    private void RebuildAudioEmitters()
+    {
+        var crowds = new List<Vector2>();
+        for (var x = 0; x < _definition.WorldMap.Length; x++)
+        for (var y = 0; y < _definition.WorldMap[x].Length; y++)
+            if (Objects[_definition.WorldMap[x][y]].AmbientSound == "crowd") crowds.Add(new(x + .5f, y + .5f));
+        CrowdPositions = crowds.AsReadOnly();
+    }
     public Vector2 PlayerStartPosition => new(_definition.PlayerStart.X, _definition.PlayerStart.Y);
     public Vector2 PlayerStartDirection => Vector2.Normalize(new Vector2(
         _definition.PlayerStart.DirectionX, _definition.PlayerStart.DirectionY));
@@ -32,6 +46,7 @@ public sealed class GameMap : IMap
         NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable, compiled.Surfaces);
         _doors.Rebuild(_definition.WorldMap, Objects);
         RendererMap = _doors.Apply(RendererMap, NavigationMap);
+        RebuildAudioEmitters();
     }
 
     public static async Task<GameMap> LoadAsync(HttpClient http, string path, int maxWidth, int maxHeight,
@@ -60,6 +75,7 @@ public sealed class GameMap : IMap
         NavigationMap.Replace(compiled.Walkable, compiled.Jumpable, compiled.Crouchable, compiled.Surfaces);
         _doors.Rebuild(_definition.WorldMap, Objects);
         RendererMap = _doors.Apply(compiled.Renderer, NavigationMap);
+        RebuildAudioEmitters();
     }
 
     public bool Interact(Vector2 position, Vector2 direction, float radius) => _doors.Interact(position, direction, radius);

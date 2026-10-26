@@ -11,5 +11,6 @@
     "east": "textures/glassworks/limestone-wall.png",
     "south": "textures/glassworks/limestone-wall.png",
     "west": "textures/glassworks/limestone-wall.png"
-  }
+  },
+  "impactMaterial": "metal"
 }

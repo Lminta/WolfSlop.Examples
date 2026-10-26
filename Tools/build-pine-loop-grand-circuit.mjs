@@ -7,6 +7,7 @@ import { writeRacewayEventProps } from './build-raceway-event-props.mjs';
 import { writeRacewayTireProps } from './build-raceway-tire-props.mjs';
 import { alignRacewayBoundaries } from './build-raceway-boundary-props.mjs';
 import { sizeRacewayObject, sizeRacewayProps } from './size-raceway-props.mjs';
+import { applyRacewayAudioMetadata } from './raceway-audio-metadata.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web = path.join(repository, 'WolfNET.Game/wwwroot');
@@ -419,6 +420,7 @@ const map = { objects, race, music, worldMap: grid, playerStart: { controller: '
     raceMinimap: { route: anchors.map(([x, y]) => [x + 1, y + 1]),
         startFinish: [25.5, 442.5], shortcuts: [[shortcut.from, shortcut.to]] } };
 const pretty = JSON.stringify(map, null, 2), before = pretty.indexOf('  "worldMap": ['), after = pretty.indexOf('  "playerStart":', before);
+applyRacewayAudioMetadata();
 const columns = '  "worldMap": [\n' + grid.map(column => '    [' + column.join(', ') + ']').join(',\n') + '\n  ],\n';
 fs.writeFileSync(path.join(web, 'maps/pine-loop.json'), pretty.slice(0, before) + columns + pretty.slice(after) + '\n');
 

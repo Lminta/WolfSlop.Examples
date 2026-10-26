@@ -3,15 +3,17 @@ using WolfNET.Game.Player;
 
 namespace WolfNET.Game.Physics;
 
+public readonly record struct CarCollision(Vector2 Position, float Speed);
+
 public static class CarContact
 {
     private const float ContactTolerance = .002f;
     private const float RubbingResistance = 8;
 
-    public static void Resolve(CarObject first, CarObject second, NavigationMap map, float seconds,
+    public static CarCollision? Resolve(CarObject first, CarObject second, NavigationMap map, float seconds,
         bool firstStopped, bool secondStopped)
     {
-        if (!float.IsFinite(seconds) || seconds <= 0) return;
+        if (!float.IsFinite(seconds) || seconds <= 0) return null;
         var a = first.Transform; var b = second.Transform;
         var normal = Vector2.Zero; var depth = float.PositiveInfinity;
         Span<Vector2> axes = stackalloc Vector2[] { a.Rotation, new(-a.Rotation.Y, a.Rotation.X),
@@ -24,12 +26,12 @@ public static class CarContact
             var signed = Vector2.Dot(a.Position - b.Position, axis);
             var overlap = Radius(first, axis) + Radius(second, axis) - MathF.Abs(signed);
             // Keep rubbing across the tiny gap left by overlap correction.
-            if (overlap < -ContactTolerance) return;
+            if (overlap < -ContactTolerance) return null;
             if (overlap < depth) { depth = overlap; normal = signed >= 0 ? axis : -axis; }
         }
         var massA = firstStopped ? 0f : 1f;
         var massB = secondStopped ? 0f : 1f;
-        if (massA + massB == 0) return;
+        if (massA + massB == 0) return null;
         var boxA = new OrientedBoxCollider(map, first.Settings.Length, first.Settings.Width);
         var boxB = new OrientedBoxCollider(map, second.Settings.Length, second.Settings.Width);
         var correction = depth > 0 ? normal * (depth + .0001f) : Vector2.Zero;
@@ -60,5 +62,6 @@ public static class CarContact
         }
         first.Controller.ResolveCarContact(a.Position + moveA, velocityA, resetAngularVelocity: firstStopped);
         second.Controller.ResolveCarContact(b.Position + moveB, velocityB, resetAngularVelocity: secondStopped);
+        return closing < 0 ? new((a.Position + b.Position) * .5f, -closing) : null;
     }
 }

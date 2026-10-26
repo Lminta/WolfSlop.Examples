@@ -14,6 +14,7 @@ public sealed class Wolf : IDisposable
 {
     private readonly ISceneRenderer _renderer;
     private readonly GameSceneLoader _loader;
+    private readonly HttpClient _http;
     private readonly Window _window;
     private readonly BlazorJSRuntime _js;
     private readonly Stopwatch _clock = new();
@@ -25,6 +26,7 @@ public sealed class Wolf : IDisposable
     private GameScene? _scene;
     private BrowserInput? _input;
     private MusicPlayer? _audio;
+    private SfxSystem? _sfx;
     private TextureCatalog? _sceneTextures;
     private bool _disposed;
     private int _frameGeneration;
@@ -58,12 +60,13 @@ public sealed class Wolf : IDisposable
     public event Action<RaceStatus>? RaceStateChanged;
 
     public Wolf(RendererSettings settings, ISceneRenderer renderer, GameSceneLoader loader, BlazorJSRuntime js,
-        GameplaySettings gameplay, SoundSettings sound)
+        GameplaySettings gameplay, SoundSettings sound, HttpClient http)
     {
         settings.Validate();
         RendererSettings = settings;
         _renderer = renderer;
         _loader = loader;
+        _http = http;
         _gameplay = gameplay;
         Difficulty = gameplay.Opponents.DefaultDifficulty;
         _sound = sound;
@@ -100,6 +103,19 @@ public sealed class Wolf : IDisposable
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"[AUDIO] Music unavailable: {ex.Message}");
+            }
+            if (_sound.Volume > 0 && _sound.Sfx.Volume > 0)
+            {
+                if (reportProgress != null) await reportProgress("Loading sound effects...");
+                try
+                {
+                    var effects = await BrowserSfxBackend.CreateAsync(_http, canvas, _sound.Sfx, token);
+                    var gate = loaded.Map.RendererMap.Race?.StartFinish.Center;
+                    _sfx = new SfxSystem(effects, _sound, loaded.Map.CrowdPositions,
+                        gate == null ? loaded.Map.PlayerStartPosition : new(gate[0], gate[1]));
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex) { Console.WriteLine($"[SFX] Effects unavailable: {ex.Message}"); }
             }
             if (reportProgress != null) await reportProgress("Entering scene...");
             token.ThrowIfCancellationRequested();
@@ -190,7 +206,9 @@ public sealed class Wolf : IDisposable
                 _ = RefreshSceneAsync(generation);
                 return;
             }
-            _renderer.Render(_scene.CaptureFrame());
+            var renderFrame = _scene.CaptureFrame();
+            _sfx?.Update(_scene.CaptureAudioFrame(renderFrame, _input.Mouse.IsLocked && !_scene.Paused, deltaTime / 1000));
+            _renderer.Render(renderFrame);
             ReportFrameRate();
             if (_scene.PlayerRaceState is { } race && RaceStateChanged != null &&
                 (_clock.Elapsed.TotalMilliseconds - _lastRaceNotification >= 100 ||
@@ -278,6 +296,8 @@ public sealed class Wolf : IDisposable
         FramesPerSecondChanged?.Invoke(null);
         _audio?.Dispose();
         _audio = null;
+        _sfx?.Dispose();
+        _sfx = null;
         _input?.Dispose();
         _scene?.Dispose();
         _input = null;

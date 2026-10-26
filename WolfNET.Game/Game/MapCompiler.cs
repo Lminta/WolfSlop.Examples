@@ -17,6 +17,9 @@ public sealed class MapCompiler
 
     public MapCompiler(IReadOnlyDictionary<int, MapObjectDefinition> objects, int maxWidth, int maxHeight)
     {
+        if (objects.Values.Any(obj => obj.ImpactMaterial is not ("hard" or "metal" or "wood" or "rubber") ||
+            obj.AmbientSound is not (null or "crowd")))
+            throw new InvalidDataException("Object audio needs impactMaterial hard/metal/wood/rubber and optional ambientSound crowd.");
         _maxWidth = maxWidth;
         _maxHeight = maxHeight;
         var layers = new Dictionary<uint, string?>();

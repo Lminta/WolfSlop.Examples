@@ -11,5 +11,6 @@
     "east": "textures/glassworks/teal-wall.png",
     "south": "textures/glassworks/limestone-wall.png",
     "west": "textures/raceway/pit-bay-3.svg"
-  }
+  },
+  "impactMaterial": "metal"
 }

@@ -34,5 +34,6 @@
   "animation": {
     "framesPerSecond": 4,
     "phaseSeconds": 0
-  }
+  },
+  "ambientSound": "crowd"
 }

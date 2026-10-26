@@ -283,6 +283,36 @@ the queue, fades, pause state, and failed-file handling in portable C#. Its
 `BrowserAudioBackend` implements them using the existing C# browser bindings.
 A future native host can supply another backend and call `MusicPlayer.Update`
 from its game loop. Other audio channels can be added separately.
+
+Sound effects run in C# through `Audio/SfxSystem.cs` and `ISfxBackend`.
+Player and opponent engine layers react to throttle, acceleration, and speed;
+brake loops require actual braking while moving. World impacts use the struck
+object's `impactMaterial` (`hard`, `metal`, `wood`, `rubber`), and car contacts
+have their own cue. Closing speed controls impact volume, with cooldowns to avoid
+repeated hits from continuous contact. Countdown beeps play at 5–1 and GO from
+the start/finish gantry. Objects with `ambientSound: "crowd"` emit crowd loops;
+Pine Loop's cheering groups already carry this metadata.
+
+The rendered camera position and heading determine distance falloff and stereo
+pan for every source, including ongoing impacts. Distances use map blocks.
+`audio-settings.json` → `sfx` controls category volumes, ranges, voice limits,
+and arrays of clip variants. Master `volume: 0` skips both music and SFX loading.
+Impacts, braking, and crowds choose random variants without immediate repeats.
+Each new braking event chooses once and keeps that loop until braking ends.
+Each car keeps a distinct matching idle/load pair: the player uses variant 1,
+the blue opponent variant 2, and the green opponent variant 3. Selections remain
+stable after pauses and when cars leave and re-enter hearing range.
+Stereo source assets are downmixed before positioning.
+`countdown-tick.wav` (700 Hz, 0.15 s) and `countdown-go.wav` (1200 Hz, 0.4 s)
+are synthesized mono WAVs; regenerate them from the repository root with
+`dotnet run --file Tools/generate-countdown-sounds.cs`.
+
+`sfx.volume: 0` skips only effects. Effects pause with mouse capture and are
+released on map changes. Short effects are decoded once per scene; music streams.
+Missing clips are reported once per load and skipped. Generate the eleven files
+using the [ElevenLabs sound prompts](WolfNET.Game/wwwroot/sounds/GENERATE-SOUNDS.md),
+then put them in `WolfNET.Game/wwwroot/sounds/` and reload.
+
 Pine Loop's checkpoint sequence permits its existing Mud Express shortcut.
 The map's optional `race` metadata stores a `startFinish` gate and ordered
 `checkpoints`; each gate has `center`, forward `direction`, and `halfWidth`.
@@ -322,9 +352,18 @@ when it finishes. Restart resets both cars, timers, and lap comparisons.
 
 Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
 The normal checks include portable C# music queue and lifecycle tests.
+They also cover SFX mixing, collision telemetry/materials, engine load, braking,
+countdown events, crowd limits, and missing clips.
 With a Chromium debug session and the game running, use
 `node Tests/music-browser-check.mjs <debug-port> <game-url>` to check real MP3
 streaming, countdown timing, crossfades, queue repetition, and cleanup.
+Use `node Tests/sfx-browser-check.mjs <debug-port> <game-url>` to exercise the C#
+browser backend with temporary WAV test tones, including decoded playback,
+engine pitch, opponent stereo placement, braking, pause, cleanup, and zero-volume
+loading bypass. The test supplies sounds through browser request interception
+and does not write placeholder audio into the game.
+Add `--real` to load the actual generated WAVs and check distinct engine buffers,
+random braking variants, stereo downmix, and countdown playback.
 With the game and a WebGPU browser running, use
 `node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual
 driving input, both views, pause/resume, cockpit alignment, and walking-map restoration.

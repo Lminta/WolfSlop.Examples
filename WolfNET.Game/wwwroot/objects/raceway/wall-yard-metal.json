@@ -11,5 +11,6 @@
     "east": "textures/glassworks/teal-wall.png",
     "south": "textures/glassworks/teal-wall.png",
     "west": "textures/glassworks/teal-wall.png"
-  }
+  },
+  "impactMaterial": "metal"
 }

@@ -19,5 +19,6 @@
         "y": 0.9
       }
     }
-  ]
+  ],
+  "ambientSound": "crowd"
 }

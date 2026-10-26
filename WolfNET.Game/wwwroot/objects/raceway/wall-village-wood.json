@@ -11,5 +11,6 @@
     "east": "textures/wolf/wood.png",
     "south": "textures/wolf/wood.png",
     "west": "textures/wolf/wood.png"
-  }
+  },
+  "impactMaterial": "wood"
 }

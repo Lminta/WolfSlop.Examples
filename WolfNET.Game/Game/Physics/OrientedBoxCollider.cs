@@ -2,7 +2,11 @@ using System.Numerics;
 
 namespace WolfNET.Game.Physics;
 
-public readonly record struct BoxMotion(Vector2 Position, Vector2 Direction, Vector2 Velocity, bool Collided);
+public readonly record struct BoxImpact(int CellX, int CellY, Vector2 Position, float Speed);
+public readonly record struct BoxMotion(Vector2 Position, Vector2 Direction, Vector2 Velocity, bool Collided)
+{
+    public BoxImpact? Impact { get; init; }
+}
 
 /// <summary>Sweeps a car-sized oriented rectangle through the navigation grid.</summary>
 public sealed class OrientedBoxCollider(INavigationMap map, float length, float width)
@@ -36,6 +40,7 @@ public sealed class OrientedBoxCollider(INavigationMap map, float length, float 
         var correction = Vector2.Zero;
         var angle = rotation / steps;
         var collided = false;
+        BoxImpact? impact = null;
         for (var step = 0; step < steps; step++)
         {
             var nextDirection = Rotate(direction, angle);
@@ -44,7 +49,7 @@ public sealed class OrientedBoxCollider(INavigationMap map, float length, float 
             var desired = origin + movement * ((step + 1) / (float)steps);
             var candidate = desired + correction;
             var nextVelocity = velocity;
-            var touched = ResolveContacts(ref candidate, nextDirection, ref nextVelocity);
+            var touched = ResolveContacts(ref candidate, nextDirection, ref nextVelocity, ref impact);
             if (CanOccupy(candidate, nextDirection))
             {
                 position = candidate;
@@ -57,7 +62,7 @@ public sealed class OrientedBoxCollider(INavigationMap map, float length, float 
                 // Do not force a rotation through opposing walls.
                 candidate = desired + correction;
                 nextVelocity = velocity;
-                ResolveContacts(ref candidate, direction, ref nextVelocity);
+                ResolveContacts(ref candidate, direction, ref nextVelocity, ref impact);
                 if (CanOccupy(candidate, direction))
                 {
                     position = candidate;
@@ -69,10 +74,10 @@ public sealed class OrientedBoxCollider(INavigationMap map, float length, float 
             correction = position - desired;
             collided |= touched;
         }
-        return new(position, direction, velocity, collided);
+        return new(position, direction, velocity, collided) { Impact = impact };
     }
 
-    private bool ResolveContacts(ref Vector2 position, Vector2 direction, ref Vector2 velocity)
+    private bool ResolveContacts(ref Vector2 position, Vector2 direction, ref Vector2 velocity, ref BoxImpact? impact)
     {
         var touched = false;
         for (var iteration = 0; iteration < 12; iteration++)
@@ -89,6 +94,7 @@ public sealed class OrientedBoxCollider(INavigationMap map, float length, float 
                 if (map.IsWalkable(x, y) || !Contact(position, direction, x, y, out var normal, out var depth)) continue;
                 position += normal * (depth + Clearance);
                 var inward = Vector2.Dot(velocity, normal);
+                if (-inward > (impact?.Speed ?? 0)) impact = new(x, y, new(x + .5f, y + .5f), -inward);
                 if (inward < 0) velocity -= normal * inward;
                 corrected = touched = true;
             }

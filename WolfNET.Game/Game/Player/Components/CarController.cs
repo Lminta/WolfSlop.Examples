@@ -22,6 +22,10 @@ public sealed class CarController : ComponentBase
     public float AngularVelocity { get; private set; }
     public float Speed => Velocity.Length();
     public float SignedSpeed => Vector2.Dot(Velocity, Parent.Transform.Rotation);
+    public float Throttle { get; private set; }
+    public float Braking { get; private set; }
+    public float Acceleration { get; private set; }
+    public event Action<BoxImpact>? WorldImpact;
 
     public CarController(ObjectBase parent, IKeyboardInput input, INavigationMap navigation,
         Func<Vector2, string> surfaceAt, CarSettings settings) : base(parent)
@@ -76,6 +80,7 @@ public sealed class CarController : ComponentBase
     private void Step(float seconds, KeyState keys)
     {
         var transform = Parent.Transform;
+        var previousVelocity = Velocity;
         var forward = Vector2.Normalize(transform.Rotation);
         var right = new Vector2(forward.Y, -forward.X);
         var (surface, pullSide) = SurfaceContact(transform.Position, forward, right);
@@ -92,6 +97,8 @@ public sealed class CarController : ComponentBase
                        Velocity.LengthSquared() > _settings.StopSpeed * _settings.StopSpeed) ||
                       (keys.Forward && longitudinal < -_settings.StopSpeed);
         var throttle = braking ? 0 : keys.Forward ? 1 : keys.Backward ? -1 : 0;
+        Throttle = throttle;
+        Braking = braking ? 1 : 0;
         if (braking)
         {
             var speed = Velocity.Length();
@@ -150,6 +157,8 @@ public sealed class CarController : ComponentBase
         var rotation = AngularVelocity * seconds;
         var result = _collider.MoveAndSlide(transform.Position, forward, Velocity * seconds, rotation, Velocity);
         Velocity = result.Velocity;
+        Acceleration = Vector2.Dot(Velocity - previousVelocity, forward) / seconds;
+        if (result.Impact is { } impact) WorldImpact?.Invoke(impact);
         if (result.Collided)
         {
             // An impact can remove most of this step's planned motion. Do not

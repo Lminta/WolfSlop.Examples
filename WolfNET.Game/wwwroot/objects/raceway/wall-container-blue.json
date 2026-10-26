@@ -11,5 +11,6 @@
     "east": "textures/raceway/container-blue.svg",
     "south": "textures/raceway/container-blue.svg",
     "west": "textures/raceway/container-blue.svg"
-  }
+  },
+  "impactMaterial": "metal"
 }

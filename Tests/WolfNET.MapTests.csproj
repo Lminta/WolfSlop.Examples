@@ -8,6 +8,10 @@
   <ItemGroup>
     <Compile Include="../WolfNET.Game/Audio/IAudioBackend.cs" Link="Audio/IAudioBackend.cs" />
     <Compile Include="../WolfNET.Game/Audio/SoundSettings.cs" Link="Audio/SoundSettings.cs" />
+    <Compile Include="../WolfNET.Game/Audio/SfxSettings.cs" Link="Audio/SfxSettings.cs" />
+    <Compile Include="../WolfNET.Game/Audio/ISfxBackend.cs" Link="Audio/ISfxBackend.cs" />
+    <Compile Include="../WolfNET.Game/Audio/SfxSystem.cs" Link="Audio/SfxSystem.cs" />
+    <Compile Include="../WolfNET.Game/Audio/SfxVariantSelector.cs" Link="Audio/SfxVariantSelector.cs" />
     <Compile Include="../WolfNET.Game/Audio/MusicPlayer.cs" Link="Audio/MusicPlayer.cs" />
     <Compile Include="../WolfNET.Game/Game/RaceRoute.cs" Link="Game/RaceRoute.cs" />
     <Compile Include="../WolfNET.Game/Game/Player/OpponentRacingLine.cs" Link="Game/OpponentRacingLine.cs" />

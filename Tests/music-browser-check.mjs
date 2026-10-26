@@ -100,6 +100,7 @@ try {
                 };
                 const active = () => streams.filter(stream => stream.audio.getAttribute('src'));
                 contexts.push({context,
+                    get streamCount() { return streams.length; },
                     get current() { return active()[0] ?? null; },
                     get next() { return active()[1] ?? null; },
                     get output() { return gains[0]; },
@@ -110,7 +111,7 @@ try {
                 return context;
             }
         });
-        Object.defineProperty(window, '__music', {get: () => contexts.at(-1)});
+        Object.defineProperty(window, '__music', {get: () => contexts.findLast(context => context.streamCount > 0)});
     `});
     await send('Page.navigate', {url: base + '/?map=pine-loop'});
     await waitFor(`window.__music && !document.querySelector('.loading-overlay')`);

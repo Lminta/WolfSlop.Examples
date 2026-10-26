@@ -4,6 +4,7 @@ using WolfNET.Game.InputEvents;
 using WolfNET.Game.Player;
 using WolfNET.Game.Physics;
 using WolfNET.Graphics;
+using WolfNET.Audio;
 
 namespace WolfNET.Game;
 
@@ -25,6 +26,8 @@ public sealed class GameScene : IDisposable
     private readonly List<Rival> _rivals = [];
     private readonly RaceRoute? _route;
     private CarObject[] _raceCars = [];
+    private CarSfxState[] _audioCars = [];
+    private readonly List<SfxImpact> _audioImpacts = [];
     private Vector2[] _beforeOpponents = [];
     private double _raceClock;
     private RaceStatus? _cachedRaceState;
@@ -136,6 +139,30 @@ public sealed class GameScene : IDisposable
             _beforeOpponents = new Vector2[_rivals.Count];
             _raceCars = new[] { (CarObject)Player }.Concat(_rivals.Select(r => r.Car)).ToArray();
         }
+        if (_raceCars.Length == 0 && Player is CarObject solo) _raceCars = [solo];
+        _audioCars = new CarSfxState[_raceCars.Length];
+        for (var i = 0; i < _raceCars.Length; i++)
+        {
+            var id = i;
+            _raceCars[i].Controller.WorldImpact += impact =>
+            {
+                if (_audioImpacts.Count < 64) _audioImpacts.Add(new(id, impact.Position,
+                    Map.GetImpactMaterial(impact.CellX, impact.CellY), impact.Speed));
+            };
+        }
+    }
+
+    public SfxFrame CaptureAudioFrame(RenderFrame frame, bool active, float seconds)
+    {
+        for (var i = 0; i < _raceCars.Length; i++)
+        {
+            var car = _raceCars[i];
+            var controller = car.Controller;
+            _audioCars[i] = new(i, car.Transform.Position, controller.Speed, car.Settings.Asphalt.MaxForwardSpeed,
+                controller.Throttle, controller.Acceleration, controller.Braking);
+        }
+        return new(frame.Position, frame.Direction, _audioCars, _audioImpacts,
+            _race?.Status.Phase, _race?.Status.CountdownNumber, active, seconds);
     }
 
     public void SetPaused(bool paused)
@@ -148,6 +175,7 @@ public sealed class GameScene : IDisposable
 
     public void Update(float deltaMilliseconds)
     {
+        _audioImpacts.Clear();
         ObjectDisposedException.ThrowIf(_disposed, this);
         var playerFinished = _race?.Status.Phase == RacePhase.Finished;
         if (Paused && !playerFinished || playerFinished && _rivals.All(r => r.Race.Status.Phase == RacePhase.Finished)) return;
@@ -213,9 +241,13 @@ public sealed class GameScene : IDisposable
         }
         for (var i = 0; i < _raceCars.Length; i++)
             for (var j = i + 1; j < _raceCars.Length; j++)
-                CarContact.Resolve(_raceCars[i], _raceCars[j], Map.NavigationMap, milliseconds / 1000,
+            {
+                var collision = CarContact.Resolve(_raceCars[i], _raceCars[j], Map.NavigationMap, milliseconds / 1000,
                     i == 0 ? playerFinished : _rivals[i - 1].Race.Status.Phase == RacePhase.Finished,
                     _rivals[j - 1].Race.Status.Phase == RacePhase.Finished);
+                if (collision is { } hit && _audioImpacts.Count < 64)
+                    _audioImpacts.Add(new(100 + i * 16 + j, hit.Position, "car", hit.Speed));
+            }
         _raceClock += milliseconds;
         _race.Update(beforePlayer, car.Transform.Position, milliseconds);
         if (_race.Status.Phase == RacePhase.Finished && !playerFinished)

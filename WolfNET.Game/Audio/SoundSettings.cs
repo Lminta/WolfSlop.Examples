@@ -7,6 +7,7 @@ public sealed record SoundSettings
     public float MusicCrossfadeSeconds { get; init; } = 3;
     // Fraction of normal music volume at the start of the countdown.
     public float CountdownStartVolume { get; init; } = .15f;
+    public SfxSettings Sfx { get; init; } = new();
 
     public void Validate()
     {
@@ -14,6 +15,8 @@ public sealed record SoundSettings
         if (!ValidVolume(Volume) || !ValidVolume(MusicVolume) || !ValidVolume(CountdownStartVolume) ||
             !float.IsFinite(MusicCrossfadeSeconds) || MusicCrossfadeSeconds < 0)
             throw new InvalidDataException("Sound volumes must be between zero and one; musicCrossfadeSeconds must be finite and nonnegative.");
+        if (Sfx == null) throw new InvalidDataException("Audio settings need an SFX configuration.");
+        Sfx.Validate();
     }
 
     public float GetMusicVolume(WolfNET.Game.MusicDefinition music) => Volume * (music.Volume ?? MusicVolume);

@@ -15,6 +15,8 @@ public abstract record MapObjectDefinition
     public required bool Collides { get; init; }
     public bool Jumpable { get; init; }
     public bool Crouchable { get; init; }
+    public string ImpactMaterial { get; init; } = "hard";
+    public string? AmbientSound { get; init; }
 }
 
 public sealed record PassageDefinition : MapObjectDefinition

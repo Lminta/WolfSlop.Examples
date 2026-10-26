@@ -154,6 +154,7 @@ assertions += await OpponentDifficultyChecks.RunAsync(http);
 assertions += await RacePropScaleChecks.RunAsync(http);
 assertions += SpriteAnimationChecks.Run();
 assertions += AudioChecks.Run(webRoot);
+assertions += await SfxChecks.RunAsync(http, webRoot);
 await SpriteSelectionFixtures.WriteAsync(http, webRoot);
 Console.WriteLine($"PASS: {assertions} assertions (map loading/editing, walking, driving, scenes, animation, and editor persistence).");
 
