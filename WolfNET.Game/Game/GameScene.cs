@@ -286,9 +286,16 @@ public sealed class GameScene : IDisposable
         if (Player is CarObject car)
         {
             var carView = car.Look.View(car.Transform, camera.ThirdPerson, map, car.Settings);
+            var shake = car.Controller.Speed > 0 && _race?.Status.Phase != RacePhase.Finished
+                ? car.Look.Shake : Vector2.Zero;
+            var direction = car.Look.Direction(car.Transform);
+            var cosine = MathF.Cos(shake.X);
+            var sine = MathF.Sin(shake.X);
+            direction = new(direction.X * cosine - direction.Y * sine, direction.X * sine + direction.Y * cosine);
+            var plane = new Vector2(direction.Y, -direction.X) * camera.Plane.Length();
             Sprite? sprite = camera.ThirdPerson && carView.Distance > .35f ? Character.CreateSprite(car, carView.Position) : null;
-            return new(carView.Position, car.Look.Direction(car.Transform), car.Look.Plane(car.Transform, camera.Plane.Length()),
-                map, car.Look.Pitch, carView.Elevation, sprite)
+            return new(carView.Position, direction, plane,
+                map, car.Look.Pitch + shake.Y, carView.Elevation, sprite)
                 {
                     Opponent = Opponent == null ? null : Character.CreateSprite(Opponent, carView.Position) with { SwapRedBlue = true },
                     SecondOpponent = SecondOpponent == null ? null : Character.CreateSprite(SecondOpponent, carView.Position) with { SwapRedGreen = true },

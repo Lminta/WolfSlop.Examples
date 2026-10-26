@@ -10,9 +10,40 @@ public sealed class CarCamera
     private const float CollisionRadius = .1f;
     private const float SweepStep = .025f;
     private float _idleSeconds;
+    private double _shakeSeconds;
+    private double _mudContactSeconds;
+    private float _shakeAmplitude;
 
     public float Yaw { get; private set; }
     public float Pitch { get; private set; }
+    // Visual yaw/pitch offsets in radians; never applied to the car's transform.
+    public Vector2 Shake { get; private set; }
+
+    public void UpdateShake(float deltaSeconds, float speed, float mudStrength)
+    {
+        if (!float.IsFinite(deltaSeconds) || deltaSeconds < 0 ||
+            !float.IsFinite(speed) || speed < 0 || !float.IsFinite(mudStrength) || mudStrength < 0 || mudStrength > 1)
+            throw new ArgumentOutOfRangeException();
+
+        var seconds = Math.Min(deltaSeconds, .25f);
+        _shakeSeconds += seconds;
+        // Brief touches must not accumulate into a shake when skimming the road edge.
+        var previousContact = _mudContactSeconds;
+        _mudContactSeconds = mudStrength > 0 ? _mudContactSeconds + seconds : 0;
+        var activeSeconds = mudStrength > 0
+            ? (float)Math.Max(0, _mudContactSeconds - Math.Max(previousContact, .1)) : seconds;
+        var targetAmplitude = _mudContactSeconds > .1
+            ? .004f * mudStrength * Math.Clamp(speed / 4, 0, 1) : 0;
+        // Ease in and out, including changes between partial and full contact.
+        var smoothingSeconds = targetAmplitude > 0 ? activeSeconds : seconds;
+        var response = targetAmplitude > _shakeAmplitude ? 10f : 18f;
+        _shakeAmplitude += (targetAmplitude - _shakeAmplitude) * (1 - MathF.Exp(-response * smoothingSeconds));
+        if (speed == 0 || _shakeAmplitude < .000001f) _shakeAmplitude = 0;
+        var time = (float)(_shakeSeconds % 1000);
+        Shake = _shakeAmplitude * new Vector2(
+            .6f * MathF.Sin(MathF.Tau * 5 * time) + .4f * MathF.Sin(MathF.Tau * 9 * time),
+            .65f * MathF.Sin(MathF.Tau * 7 * time) + .35f * MathF.Sin(MathF.Tau * 11 * time));
+    }
 
     public void Update(float deltaSeconds, Vector2 mousePixels, CarSettings settings)
     {
@@ -79,6 +110,15 @@ public sealed class CarCamera
     }
 
     public void Reset()
+    {
+        ResetOrbit();
+        _shakeSeconds = 0;
+        _mudContactSeconds = 0;
+        _shakeAmplitude = 0;
+        Shake = Vector2.Zero;
+    }
+
+    internal void ResetOrbit()
     {
         Yaw = Pitch = _idleSeconds = 0;
     }

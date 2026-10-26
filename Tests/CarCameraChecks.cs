@@ -91,7 +91,51 @@ internal static class CarCameraChecks
         var edgeView = camera.View(edge, true, map, settings);
         Check(edgeView.Distance == 0, "Car chase camera left the map boundary.");
 
-        Console.WriteLine($"PASS: {count} car camera assertions (free look, recentering, views, field of view, and wall clearance).");
+        var fullMud = new CarCamera();
+        var partialMud = new CarCamera();
+        var maximumShake = 0f;
+        for (var i = 0; i < 120; i++)
+        {
+            fullMud.UpdateShake(1f / 120, 8, 1);
+            partialMud.UpdateShake(1f / 120, 8, .5f);
+            maximumShake = MathF.Max(maximumShake, fullMud.Shake.Length());
+            PositionNear(partialMud.Shake, fullMud.Shake * .5f,
+                "Partial mud did not produce exactly half the shake amplitude.");
+            Check(fullMud.Shake.Length() <= .004f * MathF.Sqrt(2), "Mud shake exceeded its reduced amplitude limit.");
+        }
+        Check(maximumShake > .0001f, "Moving on mud produced no camera shake.");
+        Check(fullMud.Yaw == 0 && fullMud.Pitch == 0, "Mud shake altered the saved free-look angles.");
+        var steadyView = fullMud.View(body, true, map, settings);
+        PositionNear(steadyView.Position, camera.View(body, true, map, settings).Position,
+            "Mud shake moved the collision-aware camera position.");
+        fullMud.UpdateShake(.02f, 8, 0);
+        Check(fullMud.Shake.Length() > 0 && fullMud.Shake.Length() < .004f * MathF.Sqrt(2) * .7f,
+            "Mud shake must fade out smoothly after leaving mud.");
+        fullMud.UpdateShake(.25f, 8, 0);
+        fullMud.UpdateShake(.25f, 8, 0);
+        Check(fullMud.Shake == Vector2.Zero, "Mud shake did not finish fading out on asphalt.");
+        fullMud.UpdateShake(.01f, 0, 1);
+        Check(fullMud.Shake == Vector2.Zero, "Stationary cars must not shake on mud.");
+        fullMud.UpdateShake(.01f, 8, 0);
+        Check(fullMud.Shake == Vector2.Zero, "Camera shake persisted on asphalt.");
+        fullMud.UpdateShake(.01f, 8, 1);
+        fullMud.Reset();
+        Check(fullMud.Shake == Vector2.Zero, "Reset left mud shake behind.");
+
+        var briefContact = new CarCamera();
+        for (var i = 0; i < 5; i++)
+        {
+            briefContact.UpdateShake(.09f, 8, 1);
+            Check(briefContact.Shake == Vector2.Zero, "A brief mud touch triggered camera shake.");
+            briefContact.UpdateShake(.01f, 8, 0);
+        }
+        briefContact.UpdateShake(.09f, 8, .5f);
+        Check(briefContact.Shake == Vector2.Zero, "Separate mud touches accumulated past the entry delay.");
+        briefContact.UpdateShake(.02f, 8, .5f);
+        Check(briefContact.Shake.Length() > 0 && briefContact.Shake.Length() < .0003f,
+            "Sustained mud contact did not ease into shake after the entry delay.");
+
+        Console.WriteLine($"PASS: {count} car camera assertions (free look, recentering, views, field of view, wall clearance, and mud shake).");
         return count;
     }
 
