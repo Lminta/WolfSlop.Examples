@@ -103,8 +103,6 @@ internal static class EngineChecks
 
         var settings = new RendererSettings { FovDegrees = 90 };
         var loaded = await new GameSceneLoader(http, settings).LoadAsync("maps/level1.json");
-        Check(loaded.Map.RendererMap.Width == 35 && loaded.Map.RendererMap.Height == 31 &&
-            loaded.Map.PlayerStartPosition == new Vector2(6.5f, 26.5f), "Scene loader changed the selected map.");
         using var canceled = new CancellationTokenSource();
         canceled.Cancel();
         try

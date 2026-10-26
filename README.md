@@ -2,13 +2,12 @@
 
 Browser raycasting engine built with Blazor WebAssembly and WebGPU. Requires the .NET 10 SDK and a browser/device with WebGPU support.
 
-The solution contains sibling projects:
+The solution contains:
 
 - `WolfNET.Game/`: the game, renderer, Blazor UI, launch profiles, and game assets in `wwwroot`.
-- `WolfNET.Editor/`: the browser editor and its own web assets.
-- `Tests/`: compiler, movement, editor, and browser regression checks.
+- `Tests/`: compiler, simulation, and browser regression checks.
 
-Build both applications with `dotnet build WolfNET.slnx`.
+Build the solution with `dotnet build WolfNET.slnx`.
 
 The default level is **Showcase**, a gallery of materials, doors, objects, and
 movement examples, with a parked car in its annex for entering Pine Loop.
@@ -110,38 +109,11 @@ Run the regular regression checks from the repository root:
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/editor-model.test.mjs Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs
+node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs
 ```
 
 Run the C# suite first because it generates the sprite ordering reference files.
 The retained scenarios and optional browser checks are listed in [Tests/README.md](Tests/README.md).
-
-## Map editor
-
-Open `WolfNET.slnx` in Rider to see the engine, browser map editor, and regression checks.
-Start the **WolfNET.Editor** project, or run:
-
-```powershell
-dotnet run --project WolfNET.Editor/WolfNET.Editor.csproj
-```
-
-Open **http://127.0.0.1:5080**. Paint passages, walls, sprites and groups; edit object
-definitions, resize maps, and set the player spawn. Collision and ray-blocking overlays
-show invisible barriers. Maps are validated with the engine's own compiler before saving.
-
-Save writes to the engine's `wwwroot/maps` with separate object snapshots, so other maps
-keep their definitions. ZIP export includes the map and its object dependencies; extract
-it into `wwwroot`. The editor reuses the engine's texture library.
-
-To play a saved custom map, run the engine too:
-
-```powershell
-dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile http
-```
-
-Use **Play** in the editor, or open `http://localhost:5025/?map=your-map-name`.
-The editor's **Engine URL** field can point to another engine launch profile.
-See [the editor guide](WolfNET.Editor/README.md) for shortcuts, imports, and deployment.
 
 ## Player movement
 
@@ -178,7 +150,7 @@ or `PlayerObject.Crouching` for the current stance.
 
 The player collides as a circle and slides along solid cells and rounded corners.
 Each map sets `playerStart.collisionRadius` (default 0.15 map squares; greater than
-zero and less than 0.5). The editor exposes it under map settings. Movement uses
+zero and less than 0.5). Movement uses
 short collision steps so fast motion cannot jump through walls.
 
 Player movement is configured in each map's `playerStart` object alongside the spawn position and direction:
@@ -380,18 +352,8 @@ Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
 The normal checks include portable C# music queue and lifecycle tests.
 They also cover SFX mixing, collision telemetry/materials, engine load, braking,
 countdown events, crowd limits, and missing clips.
-With a Chromium debug session and the game running, use
-`node Tests/music-browser-check.mjs <debug-port> <game-url>` to check real MP3
-streaming, countdown timing, crossfades, queue repetition, and cleanup.
-Use `node Tests/sfx-browser-check.mjs <debug-port> <game-url>` to exercise the C#
-browser backend with temporary WAV test tones, including decoded playback,
-engine pitch, opponent stereo placement, braking, pause, cleanup, and zero-volume
-loading bypass. The test supplies sounds through browser request interception
-and does not write placeholder audio into the game.
-Add `--real` to load the actual generated WAVs and check distinct engine buffers,
-random braking variants, stereo downmix, and countdown playback.
-Add `--mud` to that test to temporarily serve road surfaces as mud and verify
-rolling-sound playback through the actual driving physics without changing map files.
+Review actual music and sound playback manually in the browser, including
+countdown audio, crossfades, stereo placement, and pause/resume.
 With the game and a WebGPU browser running, use
 `node Tests/car-driving-browser-check.mjs <debug-port> <game-url>` for actual
 driving input, both views, pause/resume, cockpit alignment, and walking-map restoration.

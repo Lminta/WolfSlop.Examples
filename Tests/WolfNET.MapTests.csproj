@@ -45,7 +45,6 @@
     <Compile Include="../WolfNET.Game/Game/Player/Components/PlayerController.cs" Link="Game/PlayerController.cs" />
     <Compile Include="../WolfNET.Game/Game/Core/ComponentBase.cs" Link="Game/ComponentBase.cs" />
     <Compile Include="../WolfNET.Game/Game/Transform.cs" Link="Game/Transform.cs" />
-    <Compile Include="../WolfNET.Editor/MapWorkspace.cs" Link="Editor/MapWorkspace.cs" />
     <Compile Include="../WolfNET.Game/Game/Core/ObjectBase.cs" Link="Game/Core/ObjectBase.cs" />
     <Compile Include="../WolfNET.Game/Game/Core/ObjectCollection.cs" Link="Game/Core/ObjectCollection.cs" />
     <Compile Include="../WolfNET.Game/Game/Core/FrameTiming.cs" Link="Game/Core/FrameTiming.cs" />

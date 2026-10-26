@@ -26,9 +26,9 @@ void Reject(Action action, string message)
 }
 
 // Load every shipped map, without pinning its authored scenery or dimensions.
-var workspace = new WolfNET.Editor.MapWorkspace(webRoot);
-foreach (var name in workspace.Maps())
+foreach (var file in Directory.EnumerateFiles(Path.Combine(webRoot, "maps"), "*.json").Order())
 {
+    var name = Path.GetFileNameWithoutExtension(file);
     var loaded = await GameMap.LoadAsync(http, $"maps/{name}.json", 512, 512);
     Check(loaded.RendererMap.Cells.Count == loaded.RendererMap.Width * loaded.RendererMap.Height,
         $"{name}: render grid is incomplete");
@@ -113,36 +113,6 @@ using (var player = new TestObject { Transform = new() { Position = new(4.5f), R
     Check(!controller.Crouching && camera.Elevation == 0, "Crouch did not release");
 }
 
-// One save/load/export round trip covers the editor's persistence boundary.
-var document = workspace.Load("showcase") with { Name = "editor-roundtrip" };
-Reject(() => workspace.Load("../showcase"), "Editor accepted path traversal");
-Reject(() => workspace.Validate(document with { Name = "CON" }), "Editor accepted a reserved filename");
-var editorRoot = Path.Combine(root, "artifacts", "editor-check-" + Guid.NewGuid().ToString("N"));
-Directory.CreateDirectory(Path.Combine(editorRoot, "maps"));
-try
-{
-    var store = new WolfNET.Editor.MapWorkspace(editorRoot);
-    await store.SaveAsync(document, false, CancellationToken.None);
-    var persisted = store.Load(document.Name);
-    Check(persisted.Map.WorldMap.SelectMany(column => column).SequenceEqual(document.Map.WorldMap.SelectMany(column => column)) &&
-        persisted.Map.PlayerStart == document.Map.PlayerStart && persisted.Map.Sky == document.Map.Sky &&
-        persisted.Objects.Count == document.Objects.Count, "Editor round trip changed map data");
-    using var savedHttp = new HttpClient(new FileHandler(editorRoot)) { BaseAddress = http.BaseAddress };
-    var loaded = await GameMap.LoadAsync(savedHttp, $"maps/{document.Name}.json", 64, 64);
-    Check(loaded.RendererMap.Cells.Count == persisted.Map.WorldMap.Sum(column => column.Length),
-        "Engine could not read the editor's saved map");
-    try { await store.SaveAsync(document, false, CancellationToken.None); throw new Exception("Editor silently overwrote a map"); }
-    catch (InvalidDataException) { assertions++; }
-    using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(store.Export(document)));
-    Check(zip.GetEntry($"maps/{document.Name}.json") != null &&
-        persisted.Map.Objects.Values.All(path => zip.GetEntry(path[3..]) != null), "Export lost map dependencies");
-    var unsafeMap = definition with { Objects = new() { [1] = "../../outside.json" } };
-    File.WriteAllText(Path.Combine(editorRoot, "maps/unsafe.json"), JsonSerializer.Serialize(unsafeMap,
-        new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-    Reject(() => store.Load("unsafe"), "Editor followed a path outside engine assets");
-}
-finally { Directory.Delete(editorRoot, true); }
-
 assertions += await EngineChecks.RunAsync(http);
 assertions += await CarInteractionChecks.RunAsync(http);
 assertions += CarPhysicsChecks.Run();
@@ -156,7 +126,7 @@ assertions += SpriteAnimationChecks.Run();
 assertions += AudioChecks.Run(webRoot);
 assertions += await SfxChecks.RunAsync(http, webRoot);
 await SpriteSelectionFixtures.WriteAsync(http, webRoot);
-Console.WriteLine($"PASS: {assertions} assertions (map loading/editing, walking, driving, scenes, animation, and editor persistence).");
+Console.WriteLine($"PASS: {assertions} assertions (map loading/validation, walking, driving, scenes, animation, and audio).");
 
 sealed class FileHandler(string root, Func<string, string?>? replacement = null) : HttpMessageHandler
 {

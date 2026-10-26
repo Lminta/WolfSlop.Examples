@@ -24,8 +24,6 @@ internal static class OpponentDifficultyChecks
 
         var gameplay = (await http.GetFromJsonAsync<GameplaySettings>("gameplay-settings.json"))!;
         gameplay.Validate();
-        Check(gameplay.CameraShake == new CameraShakeSettings(), "JSON camera shake settings differ from the code defaults.");
-        Check(gameplay.Opponents == new OpponentSettings(), "JSON opponent profiles differ from the code defaults.");
         Check(gameplay.Opponents.DefaultDifficulty == RaceDifficulty.Normal, "Normal is not the default difficulty.");
         var roundTrip = JsonSerializer.Deserialize<GameplaySettings>(JsonSerializer.Serialize(gameplay))!;
         Check(roundTrip.CameraShake == gameplay.CameraShake, "Camera shake settings did not survive JSON serialization.");

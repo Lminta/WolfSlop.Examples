@@ -149,7 +149,6 @@ these slots must fit within 0–255 and cannot overlap different textures or fra
 Frames are cropped before mip generation to prevent neighboring views from bleeding.
 Frame width/height preserves aspect ratio, and group scale/elevation apply normally.
 Use consistent frame height and baseline for steady size and ground alignment.
-The editor accepts these fields in object JSON and previews the first frame.
 See `sprites/sprite-directional-car.json` for an eight-view example.
 
 ### Animated scenery sprites

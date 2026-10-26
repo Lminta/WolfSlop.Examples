@@ -83,8 +83,8 @@ the player arrow remains sharp.
 `raceMinimap` in the map JSON contains `route` (a closed polyline), `startFinish`
 (one point), and `shortcuts` (an array of polylines). Points are `[x,y]` world
 coordinates, validated to be finite and inside the map. The map generator authors
-these from its lap anchors and shortcut endpoints. Editor load/export preserves
-them; regenerate the route metadata after changing the authored course layout.
+these from its lap anchors and shortcut endpoints. Regenerate the route metadata
+after changing the authored course layout.
 
 The starting grid has five full asphalt lanes at **X 23–27, Y 400–449**.
 The exit narrows through four lanes near Y 392–399 and three near Y 380–391.

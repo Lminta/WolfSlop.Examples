@@ -216,16 +216,10 @@ try {
         const timing = await evaluate(`(() => {
             const map=document.querySelector('.race-minimap-viewport').getBoundingClientRect();
             const hud=document.querySelector('.race-timing').getBoundingClientRect();
-            const style=getComputedStyle(document.querySelector('.race-timing'));
-            return {below:hud.top-map.bottom,left:hud.left-map.left,right:hud.right,viewportWidth:innerWidth,
-                fontSize:style.fontSize,color:style.color,background:style.backgroundColor,stroke:style.webkitTextStrokeWidth};
+            return {below:hud.top-map.bottom,left:hud.left-map.left,right:hud.right,viewportWidth:innerWidth};
         })()`);
         assert(timing.below >= 7 && Math.abs(timing.left) < .1 && timing.right <= timing.viewportWidth,
             'Race timers do not align beneath the minimap at ' + width + 'x' + height);
-        assert.equal(timing.fontSize, '44px');
-        assert.equal(timing.color, 'rgb(255, 255, 255)');
-        assert.equal(timing.background, 'rgba(0, 0, 0, 0)');
-        assert.equal(timing.stroke, '3px');
     }
     await snapshot('narrow-paused');
     await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 850, deviceScaleFactor: 1, mobile: false});

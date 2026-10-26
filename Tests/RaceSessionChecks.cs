@@ -233,14 +233,7 @@ internal static class RaceSessionChecks
         var withoutRace = new GameMap(authored with { Race = null }, loaded.Map.Objects, 512, 512);
         Check(withoutRace.RendererMap.Sprites.Count == loaded.Map.RendererMap.Sprites.Count &&
             withoutRace.RendererMap.Cells.SequenceEqual(loaded.Map.RendererMap.Cells), "Timing checkpoints changed map objects or collisions.");
-        var workspace = new WolfNET.Editor.MapWorkspace(webRoot);
-        var exported = workspace.Export(workspace.Load("pine-loop"));
-        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(exported));
-        var mapEntry = zip.Entries.First(entry => entry.FullName.EndsWith("pine-loop.json"));
-        using var reader = new StreamReader(mapEntry.Open());
-        var restored = JsonSerializer.Deserialize<MapDefinition>(reader.ReadToEnd(), json)!;
-        Check(restored.Race?.Checkpoints.Length == authored.Race.Checkpoints.Length, "Editor export lost invisible race checkpoints.");
-        Console.WriteLine($"PASS: {count} race session assertions (ordered gates, lap timing, shortcut, pause, scene resets, and editor export).");
+        Console.WriteLine($"PASS: {count} race session assertions (ordered gates, lap timing, shortcut, pause, and scene resets).");
         return count;
     }
 }

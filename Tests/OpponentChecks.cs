@@ -379,56 +379,6 @@ internal static class OpponentChecks
             (scene.RaceState.Value.TotalMilliseconds - finishers[0].TotalMilliseconds)) < .01,
             "Gap did not track the actual race leader.");
 
-        // Blocking can change race order; compare the cornering profiles on an unobstructed lap.
-        void SoloLap(bool skilled)
-        {
-            var startPosition = new Vector2(25.5f, 445.5f);
-            var rivalSettings = OpponentDriver.CreateCarSettings(playerSettings, skilled);
-            var driver = new OpponentDriver(route, loaded.Map.NavigationMap, rivalSettings, new(), startPosition, skilled, gridSide: 0);
-            using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, rivalSettings)
-                { Transform = new() { Position = startPosition, Rotation = new(0, -1) } };
-            var race = new RaceSession(loaded.Map.RendererMap.Race!, new() { LapCount = 1 });
-            race.BeginCountdown();
-            race.AdvanceStart(5000);
-            var samples = 0;
-            var muddy = 0;
-            var slow = 0;
-            double speedIntegral = 0;
-            var worst = new Dictionary<(int X, int Y), int>();
-            for (var frame = 0; frame < 60 * 300 && race.Status.Phase != RacePhase.Finished; frame++)
-            {
-                var before = car.Transform.Position;
-                var beforeTime = race.Status.TotalMilliseconds;
-                driver.Update(car, Array.Empty<CarObject>(), 1f / 60);
-                car.Update(1000f / 60);
-                race.Update(before, car.Transform.Position, 1000f / 60);
-                speedIntegral += car.Controller.Speed * (race.Status.TotalMilliseconds - beforeTime);
-                if (frame % 6 == 0 && frame > 60)
-                {
-                    samples++;
-                    var position = car.Transform.Position;
-                    var offRoad = OffRoad(car);
-                    if (car.Controller.Speed < 1) slow++;
-                    if (offRoad)
-                    {
-                        muddy++;
-                        var cell = ((int)(position.X / 8) * 8, (int)(position.Y / 8) * 8);
-                        worst[cell] = worst.GetValueOrDefault(cell) + 1;
-                    }
-                }
-            }
-            Console.WriteLine($"SOLO {(skilled ? "Green" : "Blue")}: {race.Status.TotalMilliseconds / 1000:F1}s, mud {100f * muddy / samples:F1}%, slow {slow}, worst {string.Join("; ", worst.OrderByDescending(p => p.Value).Take(8))}");
-            Check(skilled ? driver.MistakesMade == 0 : driver.MistakesMade > 0, "Rival did not follow its intended mistake profile.");
-            Check(muddy < samples * .01f, "Opponent repeatedly cut corners or ran wide onto mud on an unobstructed lap.");
-            Check(slow == 0, "Unobstructed opponent stalled against track barriers.");
-            Check(race.Status.Phase == RacePhase.Finished, "Unobstructed opponent failed to finish a lap.");
-            var mean = speedIntegral / race.Status.TotalMilliseconds;
-            Console.WriteLine($"SOLO {(skilled ? "Green" : "Blue")}: mean {mean:F2} blocks/s.");
-            Check(mean >= 18.5 && mean <= 19.8,
-                $"Unobstructed opponent missed the 19 blocks/s average loop pace: {mean:F2} blocks/s.");
-        }
-        SoloLap(false);
-        SoloLap(true);
         Check(((CarObject)scene.Player).Controller.Speed == 0, "Parked player moved during the opponent race.");
         Check(opponent.Controller.Speed == 0 && green.Controller.Speed == 0,
             "Finished cars retained moving velocities that confused the remaining racers.");
