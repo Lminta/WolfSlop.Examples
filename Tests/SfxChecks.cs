@@ -16,6 +16,15 @@ internal static class SfxChecks
         var settings = JsonSerializer.Deserialize<SoundSettings>(File.ReadAllText(Path.Combine(webRoot, "audio-settings.json")),
             new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         settings.Validate();
+        float[] quietTone = Enumerable.Range(0, 4800).Select(i => .01f * MathF.Sin(i * MathF.Tau / 48)).ToArray();
+        var quietGain = SfxClipLevels.MudGain([quietTone]);
+        Check(quietGain > 10 && quietGain < 20, "Quiet mud recordings must receive a meaningful playback boost.");
+        Near(quietGain, SfxClipLevels.MudGain([quietTone, quietTone]), "Gain analysis must account for actual stereo downmix.");
+        Near(SfxClipLevels.MudGain([new float[100]]), 1, "Silence must not be amplified.");
+        float[] splash = new float[10000];
+        splash[0] = .1f;
+        Check(SfxClipLevels.MudGain([splash]) * .1f <= .90001f, "Normalization must leave peak headroom for splashes.");
+        Near(SfxClipLevels.MudGain([new float[] { .0001f }]), 32, "Normalization must cap excessive boosts.");
         Check(settings.Sfx.Clips.Count == Enum.GetValues<SfxCue>().Length, "SFX JSON must cover every cue.");
         Check(settings.Sfx.Clips.Values.SelectMany(paths => paths).All(path => path.StartsWith("sounds/")), "SFX paths must point to the generated sound folder.");
         Check(settings.Sfx.Clips.Values.SelectMany(paths => paths).All(path => File.Exists(Path.Combine(webRoot, path))), "Every configured sound variant must exist.");
@@ -179,6 +188,8 @@ internal static class SfxChecks
             var otherSelected = mudVoices[1].VariantIndex;
             Check(selected is >= 0 and <= 2 && otherSelected is >= 0 and <= 2, "Each mud entry must select a valid numbered variant.");
             Near(mudVoices[0].Volume, mudVoices[1].Volume, "Identical speed/contact must give the same mud volume for every car.");
+            Near(mudVoices[0].Volume, settings.Volume * settings.Sfx.Volume * settings.Sfx.MudVolume,
+                "Slow mud must use the full configured category volume without a hidden speed reduction.");
             system.Update(Frame([MudCar(0, 4, true), MudCar(1, 2, true)]));
             var mid = Latest();
             Check(mid.Cue == SfxCue.MudMid && mid.VariantIndex == selected && mid.Loop && mudVoices[0].Disposed,

@@ -11,6 +11,7 @@
     <Compile Include="../WolfNET.Game/Audio/SfxSettings.cs" Link="Audio/SfxSettings.cs" />
     <Compile Include="../WolfNET.Game/Audio/ISfxBackend.cs" Link="Audio/ISfxBackend.cs" />
     <Compile Include="../WolfNET.Game/Audio/SfxSystem.cs" Link="Audio/SfxSystem.cs" />
+    <Compile Include="../WolfNET.Game/Audio/SfxClipLevels.cs" Link="Audio/SfxClipLevels.cs" />
     <Compile Include="../WolfNET.Game/Audio/SfxVariantSelector.cs" Link="Audio/SfxVariantSelector.cs" />
     <Compile Include="../WolfNET.Game/Audio/MusicPlayer.cs" Link="Audio/MusicPlayer.cs" />
     <Compile Include="../WolfNET.Game/Game/RaceRoute.cs" Link="Game/RaceRoute.cs" />

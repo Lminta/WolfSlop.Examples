@@ -72,6 +72,10 @@ that number across all three bands. The current clip loops until the speed band
 changes or movement stops. Pausing, stopping on mud, or going out of hearing
 range does not choose another number; leaving mud does. Clips play at their
 recorded pitch. Tune `sfx.mudVolume` in the audio settings.
+Quiet mud recordings are boosted automatically at load time based on their
+downmixed RMS, with a peak headroom limit and maximum 32× gain. The original
+WAV files are not rewritten. The volume setting remains a 0–1 multiplier,
+and slow driving no longer applies an additional volume reduction.
 
 The older synthesized `mud.wav` and its generator are no longer used by the
 active settings. For future replacement clips, adapt this original prompt to

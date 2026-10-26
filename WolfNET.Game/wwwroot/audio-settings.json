@@ -7,7 +7,7 @@
     "volume": 1,
     "engineVolume": 0.7,
     "brakeVolume": 0.6,
-    "mudVolume": 0.65,
+    "mudVolume": 0.8,
     "impactVolume": 1,
     "countdownVolume": 0.9,
     "crowdVolume": 0.6,

@@ -146,7 +146,7 @@ public sealed class SfxSystem : IDisposable
         // visit's selected variant until the car actually leaves the mud.
         if (car.Speed <= .2f) return;
         SetLoop(car.Id, MudBand(car.Speed, car.MudMaxSpeed), car.Position,
-            _settings.MudVolume * Math.Clamp(car.Speed / 6, 0, 1), 1, frame, variant);
+            _settings.MudVolume, 1, frame, variant);
     }
 
     private void Mix(ISfxVoice voice, SfxFrame frame, Vector2 position, float volume, float pitch, bool crowd = false)

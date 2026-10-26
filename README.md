@@ -299,6 +299,10 @@ entry's number. That number stays matched across `mud-slow-N.wav`,
 recorded pitch. Pauses, stops on mud, and leaving hearing range preserve the
 selection; returning fully to asphalt ends the visit. Stopped cars are silent.
 Adjust `sfx.mudVolume` and the three clip arrays in `audio-settings.json`.
+Quiet generated mud clips receive playback gain calculated from their mono RMS,
+targeting -18 dBFS where peak headroom allows (maximum boost: 32×). Original
+files remain unchanged. Moving mud uses the configured category volume in all
+speed bands; there is no extra low-speed attenuation. Distance falloff still applies.
 
 World impacts use the struck object's `impactMaterial` (`hard`, `metal`, `wood`, `rubber`), and car contacts
 have their own cue. Closing speed controls impact volume, with cooldowns to avoid

@@ -11,6 +11,7 @@ internal sealed class BrowserSfxBackend : ISfxBackend
     private readonly GainNode _output;
     private readonly AudioParam _volume;
     private readonly Dictionary<SfxCue, List<AudioBuffer>> _clips = [];
+    private readonly Dictionary<AudioBuffer, float> _mudGains = [];
     private readonly SfxVariantSelector _variants = new();
     private readonly List<Voice> _voices = [];
     private bool _paused = true, _disposed;
@@ -57,7 +58,20 @@ internal sealed class BrowserSfxBackend : ISfxBackend
                         }
                         decoded[path] = buffer;
                     }
-                    if (buffer != null) buffers.Add(buffer);
+                    if (buffer != null)
+                    {
+                        buffers.Add(buffer);
+                        if (cue is SfxCue.MudSlow or SfxCue.MudMid or SfxCue.MudHigh && !backend._mudGains.ContainsKey(buffer))
+                        {
+                            var channels = new float[buffer.NumberOfChannels][];
+                            for (var channelIndex = 0; channelIndex < channels.Length; channelIndex++)
+                            {
+                                using var channel = buffer.GetChannelData(channelIndex);
+                                channels[channelIndex] = channel.ToArray();
+                            }
+                            backend._mudGains[buffer] = SfxClipLevels.MudGain(channels);
+                        }
+                    }
                 }
             }
             cancellationToken.ThrowIfCancellationRequested();
@@ -71,7 +85,9 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         if (_disposed || !_clips.TryGetValue(cue, out var clips) || clips.Count == 0) return null;
         var index = variantIndex is { } selected
             ? (int)(Math.Abs((long)selected) % clips.Count) : _variants.Select(cue, clips.Count, emitterId);
-        var voice = new Voice(this, clips[index], loop, phase);
+        var gain = cue is SfxCue.MudSlow or SfxCue.MudMid or SfxCue.MudHigh
+            ? _mudGains.GetValueOrDefault(clips[index], 1) : 1;
+        var voice = new Voice(this, clips[index], loop, phase, gain);
         _voices.Add(voice);
         return voice;
     }
@@ -105,6 +121,7 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         foreach (var voice in _voices.ToArray()) voice.Dispose();
         foreach (var buffer in _clips.Values.SelectMany(clips => clips).Distinct()) buffer.Dispose();
         _clips.Clear();
+        _mudGains.Clear();
         _volume.Dispose(); _output.Disconnect(); _output.Dispose();
         _ = CloseAsync();
         _context.Dispose();
@@ -124,13 +141,15 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         private readonly GainNode _gain;
         private readonly StereoPannerNode _panner;
         private readonly AudioParam _volume, _pan, _pitch;
+        private readonly float _clipGain;
         private bool _disposed;
         private float _lastVolume = float.NaN, _lastPan = float.NaN, _lastPitch = float.NaN;
         public bool Finished { get; private set; }
 
-        public Voice(BrowserSfxBackend owner, AudioBuffer clip, bool loop, float phase)
+        public Voice(BrowserSfxBackend owner, AudioBuffer clip, bool loop, float phase, float clipGain)
         {
             _owner = owner;
+            _clipGain = clipGain;
             _source = owner._context.CreateBufferSource();
             _source.Buffer = clip;
             _source.Loop = loop;
@@ -161,7 +180,7 @@ internal sealed class BrowserSfxBackend : ISfxBackend
                 previous = value;
                 parameter.SetTargetAtTime(value, _owner._context.CurrentTime, .025f).Dispose();
             }
-            Smooth(_volume, Math.Clamp(volume, 0, 1), ref _lastVolume);
+            Smooth(_volume, Math.Clamp(volume, 0, 1) * _clipGain, ref _lastVolume);
             Smooth(_pan, Math.Clamp(pan, -1, 1), ref _lastPan);
             Smooth(_pitch, Math.Clamp(pitch, .5f, 2.5f), ref _lastPitch);
         }

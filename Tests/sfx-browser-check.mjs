@@ -155,6 +155,18 @@ try {
         await waitFor(`__cueVoices('mudSlow',true).length > 0`);
         await waitFor(`__cueVoices('mudMid').length > 0`);
         await waitFor(`__cueVoices('mudHigh').length > 0`);
+        if (realSounds) {
+            await waitFor(`['mudSlow','mudMid','mudHigh'].flatMap(cue=>__cueVoices(cue,true)).some(voice=>voice.gain.gain.value > 1)`);
+            assert(await evaluate(`['mudSlow','mudMid','mudHigh'].flatMap(cue=>__cueVoices(cue,true)).every(voice=>{
+                const buffer=voice.source.buffer, channels=Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i));
+                let peak=0;
+                for(let i=0;i<buffer.length;i++) {
+                    let mono=0; for(const channel of channels) mono+=channel[i];
+                    peak=Math.max(peak,Math.abs(mono/channels.length));
+                }
+                return peak*voice.gain.gain.value <= .901;
+            })`));
+        }
     }
     await key('Space',' ',32,true);
     await waitFor(`__cueVoices('brakes').length > 0`);
