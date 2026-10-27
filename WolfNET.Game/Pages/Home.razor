@@ -83,6 +83,9 @@
                 <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Easy)"
                         aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Easy ? "true" : "false")"
                         @onclick="() => SelectDifficultyAsync(RaceDifficulty.Easy)">Easy</button>
+                <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Wife)"
+                        aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Wife ? "true" : "false")"
+                        @onclick="() => SelectDifficultyAsync(RaceDifficulty.Wife)">Wife mode</button>
             </div>
             <small>Changing difficulty restarts the race.</small>
         </div>

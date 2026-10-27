@@ -33,7 +33,8 @@ references in `artifacts/performance` for the browser implementation to compare.
 Keep regression cases around behavior that could break gameplay or map loading.
 Avoid tests that pin decorative prop sizes, exact CSS values, or equality between
 editable JSON settings and code defaults. Full-race simulations cover normal
-and easy traffic; the difficulty checks also compare solo mistake profiles.
+and easy traffic; the difficulty checks also compare solo mistake profiles and verify every
+Wife mode lap takes 170-180 seconds across three solo and traffic laps for both opponents.
 Use manual review for artwork, shader appearance, and actual browser audio playback.
 
 ## Opponent speed measurements
@@ -41,6 +42,7 @@ Use manual review for artwork, shader appearance, and actual browser audio playb
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds
 dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds --easy
+dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds --wife
 ```
 
 Loads the shipped gameplay settings and runs three-lap traffic and solo simulations
@@ -48,6 +50,7 @@ on Pine Loop at 120 Hz. Traffic includes both rivals and a parked player. Report
 time-weighted mean, median, maximum, percentiles, low-speed and mud-contact time, plus the active speed limits and acceleration
 in blocks/second to `artifacts/opponent-speeds.json`. Countdown and post-finish time
 are excluded. `--easy` measures the easy profiles and writes `artifacts/opponent-speeds-easy.json`.
+`--wife` measures Wife mode and writes `artifacts/opponent-speeds-wife.json`, including each lap's duration.
 Both reports include the effective profiles and mistake counts. This diagnostic does not change driving behavior.
 
 ## Optional integration checks

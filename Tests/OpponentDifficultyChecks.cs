@@ -32,6 +32,7 @@ internal static class OpponentDifficultyChecks
         Check(roundTrip.Opponents == gameplay.Opponents, "Opponent structs did not survive JSON serialization.");
         Reject(gameplay with { Opponents = gameplay.Opponents with { DefaultDifficulty = (RaceDifficulty)999 } });
         Reject(gameplay with { Opponents = gameplay.Opponents with { Easy = null! } });
+        Reject(gameplay with { Opponents = gameplay.Opponents with { Wife = null! } });
         foreach (var bad in new OpponentProfileSettings[]
         {
             gameplay.Opponents.Easy.Green with { MaxSpeedOffset = -100 },
@@ -56,9 +57,16 @@ internal static class OpponentDifficultyChecks
         var easyDefault = gameplay with { Opponents = gameplay.Opponents with { DefaultDifficulty = RaceDifficulty.Easy } };
         using (var easy = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), easyDefault))
         using (var normal = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), easyDefault, RaceDifficulty.Normal))
+        using (var wife = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(),
+                   gameplay with { Opponents = gameplay.Opponents with { DefaultDifficulty = RaceDifficulty.Wife } }))
         {
             Check(easy.Difficulty == RaceDifficulty.Easy && normal.Difficulty == RaceDifficulty.Normal,
                 "Explicit difficulty did not override the JSON default.");
+            Check(wife.Difficulty == RaceDifficulty.Wife &&
+                  wife.Opponent!.Settings.Asphalt.MaxForwardSpeed == gameplay.Car.Asphalt.MaxForwardSpeed + gameplay.Opponents.Wife.Blue.MaxSpeedOffset &&
+                  wife.SecondOpponent!.Settings.Asphalt.MaxForwardSpeed == gameplay.Car.Asphalt.MaxForwardSpeed + gameplay.Opponents.Wife.Green.MaxSpeedOffset &&
+                  ((CarObject)wife.Player).Settings == gameplay.Car,
+                "Wife mode did not select its configured opponents or changed the player's settings.");
             Check(easy.SecondOpponent!.Settings.Asphalt.MaxForwardSpeed == gameplay.Car.Asphalt.MaxForwardSpeed - 5 &&
                   normal.SecondOpponent!.Settings.Asphalt.MaxForwardSpeed == gameplay.Car.Asphalt.MaxForwardSpeed - 3,
                 "Green's difficulty speed offsets were not applied by the scene.");
@@ -97,13 +105,14 @@ internal static class OpponentDifficultyChecks
                 gridSide: 0, profile: profile);
             using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, settings)
                 { Transform = new() { Position = position, Rotation = Vector2.Normalize(new(start.DirectionX, start.DirectionY)) } };
-            var race = new RaceSession(loaded.Map.RendererMap.Race!, gameplay.Race with { LapCount = 1 });
+            var race = new RaceSession(loaded.Map.RendererMap.Race!, gameplay.Race with
+                { LapCount = difficulty == RaceDifficulty.Wife ? 3 : 1 });
             race.BeginCountdown();
             race.AdvanceStart(5000);
             double integral = 0;
             var samples = 0;
             var mud = 0;
-            for (var frame = 0; frame < 60 * 300 && race.Status.Phase != RacePhase.Finished; frame++)
+            for (var frame = 0; frame < 60 * 900 && race.Status.Phase != RacePhase.Finished; frame++)
             {
                 var before = car.Transform.Position;
                 var time = race.Status.TotalMilliseconds;
@@ -118,6 +127,12 @@ internal static class OpponentDifficultyChecks
             var mean = integral / race.Status.TotalMilliseconds;
             if (difficulty == RaceDifficulty.Easy)
                 Check(mean >= 15.8 && mean <= 17.2, $"Easy {(green ? "green" : "blue")} missed its 16-17 blocks/s loop target: {mean:F2}.");
+            if (difficulty == RaceDifficulty.Wife)
+            {
+                Check(race.Status.LapTimes.Count == 3 && race.Status.LapTimes.All(time => time >= 170000 && time <= 180000),
+                    $"Wife mode {(green ? "green" : "blue")} missed its 2:50-3:00 solo lap target.");
+                Console.WriteLine($"Wife {(green ? "green" : "blue")} solo laps: {string.Join(", ", race.Status.LapTimes.Select(time => $"{time / 1000:F2}s"))}.");
+            }
             Console.WriteLine($"{difficulty} {(green ? "green" : "blue")} lap: mean {mean:F2} blocks/s, {driver.MistakesMade} mistakes.");
             return driver.MistakesMade;
         }
@@ -125,8 +140,11 @@ internal static class OpponentDifficultyChecks
         var easyMistakes = Solo(RaceDifficulty.Easy, false);
         Check(easyMistakes > normalMistakes * 2, "Easy blue did not make substantially more mistakes than normal blue.");
         Check(Solo(RaceDifficulty.Easy, true) == 0, "Easy green made deliberate mistakes.");
+        Solo(RaceDifficulty.Wife, false);
+        Check(Solo(RaceDifficulty.Wife, true) == 0, "Wife mode green made deliberate mistakes.");
 
-        using (var traffic = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), gameplay, RaceDifficulty.Easy))
+        foreach (var difficulty in new[] { RaceDifficulty.Easy, RaceDifficulty.Wife })
+        using (var traffic = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), gameplay, difficulty))
         {
             var cars = new[] { traffic.Opponent!, traffic.SecondOpponent! };
             var integral = new double[2];
@@ -150,13 +168,20 @@ internal static class OpponentDifficultyChecks
             for (var i = 0; i < 2; i++)
             {
                 var result = traffic.RaceState!.Value.Opponents[i];
-                Check(result.Finished && result.LapTimes.Count == 3, "An easy opponent did not finish three validated laps in traffic.");
+                Check(result.Finished && result.LapTimes.Count == 3, $"A {difficulty} opponent did not finish three validated laps in traffic.");
                 var mean = integral[i] / result.TotalMilliseconds;
-                Check(mean >= 15.8 && mean <= 17.2, $"Easy traffic average missed its 16-17 blocks/s target: {mean:F2}.");
-                Check(mud[i] < samples[i] * .01f, "An easy opponent repeatedly left the asphalt in traffic.");
-                Console.WriteLine($"Easy traffic {i}: mean {mean:F2} blocks/s.");
+                if (difficulty == RaceDifficulty.Easy)
+                    Check(mean >= 15.8 && mean <= 17.2, $"Easy traffic average missed its 16-17 blocks/s target: {mean:F2}.");
+                else
+                {
+                    Check(result.LapTimes.All(time => time >= 170000 && time <= 180000),
+                        $"Wife mode opponent {i} missed its 2:50-3:00 traffic lap target.");
+                    Console.WriteLine($"Wife traffic {i} laps: {string.Join(", ", result.LapTimes.Select(time => $"{time / 1000:F2}s"))}.");
+                }
+                Check(mud[i] < samples[i] * .01f, $"A {difficulty} opponent repeatedly left the asphalt in traffic.");
+                Console.WriteLine($"{difficulty} traffic {i}: mean {mean:F2} blocks/s.");
             }
-            Check(traffic.GetOpponentMistakes(1) == 0, "Easy green made deliberate mistakes in traffic.");
+            Check(traffic.GetOpponentMistakes(1) == 0, $"{difficulty} green made deliberate mistakes in traffic.");
         }
         Console.WriteLine($"PASS: {count} opponent difficulty assertions.");
         return count;

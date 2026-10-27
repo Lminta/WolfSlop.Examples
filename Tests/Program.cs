@@ -9,7 +9,8 @@ var webRoot = Path.Combine(root, "WolfNET.Game", "wwwroot");
 using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
 if (args.Contains("--opponent-speeds"))
 {
-    await OpponentSpeedReport.RunAsync(http, root, args.Contains("--easy") ? RaceDifficulty.Easy : null);
+    await OpponentSpeedReport.RunAsync(http, root, args.Contains("--wife") ? RaceDifficulty.Wife :
+        args.Contains("--easy") ? RaceDifficulty.Easy : null);
     return;
 }
 int assertions = 0;

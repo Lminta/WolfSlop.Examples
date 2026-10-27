@@ -4,7 +4,7 @@ using WolfNET.Game.Player;
 namespace WolfNET.Game;
 
 [JsonConverter(typeof(JsonStringEnumConverter<RaceDifficulty>))]
-public enum RaceDifficulty { Normal, Easy }
+public enum RaceDifficulty { Normal, Easy, Wife }
 
 public readonly record struct OpponentMistakeSettings
 {
@@ -82,19 +82,26 @@ public sealed record OpponentSettings
         },
         Green = OpponentProfileSettings.Normal(true) with { MaxSpeedOffset = -5, AccelerationMultiplier = .8f }
     };
+    public OpponentDifficultySettings Wife { get; init; } = new()
+    {
+        Blue = OpponentProfileSettings.Normal(false) with { MaxSpeedOffset = -11 },
+        Green = OpponentProfileSettings.Normal(true) with { MaxSpeedOffset = -11.5f, AccelerationMultiplier = 1.2f }
+    };
 
     public OpponentDifficultySettings Get(RaceDifficulty difficulty) => difficulty switch
     {
         RaceDifficulty.Normal => Normal,
         RaceDifficulty.Easy => Easy,
+        RaceDifficulty.Wife => Wife,
         _ => throw new InvalidDataException("Unknown race difficulty.")
     };
 
     public void Validate(CarSettings player)
     {
-        if (!Enum.IsDefined(DefaultDifficulty) || Normal == null || Easy == null)
-            throw new InvalidDataException("Opponent settings need normal and easy profiles and a valid default difficulty.");
+        if (!Enum.IsDefined(DefaultDifficulty) || Normal == null || Easy == null || Wife == null)
+            throw new InvalidDataException("Opponent settings need normal, easy, and wife profiles and a valid default difficulty.");
         Normal.Validate(player);
         Easy.Validate(player);
+        Wife.Validate(player);
     }
 }

@@ -52,8 +52,9 @@ async function evaluate(expression) {
 }
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function waitFor(expression) {
-    for (let attempt = 0; attempt < 600; attempt++) {
+async function waitFor(expression, timeoutMilliseconds = 60000) {
+    const deadline = Date.now() + timeoutMilliseconds;
+    while (Date.now() < deadline) {
         assert.deepEqual(errors, []);
         const error = await evaluate(`document.querySelector('.game-error')?.textContent`);
         if (error) throw Error(error);
@@ -174,7 +175,7 @@ try {
     `});
     await send('Page.navigate', {url: base + '/?map=pine-loop'});
     await send('Page.bringToFront');
-    await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__firstPerson?.[2] === 2 && document.querySelector('.car-paused')`);
+    await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__firstPerson?.[2] === 2 && document.querySelector('.car-paused')`, 180000);
     assert.equal(await evaluate(`document.querySelectorAll('.car-cockpit, .player-hands').length`), 0, 'First-person images still use DOM overlays');
     assert.equal(await evaluate('window.__viewTextures.size'), 2, 'Car did not upload its two first-person textures');
     fs.mkdirSync('artifacts/car-driving', {recursive: true});
@@ -190,9 +191,11 @@ try {
     })()`), 'Difficulty buttons are not beneath the map description');
     await selectDifficulty('Easy');
     await snapshot('difficulty-easy');
+    await selectDifficulty('Wife mode');
+    await snapshot('difficulty-wife');
     await selectDifficulty('Normal');
     const gridOpponents = await evaluate(`Array.from(document.querySelectorAll('.race-minimap-opponents circle'), c => [c.getAttribute('cx'), c.getAttribute('cy')])`);
-    console.log('PASS difficulty: normal default, buttons below map description, and switching either way resets the race.');
+    console.log('PASS difficulty: normal default, buttons below map description, and switching among all three modes resets the race.');
     assert(await evaluate(`window.__lightLayers.includes(180) && !window.__lightLayers.includes(181)`), 'Starting signal did not render red');
     assert(await evaluate(`document.querySelector('.controls-hint').textContent.includes('W accelerate')`));
     assert(![...requests].some(url => /player-character|main-character-atlas|first-person-hands/.test(url)), 'Race map loaded human textures');
@@ -410,7 +413,7 @@ try {
     // invisible gate sequence and configure two laps to verify gameplay settings.
     await send('Page.navigate', {url: base + '/?map=pine-loop&short-race'});
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.race-timing') && !!document.querySelector('.car-paused')`);
-    await selectDifficulty('Easy');
+    await selectDifficulty('Wife mode');
     await capture();
     await waitFor(`!!document.querySelector('.race-go')`);
     await key('KeyW');
@@ -447,7 +450,7 @@ try {
     await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-results') &&
         document.querySelector('.race-total')?.textContent.trim() === '0:00.00' && !!document.querySelector('.car-paused')`);
     assert.equal(await evaluate(`document.querySelector('.race-laps').textContent.trim()`), '0/2');
-    assert.equal(await evaluate(`document.querySelector('.difficulty-options button[aria-pressed="true"]').textContent.trim()`), 'Easy',
+    assert.equal(await evaluate(`document.querySelector('.difficulty-options button[aria-pressed="true"]').textContent.trim()`), 'Wife mode',
         'Restart did not retain the selected difficulty');
     assert(await evaluate(`window.__lightLayers.includes(180)`), 'Restart did not reset red lights');
     await capture();

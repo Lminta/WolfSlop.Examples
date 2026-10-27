@@ -138,7 +138,12 @@ internal static class OpponentSpeedReport
             if (race.Status.Phase != RacePhase.Finished) throw new Exception("Solo race did not finish.");
             results.Add(recorder.Summarize(race.Status.TotalMilliseconds, race.Status.LapTimes, driver.MistakesMade));
         }
-        var output = Path.Combine(root, "artifacts", selectedDifficulty == RaceDifficulty.Easy ? "opponent-speeds-easy.json" : "opponent-speeds.json");
+        var output = Path.Combine(root, "artifacts", selectedDifficulty switch
+        {
+            RaceDifficulty.Easy => "opponent-speeds-easy.json",
+            RaceDifficulty.Wife => "opponent-speeds-wife.json",
+            _ => "opponent-speeds.json"
+        });
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         File.WriteAllText(output, JsonSerializer.Serialize(new
         {

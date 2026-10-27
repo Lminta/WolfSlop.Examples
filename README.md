@@ -338,7 +338,7 @@ and compensates yaw response, targeting an average loop pace around 19 blocks/s 
 Passing and defending reserve grip and time to merge before bends; road and barrier checks remain active.
 `race.opponentCornerSpeed` adjusts their cornering pace; `race.lapCount` applies to all three racers.
 `opponents` in `gameplay-settings.json` contains `defaultDifficulty` (`normal` by default)
-and separate `normal` and `easy` groups, each with `blue` and `green` profiles.
+and separate `normal`, `easy`, and `wife` groups, each with `blue` and `green` profiles.
 Each profile configures `maxSpeedOffset` relative to the player, `accelerationMultiplier`,
 `cornerGripFraction`, `steeringCurvatureGain`, and `mistakes`. Mistake timing uses seconds:
 `firstAfterSeconds`, `intervalSeconds`, `variationSeconds`, and `durationSeconds`;
@@ -346,7 +346,9 @@ Each profile configures `maxSpeedOffset` relative to the player, `accelerationMu
 Easy blue brakes early more often and for longer. Easy green remains consistent, with a top speed
 5 blocks/s below the player (20 blocks/s at the default player limit) and gentler acceleration.
 Easy targets an average loop pace around 16-17 blocks/s.
-The Normal/Easy buttons beneath Pine Loop's description start a fresh race with the selected profiles.
+Wife mode is tuned for 2:50-3:00 laps on Pine Loop with the shipped car settings.
+Both opponents use lower top speeds; blue keeps its occasional early-braking mistakes and green drives consistently.
+The Normal/Easy/Wife mode buttons beneath Pine Loop's description start a fresh race with the selected profiles.
 The selection carries through race restarts and map switches; reloading the app uses the JSON default.
 The Restart race button below the difficulty controls reloads the entire race, resetting all cars,
 laps, timers, and the countdown while keeping the selected difficulty.
