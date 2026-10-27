@@ -12,6 +12,8 @@ public interface ISfxBackend : IDisposable
 {
     ISfxVoice? Play(SfxCue cue, bool loop, float phase = 0, int emitterId = 0, int? variantIndex = null);
     void SetPaused(bool paused);
+    // Publish the frame's requested mixes together. Immediate backends need no flush.
+    void Commit() { }
 }
 
 public interface ISfxVoice : IDisposable

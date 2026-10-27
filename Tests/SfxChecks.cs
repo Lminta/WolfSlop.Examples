@@ -116,12 +116,16 @@ internal static class SfxChecks
         {
             CarSfxState[] cars = [new(0, new(-3, 0), 5, 25, 0, 0, 0), new(1, new(3, 0), 5, 25, 0, 0, 0)];
             system.Update(Frame(cars));
+            Check(backend.Commits == 1, "A mix update must publish all voices in one commit.");
             Check(backend.Voices.Count == 2, "Separate cars must own separate engine voices.");
             Check(backend.Voices.Select(voice => voice.EmitterId).SequenceEqual(new[] { 0, 1 }), "Engine voices must carry stable car IDs to variant selection.");
             Check(backend.Voices[0].Pan < 0 && backend.Voices[1].Pan > 0, "Opponent engines must be spatially separated.");
             system.Update(Frame(cars, forward: -Vector2.UnitY));
             Check(backend.Voices[0].Pan > 0 && backend.Voices[1].Pan < 0, "Camera direction must update ongoing voice panning.");
             system.Update(Frame(cars, active: false));
+            var pausedCommits = backend.Commits;
+            system.Update(Frame(cars, active: false));
+            Check(backend.Commits == pausedCommits, "Paused frames must not publish voice updates.");
             Check(backend.Paused && backend.Voices.All(voice => !voice.Disposed), "Pause must preserve loop instances.");
             system.Update(Frame(cars));
             Check(!backend.Paused && backend.Voices.Count == 2, "Resume must reuse paused loop instances.");
@@ -154,6 +158,9 @@ internal static class SfxChecks
             Check(backend.Voices.Count == 2 && backend.Voices.All(voice => voice.Cue == SfxCue.Crowd), "Only the nearest configured crowd groups should play.");
             Check(backend.Voices[0].Pan > 0 && backend.Voices[1].Pan < 0, "Crowd groups must pan independently.");
             Check(backend.Voices[0].Phase != backend.Voices[1].Phase, "Crowd loops should use different starting offsets.");
+            system.Update(Frame() with { ListenerPosition = new(10, 0) });
+            Check(backend.Voices.Where(voice => !voice.Disposed).Select(voice => voice.EmitterId).ToHashSet()
+                .SetEquals(new[] { -3, -1 }), "Moving must select the new nearest crowds and release the distant voice.");
         }
         Check(backend.Voices.All(voice => voice.Disposed), "Disposal must release crowd loops.");
         backend = new();
@@ -279,6 +286,8 @@ internal static class SfxChecks
     {
         public List<Voice> Voices { get; } = [];
         public bool Paused, Disposed, Missing;
+        public int Commits;
+        public void Commit() => Commits++;
         public ISfxVoice? Play(SfxCue cue, bool loop, float phase = 0, int emitterId = 0, int? variantIndex = null)
         {
             if (Missing) return null;

@@ -78,6 +78,8 @@ internal sealed class BrowserAudioBackend : IAudioBackend
         private readonly MediaElementAudioSourceNode _source;
         private readonly GainNode _gainNode;
         private readonly AudioParam _gain;
+        private float _requestedVolume = float.NaN;
+        private double _requestedRamp = double.NaN;
         private bool _desiredPlaying, _starting, _blocked, _failed, _disposed;
 
         public BrowserAudioStream(BrowserAudioBackend owner, string path)
@@ -157,11 +159,14 @@ internal sealed class BrowserAudioBackend : IAudioBackend
 
         public void SetVolume(float volume, double rampSeconds = 0)
         {
+            if (_requestedVolume == volume && _requestedRamp == rampSeconds) return;
             var now = _owner._context.CurrentTime;
             _gain.CancelScheduledValues(now).Dispose();
             _gain.SetValueAtTime(_gain.Value, now).Dispose();
             if (rampSeconds > 0) _gain.LinearRampToValueAtTime(volume, now + rampSeconds).Dispose();
             else _gain.SetValueAtTime(volume, now).Dispose();
+            _requestedVolume = volume;
+            _requestedRamp = rampSeconds;
         }
 
         public void Dispose()

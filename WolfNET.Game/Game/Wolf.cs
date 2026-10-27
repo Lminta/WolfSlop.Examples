@@ -109,7 +109,7 @@ public sealed class Wolf : IDisposable
                 if (reportProgress != null) await reportProgress("Loading sound effects...");
                 try
                 {
-                    var effects = await BrowserSfxBackend.CreateAsync(_http, canvas, _sound.Sfx, token);
+                    var effects = await BrowserSfxBackend.CreateAsync(_http, _js, canvas, _sound.Sfx, token);
                     var gate = loaded.Map.RendererMap.Race?.StartFinish.Center;
                     _sfx = new SfxSystem(effects, _sound, loaded.Map.CrowdPositions,
                         gate == null ? loaded.Map.PlayerStartPosition : new(gate[0], gate[1]));

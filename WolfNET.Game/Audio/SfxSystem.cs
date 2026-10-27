@@ -12,6 +12,10 @@ public sealed class SfxSystem : IDisposable
     private readonly SfxSettings _settings;
     private readonly float _volume;
     private readonly Vector2[] _crowds;
+    private readonly int[] _nearestCrowds;
+    private readonly float[] _crowdDistances;
+    private readonly List<int> _staleMud = [];
+    private readonly List<(int Id, SfxCue Cue)> _staleLoops = [];
     private readonly Vector2 _countdownPosition;
     private readonly Dictionary<(int Id, SfxCue Cue), Loop> _loops = [];
     private readonly List<Shot> _shots = [];
@@ -37,6 +41,8 @@ public sealed class SfxSystem : IDisposable
         _settings = sound.Sfx;
         _volume = sound.Volume * _settings.Volume;
         _crowds = crowds.ToArray();
+        _nearestCrowds = new int[Math.Min(_crowds.Length, _settings.MaxCrowdVoices)];
+        _crowdDistances = new float[_nearestCrowds.Length];
         _countdownPosition = countdownPosition;
         _random = random ?? Random.Shared;
         _mudVariantCount = new[] { SfxCue.MudSlow, SfxCue.MudMid, SfxCue.MudHigh }
@@ -88,8 +94,14 @@ public sealed class SfxSystem : IDisposable
                     _settings.BrakeVolume * car.Braking * Math.Clamp(car.Speed / 10, 0, 1), .85f + .3f * speed, frame);
             UpdateMud(car, frame, seconds);
         }
-        foreach (var id in _mudVisits.Keys.Where(id => !_mudContacts.Contains(id)).ToArray()) _mudVisits.Remove(id);
-        foreach (var id in _mudContactSeconds.Keys.Where(id => !_mudContacts.Contains(id)).ToArray()) _mudContactSeconds.Remove(id);
+        _staleMud.Clear();
+        foreach (var id in _mudContactSeconds.Keys)
+            if (!_mudContacts.Contains(id)) _staleMud.Add(id);
+        foreach (var id in _staleMud)
+        {
+            _mudVisits.Remove(id);
+            _mudContactSeconds.Remove(id);
+        }
         foreach (var impact in frame.Impacts)
         {
             if (impact.Speed < _settings.MinimumImpactSpeed ||
@@ -113,15 +125,46 @@ public sealed class SfxSystem : IDisposable
         _previousNumber = frame.CountdownNumber;
         // Only the closest crowd groups get voices. Their spatial positions stay
         // fixed in the map; turning the camera changes the perceived stereo side.
-        foreach (var crowd in _crowds.Select((position, index) => (position, index))
-            .Where(item => Vector2.DistanceSquared(item.position, frame.ListenerPosition) < _settings.CrowdMaxDistance * _settings.CrowdMaxDistance)
-            .OrderBy(item => Vector2.DistanceSquared(item.position, frame.ListenerPosition)).Take(_settings.MaxCrowdVoices))
-            SetLoop(-crowd.index - 1, SfxCue.Crowd, crowd.position, _settings.CrowdVolume, 1, frame);
-        foreach (var key in _loops.Keys.Where(key => !_wanted.Contains(key)).ToArray())
+        var crowdCount = FindNearestCrowds(frame.ListenerPosition);
+        for (var i = 0; i < crowdCount; i++)
+        {
+            var index = _nearestCrowds[i];
+            SetLoop(-index - 1, SfxCue.Crowd, _crowds[index], _settings.CrowdVolume, 1, frame);
+        }
+        _staleLoops.Clear();
+        foreach (var key in _loops.Keys)
+            if (!_wanted.Contains(key)) _staleLoops.Add(key);
+        foreach (var key in _staleLoops)
         {
             _loops[key].Voice.Dispose();
             _loops.Remove(key);
         }
+        _backend.Commit();
+    }
+
+    private int FindNearestCrowds(Vector2 listener)
+    {
+        if (_nearestCrowds.Length == 0) return 0;
+        var count = 0;
+        var limit = _settings.CrowdMaxDistance * _settings.CrowdMaxDistance;
+        for (var index = 0; index < _crowds.Length; index++)
+        {
+            var distance = Vector2.DistanceSquared(_crowds[index], listener);
+            if (!(distance < limit)) continue;
+            var insert = count;
+            // Strict comparison keeps authored order for equally distant groups.
+            while (insert > 0 && distance < _crowdDistances[insert - 1]) insert--;
+            if (insert == _nearestCrowds.Length) continue;
+            for (var i = Math.Min(count, _nearestCrowds.Length - 1); i > insert; i--)
+            {
+                _nearestCrowds[i] = _nearestCrowds[i - 1];
+                _crowdDistances[i] = _crowdDistances[i - 1];
+            }
+            _nearestCrowds[insert] = index;
+            _crowdDistances[insert] = distance;
+            count = Math.Min(count + 1, _nearestCrowds.Length);
+        }
+        return count;
     }
 
     public static SfxCue MudBand(float speed, float mudMaxSpeed)

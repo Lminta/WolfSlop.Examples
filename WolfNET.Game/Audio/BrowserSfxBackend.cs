@@ -3,7 +3,7 @@ using SpawnDev.BlazorJS.JSObjects;
 
 namespace WolfNET.Audio;
 
-/// <summary>Decoded short clips mixed by Web Audio, controlled entirely from C#.</summary>
+/// <summary>Decoded clips with C# mixing policy and batched Web Audio parameter writes.</summary>
 internal sealed class BrowserSfxBackend : ISfxBackend
 {
     private readonly AudioContext _context = new();
@@ -14,9 +14,14 @@ internal sealed class BrowserSfxBackend : ISfxBackend
     private readonly Dictionary<AudioBuffer, float> _mudGains = [];
     private readonly SfxVariantSelector _variants = new();
     private readonly List<Voice> _voices = [];
+    private readonly JSObject _mixer;
+    private readonly Stack<int> _freeVoiceIds = [];
+    private int _nextVoiceId;
+    private byte[] _mixBytes = new byte[32 * 4 * sizeof(float)];
+    private Float32Array _mixUpload;
     private bool _paused = true, _disposed;
 
-    private BrowserSfxBackend(HTMLCanvasElement canvas)
+    private BrowserSfxBackend(HTMLCanvasElement canvas, JSObject module)
     {
         _canvas = canvas;
         _output = _context.CreateGain();
@@ -24,13 +29,17 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         _volume.Value = 0;
         using var destination = _context.Destination;
         _output.Connect(destination).Dispose();
+        _mixer = module.JSRef!.Call<JSObject>("createMixer", _context);
+        _mixUpload = new Float32Array(_mixBytes.Length / sizeof(float));
         _canvas.OnClick += OnClick;
     }
 
-    public static async Task<BrowserSfxBackend> CreateAsync(HttpClient http, HTMLCanvasElement canvas,
+    public static async Task<BrowserSfxBackend> CreateAsync(HttpClient http, BlazorJSRuntime js, HTMLCanvasElement canvas,
         SfxSettings settings, CancellationToken cancellationToken)
     {
-        var backend = new BrowserSfxBackend(canvas);
+        using var module = await js.Import<JSObject>("./sfx-mixer.js");
+        cancellationToken.ThrowIfCancellationRequested();
+        var backend = new BrowserSfxBackend(canvas, module);
         try
         {
             // Decode each unique file once, even if several cues share it.
@@ -94,6 +103,24 @@ internal sealed class BrowserSfxBackend : ISfxBackend
 
     private void OnClick(MouseEvent e) => _ = ChangeStateAsync(false);
 
+    public void Commit()
+    {
+        if (_disposed) return;
+        if (_mixBytes.Length < _voices.Count * 4 * sizeof(float))
+        {
+            _mixBytes = new byte[_voices.Count * 8 * sizeof(float)];
+            _mixUpload.Dispose();
+            _mixUpload = new Float32Array(_mixBytes.Length / sizeof(float));
+        }
+        var values = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>(_mixBytes.AsSpan());
+        var count = 0;
+        foreach (var voice in _voices)
+            if (voice.WriteMix(values.Slice(count * 4, 4))) count++;
+        if (count == 0) return;
+        _mixUpload.WriteBytes(_mixBytes);
+        _mixer.JSRef!.CallVoid("apply", _mixUpload, count);
+    }
+
     public void SetPaused(bool paused)
     {
         if (_disposed || _paused == paused) return;
@@ -119,6 +146,8 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         _disposed = true;
         _canvas.OnClick -= OnClick;
         foreach (var voice in _voices.ToArray()) voice.Dispose();
+        _mixUpload.Dispose();
+        _mixer.Dispose();
         foreach (var buffer in _clips.Values.SelectMany(clips => clips).Distinct()) buffer.Dispose();
         _clips.Clear();
         _mudGains.Clear();
@@ -142,13 +171,16 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         private readonly StereoPannerNode _panner;
         private readonly AudioParam _volume, _pan, _pitch;
         private readonly float _clipGain;
+        private readonly int _id;
         private bool _disposed;
+        private bool _dirty;
         private float _lastVolume = float.NaN, _lastPan = float.NaN, _lastPitch = float.NaN;
         public bool Finished { get; private set; }
 
         public Voice(BrowserSfxBackend owner, AudioBuffer clip, bool loop, float phase, float clipGain)
         {
             _owner = owner;
+            _id = owner._freeVoiceIds.Count > 0 ? owner._freeVoiceIds.Pop() : owner._nextVoiceId++;
             _clipGain = clipGain;
             _source = owner._context.CreateBufferSource();
             _source.Buffer = clip;
@@ -162,6 +194,7 @@ internal sealed class BrowserSfxBackend : ISfxBackend
             _volume = _gain.Gain; _pan = _panner.Pan;
             _pitch = _source.PlaybackRate ?? throw new InvalidOperationException("Audio source has no playback rate.");
             _volume.Value = 0;
+            owner._mixer.JSRef!.CallVoid("add", _id, _volume, _pan, _pitch);
             _source.Connect(_gain).Dispose();
             _gain.Connect(_panner).Dispose();
             _panner.Connect(owner._output).Dispose();
@@ -174,21 +207,34 @@ internal sealed class BrowserSfxBackend : ISfxBackend
         public void SetMix(float volume, float pan, float pitch)
         {
             if (_disposed) return;
-            void Smooth(AudioParam parameter, float value, ref float previous)
+            void Stage(float value, ref float previous)
             {
                 if (MathF.Abs(previous - value) < .0001f) return;
                 previous = value;
-                parameter.SetTargetAtTime(value, _owner._context.CurrentTime, .025f).Dispose();
+                _dirty = true;
             }
-            Smooth(_volume, Math.Clamp(volume, 0, 1) * _clipGain, ref _lastVolume);
-            Smooth(_pan, Math.Clamp(pan, -1, 1), ref _lastPan);
-            Smooth(_pitch, Math.Clamp(pitch, .5f, 2.5f), ref _lastPitch);
+            Stage(Math.Clamp(volume, 0, 1) * _clipGain, ref _lastVolume);
+            Stage(Math.Clamp(pan, -1, 1), ref _lastPan);
+            Stage(Math.Clamp(pitch, .5f, 2.5f), ref _lastPitch);
+        }
+
+        public bool WriteMix(Span<float> values)
+        {
+            if (!_dirty || _disposed) return false;
+            values[0] = _id;
+            values[1] = _lastVolume;
+            values[2] = _lastPan;
+            values[3] = _lastPitch;
+            _dirty = false;
+            return true;
         }
 
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+            _owner._mixer.JSRef!.CallVoid("remove", _id);
+            _owner._freeVoiceIds.Push(_id);
             _source.OnEnded -= OnEnded;
             _source.Stop(0d);
             _source.Disconnect(); _gain.Disconnect(); _panner.Disconnect();
