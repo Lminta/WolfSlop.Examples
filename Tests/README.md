@@ -5,7 +5,7 @@ Run from the repository root with the .NET 10 SDK and Node 22 or newer:
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs
+node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
 ```
 
 The C# runner loads every shipped map and checks map edits, validation, walking,
@@ -25,6 +25,8 @@ check overrides and speed offsets, and simulate easy solo laps and a three-lap t
 They verify the 16-17 blocks/s target, more blue mistakes, clean green driving, and asphalt coverage.
 The Node checks cover browser sprite selection/order and
 texture upload filtering, mip coverage, cancellation, and bitmap cleanup.
+The SFX mixer checks cover shared timestamps, smoothing, unchanged parameters,
+voice removal/reuse, and isolation between scenes.
 Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
 references in `artifacts/performance` for the browser implementation to compare.
 

@@ -1,6 +1,6 @@
 // Start the development server and hardware-WebGPU Edge with remote debugging first.
 // node Tests/race-performance-browser-check.mjs 9252 http://127.0.0.1:5195 --output=artifacts/performance/after.json
-// Optional: --seconds=5 --warmup=2 --views=start,tires --trace --screenshots --min-fps=58 --drive --chase
+// Optional: --seconds=5 --warmup=2 --views=start,tires --trace --screenshots --min-fps=58 --drive --chase --no-sfx
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,9 +59,11 @@ async function waitFor(expression) {
 }
 const percentile = (values, p) => [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0;
 const report = {browser: await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(), settings: JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/graphics-settings.json')), views: []};
+report.sfxEnabled = !process.argv.includes('--no-sfx');
 if (process.argv.includes('--resume') && fs.existsSync(output)) {
     const previous = JSON.parse(fs.readFileSync(output));
     assert.deepEqual(previous.settings, report.settings, 'Cannot resume with different graphics settings');
+    assert.equal(previous.sfxEnabled ?? true, report.sfxEnabled, 'Cannot mix SFX-enabled and disabled samples');
     assert.equal(previous.browser.Browser, report.browser.Browser, 'Cannot resume with a different browser version');
     assert(previous.views.every(view => !!view.driving === process.argv.includes('--drive')), 'Cannot mix stationary and driving runs');
     report.views.push(...previous.views);
@@ -76,6 +78,10 @@ try {
         const perf=window.__racePerf,views=new Map(${JSON.stringify(fixture.views)}),originalFetch=window.fetch;
         window.fetch=async function(input,...args){
             const response=await originalFetch.call(this,input,...args),url=String(input?.url??input);
+            if(url.includes('audio-settings.json') && ${process.argv.includes('--no-sfx')}) {
+                const settings=await response.json(); settings.sfx.volume=0;
+                return new Response(JSON.stringify(settings),{headers:{'Content-Type':'application/json'}});
+            }
             if(url.includes('maps/pine-loop.json')){
                 const map=await response.json(),view=views.get(new URLSearchParams(location.search).get('reviewView'));
                 if(view)Object.assign(map.playerStart,{x:view[0],y:view[1],directionX:view[2],directionY:view[3]});

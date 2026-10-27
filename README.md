@@ -83,6 +83,8 @@ submission and animation-callback intervals, CPU callback duration, sprite count
 upload bytes, and adapter identification. `--views=start,tires`, `--seconds=10`,
 and `--warmup=3` customize sampling. `--trace` saves a browser trace for diagnosing
 CPU/GPU work; run timing acceptance without tracing or concurrent browser checks.
+Add `--no-sfx` for a comparison with sound effects disabled and music unchanged;
+save that run separately from the normal audio-enabled measurements.
 The optional threshold requires every view to reach the requested FPS and a
 95th-percentile submission interval of at most 20 ms. Headless results should also
 be checked in the normal browser when assessing presentation smoothness.
@@ -109,7 +111,7 @@ Run the regular regression checks from the repository root:
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs
+node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
 ```
 
 Run the C# suite first because it generates the sprite ordering reference files.
@@ -265,6 +267,12 @@ from its game loop. Other audio channels can be added separately.
 Sound effects run in C# through `Audio/SfxSystem.cs` and `ISfxBackend`.
 Player and opponent engine layers react to throttle, acceleration, and speed;
 brake loops require actual braking while moving.
+
+Mixing policy remains in C#. `BrowserSfxBackend` stages changed voice values and
+commits one reusable numeric buffer per frame to `sfx-mixer.js`. The browser reads
+the audio clock once for that batch and preserves 25 ms gain/pan/pitch smoothing.
+Unchanged music gains are not rescheduled, and nearest-crowd selection reuses
+storage instead of sorting and allocating on each frame.
 
 Mud sounds divide each car's configured full-mud forward speed limit into equal
 thirds: slow below 1/3, mid from 1/3 to below 2/3, and high from 2/3 upward.
