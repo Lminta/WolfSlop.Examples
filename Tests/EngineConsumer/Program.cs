@@ -13,6 +13,16 @@ int checks = 0;
 void Check(bool value, string message) { checks++; if (!value) throw new Exception(message); }
 Check(!typeof(Scene).Assembly.GetReferencedAssemblies().Any(assembly => assembly.Name!.Contains("Examples")),
     "Engine depends on Examples.");
+var engineAssembly = typeof(Scene).Assembly;
+Check(!engineAssembly.GetReferencedAssemblies().Any(assembly =>
+        assembly.Name!.StartsWith("SpawnDev", StringComparison.Ordinal) ||
+        assembly.Name.StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal) ||
+        assembly.Name.StartsWith("Microsoft.JSInterop", StringComparison.Ordinal) ||
+        assembly.Name.StartsWith("WolfNET.Engine.Browser", StringComparison.Ordinal)),
+    "The portable engine depends on a platform provider or browser framework.");
+Check(!engineAssembly.GetCustomAttributesData().Any(attribute =>
+        attribute.AttributeType.FullName == "System.Runtime.Versioning.SupportedOSPlatformAttribute"),
+    "The portable engine is restricted to a particular platform.");
 
 var definition = new MapDefinition
 {

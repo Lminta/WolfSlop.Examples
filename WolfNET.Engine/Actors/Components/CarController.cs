@@ -69,7 +69,7 @@ public sealed class CarController : ComponentBase
     {
         _input.ConsumeJump();
         if (!float.IsFinite(deltaTime) || deltaTime <= 0) return;
-        // A suspended browser frame must not fast-forward the car through the course.
+        // A suspended host frame must not fast-forward the car through the course.
         _accumulator += Math.Min(deltaTime / 1000d, .25);
         var keys = _input.KeyState;
         while (_accumulator + 1e-7 >= StepSeconds)

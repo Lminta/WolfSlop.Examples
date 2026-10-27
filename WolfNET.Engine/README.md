@@ -1,21 +1,27 @@
 # WolfNET.Engine
 
-A .NET 10 Razor class library for browser raycasting with WebGPU. It contains
-rendering, retained UI, tile maps, scenes and components, input, collision, optional walking
-and vehicle controllers, cameras, sprite animation, and audio primitives.
+A platform-independent .NET 10 class library for tile maps, scenes and components,
+input state, collision, optional walking and vehicle controllers, cameras, sprite
+animation, retained UI, audio policy and rendering contracts.
 
 The library has no dependency on `WolfNET.Examples`, its assets, race rules,
-opponents, or UI. The browser backend uses SpawnDev.BlazorJS; the simulation
-contracts can also be used in ordinary .NET programs.
+opponents, or UI. It has no NuGet dependencies, browser interop, Blazor references,
+static web assets, or platform restriction. See [platform architecture](PLATFORMS.md)
+for provider boundaries and the plan for future Android and native Windows support.
 
 ## Reference and initialize
 
-Reference `WolfNET.Engine.csproj` from a Blazor WebAssembly host. The host registers
+Reference `WolfNET.Engine.csproj` to use the portable engine in a .NET host or tool.
+Browser applications also reference
+[`WolfNET.Engine.Browser.csproj`](../WolfNET.Engine.Browser/WolfNET.Engine.Browser.csproj).
+That provider supplies `WebGpuRenderer`, `BrowserUiHost`, `BrowserInput`, browser
+audio and `BrowserFrameLoop`, under `WolfNET.Engine.Browser.*` namespaces.
+The Blazor WebAssembly host registers
 `AddBlazorJSRuntime()` and starts with `BlazorJSRunAsync()`, as shown in
 [`WolfNET.Examples/Program.cs`](../WolfNET.Examples/Program.cs).
 
-Engine JavaScript and shaders are Razor static web assets, served automatically
-under `_content/WolfNET.Engine/`. Do not copy them into the application. Artwork,
+Provider JavaScript and shaders are Razor static web assets, served automatically
+under `_content/WolfNET.Engine.Browser/`. Do not copy them into the application. Artwork,
 map/object JSON, audio clips, settings, and UI belong to the host application.
 Use a secure browser context (`https` or `localhost`) with WebGPU support.
 
@@ -23,6 +29,8 @@ Use a secure browser context (`https` or `localhost`) with WebGPU support.
 using WolfNET.Engine.Core;
 using WolfNET.Engine.Graphics;
 using WolfNET.Engine.World;
+using WolfNET.Engine.Browser.Core;
+using WolfNET.Engine.Browser.Graphics;
 
 var settings = new RendererSettings(960, 540);
 var map = await TileMap.LoadAsync(http, "maps/room.json",
@@ -55,9 +63,10 @@ implements `IScene` separately, showing that applications can own scene assembly
 | System | Application supplies |
 | --- | --- |
 | Scene | `IScene` or `Scene` with `ISceneSystem` instances and `ObjectBase` components |
+| Frame scheduling | `IFrameLoop`; the browser provider implements it with `BrowserFrameLoop` |
 | Rendering | A `RenderFrame` with camera, map, arbitrary `DynamicSprites`, and ordered `ScreenOverlay` layers |
 | Scene resources | Optional extra `TextureCatalog` entries and overlay image paths through `SceneResources` |
-| UI | `UiDocument`, layout/styles, text/images/vector widgets and controls; `BrowserUiHost` or an `IUiRenderer` backend |
+| UI | `UiDocument`, layout/styles, text/images/vector widgets and controls; `IUiRenderer` and `IUiTextMeasurer` implementations |
 | Input | `InputBindings` mapping action names to key codes, or `IKeyboardInput`/`IMouseInput` implementations |
 | Physics | `INavigationMap`, circle/box colliders, or optional `WalkingController`/`CarController` |
 | Paths and triggers | `PolylinePath` for indexed open/looping paths and `DirectedGate` for directed crossing sensors |
@@ -102,7 +111,7 @@ before rendering again; include the current extra textures and overlays.
 ## Timing and ownership
 
 Simulation update durations are milliseconds; controller speeds use world units
-and radians per second. `BrowserFrameLoop` follows animation timestamps and
+and radians per second. The browser provider's `BrowserFrameLoop` follows animation timestamps and
 invalidates stale callbacks on stop/restart. Vehicle simulation uses fixed 120 Hz
 steps. Applications own pause rules, map transitions, and renderer preparation.
 
@@ -118,7 +127,10 @@ tokens to asynchronous loading/preparation.
 ```powershell
 dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
 dotnet pack WolfNET.Engine/WolfNET.Engine.csproj -o artifacts/packages
+dotnet pack WolfNET.Engine.Browser/WolfNET.Engine.Browser.csproj -o artifacts/packages
 ```
 
 The independent consumer references only the engine and exercises its public API.
-The package includes the library and its static web assets.
+The Engine package contains the portable library and documentation. The separate
+Browser package depends on Engine and includes browser implementations and static
+web assets. Native applications can reference Engine alone.

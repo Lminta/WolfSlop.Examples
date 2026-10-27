@@ -7,6 +7,11 @@ using WolfNET.Engine.Actors;
 using WolfNET.Engine.Graphics;
 using WolfNET.Engine.Audio;
 using WolfNET.Engine.UI;
+using WolfNET.Engine.Browser.Audio;
+using WolfNET.Engine.Browser.Core;
+using WolfNET.Engine.Browser.Graphics;
+using WolfNET.Engine.Browser.Input;
+using WolfNET.Engine.Browser.UI;
 
 namespace WolfNET.Examples.Game;
 
@@ -16,7 +21,7 @@ public sealed class Wolf : IDisposable
     private readonly ISceneRenderer _renderer;
     private readonly GameSceneLoader _loader;
     private readonly HttpClient _http;
-    private readonly BrowserFrameLoop _loop;
+    private readonly IFrameLoop _loop;
     private readonly BlazorJSRuntime _js;
     private readonly Stopwatch _clock = new();
     private readonly SemaphoreSlim _mapSwitchLock = new(1, 1);
@@ -72,7 +77,7 @@ public sealed class Wolf : IDisposable
         Difficulty = gameplay.Opponents.DefaultDifficulty;
         _sound = sound;
         _js = js;
-        _loop = new(js, settings.TargetFPS);
+        _loop = new BrowserFrameLoop(js, settings.TargetFPS);
     }
 
     public void AttachUi(BrowserUiHost ui)

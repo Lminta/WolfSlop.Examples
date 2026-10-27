@@ -1,7 +1,9 @@
 using System.Numerics;
 using WolfNET.Engine.World;
 
-namespace WolfNET.Engine.Graphics;
+using WolfNET.Engine.Graphics;
+
+namespace WolfNET.Engine.Browser.Graphics;
 
 /// <summary>Resolves the browser's ordered sprite IDs without repeating atlas-frame selection.</summary>
 internal sealed class SpriteSelection

@@ -4,6 +4,9 @@
 components, and the world renderer. Applications build a `UiDocument`, update its
 controls from their state, and present its `UiFrame` through a backend. The browser
 backend draws Canvas 2D over an existing canvas, including a WebGPU canvas.
+It lives in the separate `WolfNET.Engine.Browser` project; the UI model, layout,
+controls and input router remain in portable Engine. Android and native Windows
+providers are future work; see [platform architecture](../PLATFORMS.md).
 
 The same tree controls layout, drawing, hit testing, keyboard focus, and accessible
 content. The game HUD, first-person art, and procedural viewer use this system.
@@ -14,6 +17,7 @@ Open `/ui` in Examples for an interactive control gallery.
 ```csharp
 using System.Numerics;
 using WolfNET.Engine.UI;
+using WolfNET.Engine.Browser.UI;
 
 using var document = new UiDocument { ScaleMode = UiScaleMode.Pixels };
 var panel = document.Root.Add(new UiPanel("status")
@@ -43,7 +47,7 @@ Keep these owners alive until the host component is disposed. A complete host is
 [`UiGallery.razor`](../../WolfNET.Examples/Pages/UiGallery.razor). Game-specific UI
 composition is in [`ExampleHud.cs`](../../WolfNET.Examples/Game/ExampleHud.cs).
 `BrowserUiHost` uses in-process WebAssembly interop; it is not a Blazor Server
-renderer. Its JavaScript is a library asset at `_content/WolfNET.Engine/ui.js`.
+renderer. Its JavaScript is a provider asset at `_content/WolfNET.Engine.Browser/ui.js`.
 
 ## Controls
 

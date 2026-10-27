@@ -67,7 +67,7 @@ try {
     fs.mkdirSync('artifacts/framework', {recursive: true});
     fs.writeFileSync('artifacts/framework/viewer.png', Buffer.from(snapshot.data, 'base64'));
     const assets = await evaluate(`Promise.all(['sprite-sort.js','texture-upload.js','sfx-mixer.js','ui.js','shaders/raycast.wgsl','shaders/walls.wgsl','shaders/sprites.wgsl','shaders/overlays.wgsl'].map(async name=>{
-        const response=await fetch('_content/WolfNET.Engine/'+name);return {name,status:response.status,type:response.headers.get('content-type')};
+        const response=await fetch('_content/WolfNET.Engine.Browser/'+name);return {name,status:response.status,type:response.headers.get('content-type')};
     }))`);
     assert(assets.every(asset => asset.status === 200 && !asset.type.includes('text/html')), JSON.stringify(assets));
     await evaluate(`document.querySelector('a').click()`);

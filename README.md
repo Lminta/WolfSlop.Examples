@@ -1,13 +1,16 @@
 # WolfNET
 
-Browser raycasting engine built with Blazor WebAssembly and WebGPU. Requires the .NET 10 SDK and a browser/device with WebGPU support.
+Raycasting framework with a platform-independent .NET 10 engine and a Blazor WebAssembly/WebGPU provider. The current examples require a browser/device with WebGPU support.
 
 The solution contains:
 
-- `WolfNET.Engine/`: reusable rendering, worlds, scenes/components, input, physics,
-  cameras, retained UI, animation, and audio, packaged as a Razor class library.
+- `WolfNET.Engine/`: portable worlds, scenes/components, input state, physics,
+  cameras, retained UI, animation, audio policy and provider contracts. A plain
+  .NET library without browser or UI-framework dependencies.
+- `WolfNET.Engine.Browser/`: WebGPU rendering, Canvas UI, browser input, frame
+  scheduling, Web Audio, JavaScript and shaders, packaged as a Razor class library.
 - `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
-  and example assets in `wwwroot`. It references Engine.
+  and example assets in `wwwroot`. It references Engine and the browser provider.
 - `Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
 - `Tests/`: compiler, simulation, and browser regression checks.
 
@@ -19,12 +22,18 @@ moving objects and an orbiting camera, using the engine without a player or race
 Open `/ui` for the interactive UI control gallery.
 
 See [the engine guide](WolfNET.Engine/README.md) for consumption, extension points,
-asset hosting, timing, and ownership. Engine shaders and JavaScript are served from
-`_content/WolfNET.Engine/`; applications supply their own content. The engine
+asset hosting, timing, and ownership. Browser shaders and JavaScript are served from
+`_content/WolfNET.Engine.Browser/`; applications supply their own content. The engine
 accepts arbitrary dynamic sprites and screen overlays, configurable input actions,
 application-defined sound/surface identifiers and interaction commands, and custom
 map metadata. Race rules, opponent AI, character art layouts, and cockpit/hand
 presentation belong to Examples.
+
+Android and native Windows providers are planned future work. Keep platform APIs
+inside providers, with dependencies pointing toward Engine. The
+[platform architecture guide](WolfNET.Engine/PLATFORMS.md) records the boundary,
+extension contracts, and requirements for future providers. Only the browser
+provider is implemented today.
 
 Screen UI is built with `WolfNET.Engine.UI`: a retained tree with anchored/stacked
 layout, themes, text/wrapping, cropped images, vector widgets, buttons, toggles,

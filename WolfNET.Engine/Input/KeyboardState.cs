@@ -1,6 +1,6 @@
 namespace WolfNET.Engine.Input;
 
-/// <summary>Held keys and pending actions, independent of browser event lifetimes.</summary>
+/// <summary>Held keys and pending actions, independent of host event lifetimes.</summary>
 public sealed class KeyboardState : IKeyboardInput
 {
     private readonly HashSet<string> _held = new(StringComparer.Ordinal);

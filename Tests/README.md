@@ -19,7 +19,10 @@ without a spawn, custom metadata, surface/material/audio names, input actions,
 interaction commands, 128 dynamic sprites, six low-level overlays, and scene/audio
 disposal. `UiChecks` also covers retained layout, text/graphemes, transforms,
 clipping, pointer capture, focus, modal scopes, controls, text editing, scrolling,
-invalidation and lifetime through the engine's public API.
+invalidation and lifetime through the engine's public API. The consumer also checks
+that Engine has no browser/provider assembly dependencies or platform restriction.
+Engine is a plain .NET library; browser JavaScript, shaders and interop are in
+`WolfNET.Engine.Browser`, with static assets under `_content/WolfNET.Engine.Browser/`.
 The JavaScript checks also exercise dynamic sprite counts above the original
 three actors and independent canvas indexes. Browser smoke checks observe the
 engine UI display list. Run `node Tests/framework-browser-check.mjs 9244

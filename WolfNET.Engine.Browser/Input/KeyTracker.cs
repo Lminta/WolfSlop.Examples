@@ -1,7 +1,9 @@
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 
-namespace WolfNET.Engine.Input;
+using WolfNET.Engine.Input;
+
+namespace WolfNET.Engine.Browser.Input;
 
 /// <summary>Adapts browser keyboard events to the engine's synchronous input state.</summary>
 public sealed class KeyTracker : IKeyboardInput, IDisposable

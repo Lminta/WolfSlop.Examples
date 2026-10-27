@@ -1,6 +1,7 @@
 # WolfNET examples
 
-This Blazor WebAssembly application references `WolfNET.Engine`. Run it with:
+This Blazor WebAssembly application references portable `WolfNET.Engine` and its
+`WolfNET.Engine.Browser` provider. Run it with:
 
 ```powershell
 dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj
@@ -19,7 +20,7 @@ The engine's public API and ownership contracts are documented in
 ## Application composition
 
 `Program.cs` composes the browser host. `Wolf` coordinates map switches and uses
-the engine's `BrowserFrameLoop`; `FrameTiming` controls deadlines without blocking
+the browser provider's `BrowserFrameLoop` through `IFrameLoop`; `FrameTiming` controls deadlines without blocking
 the browser. All simulation update durations are in milliseconds. Movement settings
 remain in world units and radians per second.
 
@@ -74,6 +75,10 @@ node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-m
 The C# suite references the built Engine and Examples assemblies. Only device
 input is substituted in movement fixtures. The independent engine consumer in
 `Tests/EngineConsumer` references Engine alone.
+Browser implementations live under `WolfNET.Engine.Browser.*`, and their static
+assets are served from `_content/WolfNET.Engine.Browser/`. Future Android and
+native Windows hosts should supply their own providers; see
+[platform architecture](../WolfNET.Engine/PLATFORMS.md).
 `Tests/EngineChecks.cs` covers input transitions, timing, ownership, scene assembly,
 cancellation, and door state after edits. Run the C# suite before the Node checks
 so the sprite ordering reference files are available. The retained browser smoke

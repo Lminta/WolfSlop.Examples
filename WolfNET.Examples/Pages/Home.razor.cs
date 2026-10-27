@@ -5,6 +5,9 @@ using WolfNET.Engine.World;
 using WolfNET.Engine.Graphics;
 using Microsoft.Extensions.DependencyInjection;
 using WolfNET.Engine.UI;
+using WolfNET.Engine.Browser.Graphics;
+using WolfNET.Engine.Browser.Input;
+using WolfNET.Engine.Browser.UI;
 
 namespace WolfNET.Pages;
 

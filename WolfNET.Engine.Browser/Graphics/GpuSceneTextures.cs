@@ -2,7 +2,9 @@ using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Engine.World;
 
-namespace WolfNET.Engine.Graphics;
+using WolfNET.Engine.Graphics;
+
+namespace WolfNET.Engine.Browser.Graphics;
 
 /// <summary>Owns a scene's tile array, sky panorama, samplers, and image upload process.</summary>
 internal sealed class GpuSceneTextures : IDisposable
@@ -39,7 +41,7 @@ internal sealed class GpuSceneTextures : IDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var uploader = await js.Import<JSObject>("./_content/WolfNET.Engine/texture-upload.js");
+            using var uploader = await js.Import<JSObject>("./_content/WolfNET.Engine.Browser/texture-upload.js");
             cancellationToken.ThrowIfCancellationRequested();
             using var operation = uploader.JSRef!.Call<JSObject>("createUpload");
             using var cancellation = cancellationToken.Register(() => operation.JSRef!.CallVoid("abort"));

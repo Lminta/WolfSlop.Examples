@@ -1,6 +1,6 @@
 namespace WolfNET.Engine.Core;
 
-/// <summary>Limits frame frequency without blocking the browser or accumulating catch-up frames.</summary>
+/// <summary>Limits frame frequency from host timestamps without blocking or accumulating catch-up frames.</summary>
 public sealed class FrameTiming
 {
     private readonly double _interval;

@@ -1,7 +1,9 @@
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 
-namespace WolfNET.Engine.Input;
+using WolfNET.Engine.Input;
+
+namespace WolfNET.Engine.Browser.Input;
 
 /// <summary>Owns and connects the input subscriptions for one scene.</summary>
 public sealed class BrowserInput : IDisposable

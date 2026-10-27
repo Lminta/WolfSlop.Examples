@@ -59,7 +59,8 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
     public uint ViewKind(Vector2 observer)
         => ViewKind(ViewFrame(observer));
 
-    internal uint ViewKind(int frame)
+    /// <summary>Geometry flags and packed normal for an already selected atlas frame.</summary>
+    public uint ViewKind(int frame)
     {
         if (FacingCamera || Atlas is not { Directions: > 1 } atlas || Kind != SpriteKind.Billboard)
             return (uint)Kind | (SwapRedBlue ? 32u : 0u) | (SwapRedGreen ? 64u : 0u);
@@ -74,7 +75,8 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
         return new(ViewWidth(ViewFrame(observer, elapsedSeconds)), Scale.Y);
     }
 
-    internal float ViewWidth(int frameIndex)
+    /// <summary>World-space quad width for an already selected atlas frame.</summary>
+    public float ViewWidth(int frameIndex)
     {
         if (Footprint is { } footprint && Atlas is { Directions: > 1 } directional)
         {
@@ -85,6 +87,7 @@ public readonly record struct Sprite(Vector2 Position, uint TextureLayer, uint O
         return Scale.X * (Atlas is { } atlas ? (float)atlas.Frames[frameIndex].Width / atlas.Frames[frameIndex].Height : 1);
     }
 
-    internal float MaximumViewWidth => Atlas is { } atlas
+    /// <summary>Conservative width across atlas frames for provider-side visibility selection.</summary>
+    public float MaximumViewWidth => Atlas is { } atlas
         ? Enumerable.Range(0, atlas.Frames.Length).Max(ViewWidth) : Scale.X;
 }

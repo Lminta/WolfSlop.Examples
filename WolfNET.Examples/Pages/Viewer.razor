@@ -6,6 +6,9 @@
 @using WolfNET.Engine.Graphics
 @using WolfNET.Engine.World
 @using WolfNET.Engine.UI
+@using WolfNET.Engine.Browser.Core
+@using WolfNET.Engine.Browser.Graphics
+@using WolfNET.Engine.Browser.UI
 @inject BlazorJSRuntime JS
 @inject HttpClient Http
 @inject IJSRuntime UiRuntime
@@ -23,7 +26,7 @@
     private ElementReference _canvas;
     private HTMLCanvasElement? _element;
     private WebGpuRenderer? _renderer;
-    private BrowserFrameLoop? _loop;
+    private IFrameLoop? _loop;
     private Scene? _scene;
     private BrowserUiHost? _ui;
     private readonly UiDocument _uiDocument = new() { ReferenceSize = new(960, 540) };
@@ -67,7 +70,7 @@
             _ui = await BrowserUiHost.CreateAsync(UiRuntime, _canvas, _lifetime.Token);
             _ui.SetDocument(_uiDocument);
             await _ui.PrepareImagesAsync(_lifetime.Token);
-            _loop = new(JS, settings.TargetFPS);
+            _loop = new BrowserFrameLoop(JS, settings.TargetFPS);
             _loop.Start(milliseconds => { _scene.Update(milliseconds); _renderer.Render(_scene.CaptureFrame()); _ui.Render(960, 540); },
                 exception => { _error = exception.Message; _ = InvokeAsync(StateHasChanged); });
         }

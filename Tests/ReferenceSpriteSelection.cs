@@ -6,8 +6,9 @@ namespace WolfNET.Engine.Graphics;
 // Independent, deliberately unindexed reference for the browser's spatial and painter checks.
 internal sealed class ReferenceSpriteSelection
 {
-    private readonly List<SpriteSelection.VisibleSprite> _radius = [], _visible = [];
-    public IReadOnlyList<SpriteSelection.VisibleSprite> Visible => _visible;
+    internal readonly record struct VisibleSprite(Sprite Sprite, Vector2 Scale, uint Layer, uint Kind, float Distance, int Order);
+    private readonly List<VisibleSprite> _radius = [], _visible = [];
+    public IReadOnlyList<VisibleSprite> Visible => _visible;
     public void Clear() { _radius.Clear(); _visible.Clear(); }
 
     public void Select(IReadOnlyList<Sprite> sprites, Vector2 position, Vector2 direction, Vector2 plane,

@@ -1,6 +1,6 @@
 namespace WolfNET.Engine.Input;
 
-/// <summary>Maps application action names to browser key codes. Multiple keys may share an action.</summary>
+/// <summary>Maps application action names to physical key identifiers. Multiple keys may share an action.</summary>
 public sealed class InputBindings
 {
     private readonly Dictionary<string, string[]> _actions;

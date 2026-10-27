@@ -4,7 +4,9 @@ using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Engine.World;
 using WolfNET.Engine.Actors;
 
-namespace WolfNET.Engine.Graphics;
+using WolfNET.Engine.Graphics;
+
+namespace WolfNET.Engine.Browser.Graphics;
 
 public sealed partial class WebGpuRenderer
 {

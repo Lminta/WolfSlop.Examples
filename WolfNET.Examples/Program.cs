@@ -6,6 +6,7 @@ using WolfNET;
 using WolfNET.Engine.World;
 using WolfNET.Engine.Graphics;
 using WolfNET.Engine.Audio;
+using WolfNET.Engine.Browser.Graphics;
 
 Console.WriteLine("[C#] Creating Blazor host");
 

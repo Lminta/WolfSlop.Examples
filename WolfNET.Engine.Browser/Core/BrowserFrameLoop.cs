@@ -1,10 +1,12 @@
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 
-namespace WolfNET.Engine.Core;
+using WolfNET.Engine.Core;
+
+namespace WolfNET.Engine.Browser.Core;
 
 /// <summary>Display-clock frame pacing with cancellation by generation. Owns no scene or renderer.</summary>
-public sealed class BrowserFrameLoop : IDisposable
+public sealed class BrowserFrameLoop : IFrameLoop
 {
     private readonly Window _window;
     private readonly FrameTiming _timing;

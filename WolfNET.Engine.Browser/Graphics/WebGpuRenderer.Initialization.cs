@@ -4,7 +4,9 @@ using SpawnDev.BlazorJS.JSObjects;
 using WolfNET.Engine.World;
 using WolfNET.Engine.Actors;
 
-namespace WolfNET.Engine.Graphics;
+using WolfNET.Engine.Graphics;
+
+namespace WolfNET.Engine.Browser.Graphics;
 
 public sealed partial class WebGpuRenderer
 {
@@ -95,7 +97,7 @@ public sealed partial class WebGpuRenderer
 
             CreateBuffers();
 
-            using var spriteModule = await _js.Import<JSObject>("./_content/WolfNET.Engine/sprite-sort.js");
+            using var spriteModule = await _js.Import<JSObject>("./_content/WolfNET.Engine.Browser/sprite-sort.js");
             if (cancellationToken.IsCancellationRequested || _disposed)
             {
                 spriteModule.Dispose();

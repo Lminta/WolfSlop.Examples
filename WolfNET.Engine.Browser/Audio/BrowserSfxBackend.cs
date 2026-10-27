@@ -1,7 +1,9 @@
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 
-namespace WolfNET.Engine.Audio;
+using WolfNET.Engine.Audio;
+
+namespace WolfNET.Engine.Browser.Audio;
 
 /// <summary>Decoded clips with C# mixing policy and batched Web Audio parameter writes.</summary>
 public sealed class BrowserSfxBackend<TCue> : ISfxBackend<TCue> where TCue : notnull
@@ -45,7 +47,7 @@ public sealed class BrowserSfxBackend<TCue> : ISfxBackend<TCue> where TCue : not
         Func<TCue, int, int, int>? selectVariant = null, Func<TCue, float[][], float>? clipGain = null,
         Func<TCue, bool>? analyzeClip = null)
     {
-        using var module = await js.Import<JSObject>("./_content/WolfNET.Engine/sfx-mixer.js");
+        using var module = await js.Import<JSObject>("./_content/WolfNET.Engine.Browser/sfx-mixer.js");
         cancellationToken.ThrowIfCancellationRequested();
         var backend = new BrowserSfxBackend<TCue>(canvas, module, selectVariant, clipGain, analyzeClip);
         try
