@@ -1,9 +1,9 @@
 using System.Net.Http.Json;
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Game;
-using WolfNET.Game.Physics;
-using WolfNET.Game.Player;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Physics;
+using WolfNET.Engine.Actors;
 
 internal static class OpponentDifficultyChecks
 {
@@ -50,7 +50,7 @@ internal static class OpponentDifficultyChecks
             Check(MathF.Abs(configured.CaptureFrame().Pitch - .1f) < .0001f,
                 "Gameplay camera shake settings did not reach the player camera and rendered frame.");
         }
-        var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
+        var route = new RaceRoute(loaded.Map.RendererMap.GetRaceMinimap()!);
         var easyDefault = gameplay with { Opponents = gameplay.Opponents with { DefaultDifficulty = RaceDifficulty.Easy } };
         using (var easy = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), easyDefault))
         using (var normal = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), easyDefault, RaceDifficulty.Normal))
@@ -89,13 +89,13 @@ internal static class OpponentDifficultyChecks
         {
             var profile = gameplay.Opponents.Get(difficulty).Get(green);
             var settings = OpponentDriver.CreateCarSettings(gameplay.Car, profile);
-            var start = loaded.Map.PlayerStart;
+            var start = loaded.Map.Spawn;
             var position = new Vector2(start.X, start.Y);
             var driver = new OpponentDriver(route, loaded.Map.NavigationMap, settings, gameplay.Race, position,
                 gridSide: 0, profile: profile);
             using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, settings)
                 { Transform = new() { Position = position, Rotation = Vector2.Normalize(new(start.DirectionX, start.DirectionY)) } };
-            var race = new RaceSession(loaded.Map.RendererMap.Race!, gameplay.Race with { LapCount = 1 });
+            var race = new RaceSession(loaded.Map.RendererMap.GetRace()!, gameplay.Race with { LapCount = 1 });
             race.BeginCountdown();
             race.AdvanceStart(5000);
             double integral = 0;

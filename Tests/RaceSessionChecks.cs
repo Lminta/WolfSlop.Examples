@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Game;
-using WolfNET.Graphics;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Graphics;
 
 internal static class RaceSessionChecks
 {
@@ -123,12 +123,12 @@ internal static class RaceSessionChecks
 
         var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         var authored = JsonSerializer.Deserialize<MapDefinition>(File.ReadAllText(Path.Combine(webRoot, "maps/pine-loop.json")), json)!;
-        Check(authored.Race != null, "Generated race map has no lap/checkpoint metadata.");
+        Check(authored.GetRace() != null, "Generated race map has no lap/checkpoint metadata.");
         // Spatial projection must preserve scan ordering at shortcuts and lap wraps.
-        var routePoints = authored.RaceMinimap!.Route.Select(p => new Vector2(p[0], p[1])).ToArray();
+        var routePoints = authored.GetRaceMinimap()!.Route.Select(p => new Vector2(p[0], p[1])).ToArray();
         var distances = new float[routePoints.Length];
         for (var i = 1; i < distances.Length; i++) distances[i] = distances[i - 1] + Vector2.Distance(routePoints[i - 1], routePoints[i]);
-        var route = new RaceRoute(authored.RaceMinimap);
+        var route = new RaceRoute(authored.GetRaceMinimap()!);
         float Scan(Vector2 position, float? near)
         {
             var best = float.PositiveInfinity;
@@ -162,7 +162,7 @@ internal static class RaceSessionChecks
                 $"Indexed route projection changed progress at {position}, previous {near}.");
         using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(webRoot, "../../Tests/Fixtures/pine-loop-lap.json")));
         var lap = fixture.RootElement.GetProperty("lap").EnumerateArray().Select(p => new Vector2(p[0].GetSingle(), p[1].GetSingle())).ToArray()[..^1];
-        var finishGate = authored.Race!.StartFinish;
+        var finishGate = authored.GetRace()!.StartFinish;
         var center = new Vector2(finishGate.Center[0], finishGate.Center[1]);
         var forward = Vector2.Normalize(new(finishGate.Direction[0], finishGate.Direction[1]));
         var initial = Enumerable.Range(0, lap.Length).First(i =>
@@ -171,7 +171,7 @@ internal static class RaceSessionChecks
         var ordered = Enumerable.Range(0, lap.Length + 2).Select(i => lap[(initial + i) % lap.Length]).ToList();
         RaceStatus Ride(IReadOnlyList<Vector2> points)
         {
-            var ride = new RaceSession(authored.Race);
+            var ride = new RaceSession(authored.GetRace()!);
             Ready(ride);
             for (var i = 1; i < points.Count; i++) ride.Update(points[i - 1], points[i], 100);
             return ride.Status;
@@ -196,7 +196,7 @@ internal static class RaceSessionChecks
         scene.SetPaused(false);
         scene.Update(250);
         var countdown = scene.RaceState;
-        var redLight = scene.CaptureFrame().Map.Sprites.Single(sprite => sprite.RaceStartLight);
+        var redLight = scene.CaptureFrame().Map.Sprites.Single(sprite => sprite.Tag == "race-start-light");
         Check(redLight.ViewLayer(Vector2.Zero) == redLight.TextureLayer, "Starting light was not red during countdown.");
         scene.SetPaused(true); scene.Update(1000);
         Check(scene.RaceState == countdown, "Countdown continued while paused.");
@@ -214,7 +214,7 @@ internal static class RaceSessionChecks
         for (var i = 0; i < 18; i++) scene.Update(250);
         Check(scene.PlayerPose == startingPose && scene.RaceState?.CountdownNumber == 1, "Countdown allowed the car to move.");
         scene.Update(250);
-        var greenLight = scene.CaptureFrame().Map.Sprites.Single(sprite => sprite.RaceStartLight);
+        var greenLight = scene.CaptureFrame().Map.Sprites.Single(sprite => sprite.Tag == "race-start-light");
         Check(scene.RaceState is { Phase: RacePhase.Racing, ShowGo: true } && greenLight.TextureLayer == redLight.TextureLayer + 1,
             "GO did not release controls and switch the world light to green.");
         for (var i = 0; i < 90; i++) scene.Update(1000f / 60);
@@ -228,9 +228,9 @@ internal static class RaceSessionChecks
             new GameplaySettings { Race = new() { LapCount = 7 } });
         Check(fresh.RaceState?.TotalLaps == 7, "Scene did not pass gameplay lap settings to the session.");
         Check(fresh.RaceState is { Phase: RacePhase.AwaitingStart, Started: false, CompletedLaps: 0, TotalMilliseconds: 0 }, "A new race scene retained the previous session's times or laps.");
-        Check(fresh.CaptureFrame().Map.Sprites.Single(sprite => sprite.RaceStartLight).TextureLayer == redLight.TextureLayer,
+        Check(fresh.CaptureFrame().Map.Sprites.Single(sprite => sprite.Tag == "race-start-light").TextureLayer == redLight.TextureLayer,
             "Restarting did not reset the starting light to red.");
-        var withoutRace = new GameMap(authored with { Race = null }, loaded.Map.Objects, 512, 512);
+        var withoutRace = new TileMap(authored with { Metadata = authored.Metadata.Where(pair => pair.Key != "race").ToDictionary() }, loaded.Map.Objects, 512, 512);
         Check(withoutRace.RendererMap.Sprites.Count == loaded.Map.RendererMap.Sprites.Count &&
             withoutRace.RendererMap.Cells.SequenceEqual(loaded.Map.RendererMap.Cells), "Timing checkpoints changed map objects or collisions.");
         Console.WriteLine($"PASS: {count} race session assertions (ordered gates, lap timing, shortcut, pause, and scene resets).");

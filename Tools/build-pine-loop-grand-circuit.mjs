@@ -10,7 +10,7 @@ import { sizeRacewayObject, sizeRacewayProps } from './size-raceway-props.mjs';
 import { applyRacewayAudioMetadata } from './raceway-audio-metadata.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web = path.join(repository, 'WolfNET.Game/wwwroot');
+const web = path.join(repository, 'WolfNET.Examples/wwwroot');
 const objectDirectory = path.join(web, 'objects/raceway');
 const textureDirectory = path.join(web, 'textures/raceway');
 const width = 256, height = 512;
@@ -413,13 +413,13 @@ const music = {
     tracks: fs.readdirSync(path.join(web, 'music')).filter(name => /\.mp3$/i.test(name)).sort()
         .map(name => `music/${name}`)
 };
-const map = { objects, race, music, worldMap: grid, playerStart: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
+const map = { objects, race, music, worldMap: grid, spawn: { controller: 'car', x: 25.5, y: 445.5, directionX: 0, directionY: -1,
     moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15, jumpRise: .4, jumpLength: 2,
     jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
     sky: { texture: 'textures/skyboxes/countryside_sky.jpg', rotationDegrees: 110 },
     raceMinimap: { route: anchors.map(([x, y]) => [x + 1, y + 1]),
         startFinish: [25.5, 442.5], shortcuts: [[shortcut.from, shortcut.to]] } };
-const pretty = JSON.stringify(map, null, 2), before = pretty.indexOf('  "worldMap": ['), after = pretty.indexOf('  "playerStart":', before);
+const pretty = JSON.stringify(map, null, 2), before = pretty.indexOf('  "worldMap": ['), after = pretty.indexOf('  "spawn":', before);
 applyRacewayAudioMetadata();
 const columns = '  "worldMap": [\n' + grid.map(column => '    [' + column.join(', ') + ']').join(',\n') + '\n  ],\n';
 fs.writeFileSync(path.join(web, 'maps/pine-loop.json'), pretty.slice(0, before) + columns + pretty.slice(after) + '\n');

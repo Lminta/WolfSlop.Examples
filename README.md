@@ -4,20 +4,42 @@ Browser raycasting engine built with Blazor WebAssembly and WebGPU. Requires the
 
 The solution contains:
 
-- `WolfNET.Game/`: the game, renderer, Blazor UI, launch profiles, and game assets in `wwwroot`.
+- `WolfNET.Engine/`: reusable rendering, worlds, scenes/components, input, physics,
+  cameras, animation, and audio, packaged as a Razor class library.
+- `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
+  and example assets in `wwwroot`. It references Engine.
+- `Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
 - `Tests/`: compiler, simulation, and browser regression checks.
 
 Build the solution with `dotnet build WolfNET.slnx`.
+
+Start the examples with `dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj`.
+Open `/` for exploration/racing or `/viewer` for a procedural scene with twelve
+moving objects and an orbiting camera, using the engine without a player or race.
+
+See [the engine guide](WolfNET.Engine/README.md) for consumption, extension points,
+asset hosting, timing, and ownership. Engine shaders and JavaScript are served from
+`_content/WolfNET.Engine/`; applications supply their own content. The engine
+accepts arbitrary dynamic sprites and screen overlays, configurable input actions,
+application-defined sound/surface identifiers and interaction commands, and custom
+map metadata. Race rules, opponent AI, character art layouts, and cockpit/hand
+presentation belong to Examples.
+
+Maps now use optional `spawn` instead of `playerStart`; object interactions use
+`interactionTarget` instead of `interactionMap`, and the example starting signal
+uses `tag: "race-start-light"` instead of `raceStartLight: true`. Shipped maps,
+objects, generation tools, and checks have been migrated together. Map metadata
+such as `race` and `raceMinimap` is interpreted and validated by Examples.
 
 The default level is **Showcase**, a gallery of materials, doors, objects, and
 movement examples, with a parked car in its annex for entering Pine Loop.
 **The Glassworks** is a compact abandoned botanical station
 built around a central glasshouse. Explore its potting room and pump room, then
 find the maintenance shortcut that links the rooms. See the
-[Glassworks notes](WolfNET.Game/wwwroot/maps/glassworks.md) for the layout.
+[Glassworks notes](WolfNET.Examples/wwwroot/maps/glassworks.md) for the layout.
 **The Brickyard**, the original motor depot, and **Showcase** remain available
 from the map selector. Open `?map=level1` to load The Brickyard directly; its
-[level notes](WolfNET.Game/wwwroot/maps/level1.md) describe the original routes.
+[level notes](WolfNET.Examples/wwwroot/maps/level1.md) describe the original routes.
 
 **Pine Loop** is a 256 × 512 outdoor racing circuit with a five-tile starting grid
 and road sections varying from two to four tiles, large infield loops, a long eastern straight, a 44-block tunnel,
@@ -28,7 +50,7 @@ tire stacks protect the bends, and long buffer sprites keep a fixed orientation.
 Find a parked car in the Glassworks east service room, the Brickyard motor yard,
 or the Showcase annex, face it from nearby, and press **F** to enter Pine Loop.
 Its
-[map notes](WolfNET.Game/wwwroot/maps/pine-loop.md) describe the route and assets.
+[map notes](WolfNET.Examples/wwwroot/maps/pine-loop.md) describe the route and assets.
 
 Pine Loop uses a rotating local minimap with a 120-block viewing width. Its player
 arrow stays below center and points up, leaving more room for upcoming bends.
@@ -41,7 +63,7 @@ Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filterin
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.
 
-Edit `WolfNET.Game/wwwroot/graphics-settings.json` to change render width, height,
+Edit `WolfNET.Examples/wwwroot/graphics-settings.json` to change render width, height,
 target FPS, `maxAnisotropy` (1–16, default 4), and `fovDegrees` (horizontal field of
 view, 1–179°, default 66.85°). `renderDistance` sets the horizontal viewing radius
 in map blocks (default **60**, positive and finite). `fogStartDistance` sets where
@@ -111,6 +133,7 @@ Run the regular regression checks from the repository root:
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
+dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
 node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
 ```
 
@@ -124,7 +147,7 @@ and the **mouse** looks left/right and up/down. Vertical looking shifts the hori
 with simulated pitch limited to ±30°. **Esc** releases the mouse and clears held movement keys.
 
 **Space** jumps while the mouse is captured. A jump follows a smooth up/down camera
-arc. Map `playerStart.jumpRise` sets upward camera travel (default 0.4 map squares,
+arc. Map `spawn.jumpRise` sets upward camera travel (default 0.4 map squares,
 from 0 to less than 0.5); `jumpLength` sets horizontal distance (default 2 map
 squares, up to 64), and `jumpSpeedMultiplier` multiplies walking speed in the air
 (default 1.25, must be positive). Flight time is calculated as
@@ -151,14 +174,14 @@ crouched, and Alt cannot bypass obstacles in flight. Read `Wolf.Player?.Crouchin
 or `PlayerObject.Crouching` for the current stance.
 
 The player collides as a circle and slides along solid cells and rounded corners.
-Each map sets `playerStart.collisionRadius` (default 0.15 map squares; greater than
+Each map sets `spawn.collisionRadius` (default 0.15 map squares; greater than
 zero and less than 0.5). Movement uses
 short collision steps so fast motion cannot jump through walls.
 
-Player movement is configured in each map's `playerStart` object alongside the spawn position and direction:
+Player movement is configured in each map's `spawn` object alongside the spawn position and direction:
 
 ```json
-"playerStart": {
+"spawn": {
   "x": 6.5,
   "y": 26.5,
   "directionX": 1,
@@ -178,7 +201,7 @@ Player movement is configured in each map's `playerStart` object alongside the s
 
 ## Driving on Pine Loop
 
-Entering Pine Loop selects `playerStart.controller: "car"`; omitted controller
+Entering Pine Loop selects `spawn.controller: "car"`; omitted controller
 metadata keeps the walking character on other maps. **W** accelerates,
 **A/D** or **left/right arrows** steer, **S** brakes and then reverses while held,
 and **Space** brakes without reversing. Opposing W/S inputs also brake. There is
@@ -204,7 +227,7 @@ fully off-road footprints use their full respective profiles.
 Defaults are **19 blocks/s** forward and
 **4 blocks/s** reverse on asphalt, **8** and **2** off-road.
 
-Edit [gameplay-settings.json](WolfNET.Game/wwwroot/gameplay-settings.json) and
+Edit [gameplay-settings.json](WolfNET.Examples/wwwroot/gameplay-settings.json) and
 reload to tune dimensions, engine acceleration, speed limits, braking, lateral
 grip, rolling resistance, terrain penalty, steering, and cameras. Distances use
 blocks, speeds blocks/second, accelerations blocks/second², response coefficients
@@ -226,7 +249,7 @@ First-person mouse camera control is disabled; the cockpit wheel still follows
 the simulated steering angle. Switching to the cockpit resets orbit and pitch.
 **Esc**, capture loss, or window blur pauses the car and retains momentum;
 clicking the canvas resumes. Asset prompts are in
-[cockpit-assets.md](WolfNET.Game/wwwroot/textures/race/cockpit-assets.md).
+[cockpit-assets.md](WolfNET.Examples/wwwroot/textures/race/cockpit-assets.md).
 
 The panel beneath the race minimap shows completed/total laps (for example `1/3`), total elapsed time,
 current lap time, and the last completed lap. The first click starts a five-second
@@ -237,16 +260,16 @@ count only after passing all invisible checkpoints in order. Reversing over the
 line or repeatedly crossing it cannot add laps. An incomplete finish clears
 checkpoint progress while time continues. The configured final lap freezes driving
 and timing, releases the mouse, and shows total and individual lap times with a
-restart button. Set `race.lapCount` in `WolfNET.Game/wwwroot/gameplay-settings.json`
+restart button. Set `race.lapCount` in `WolfNET.Examples/wwwroot/gameplay-settings.json`
 to change the race length (default: 3). Restarting loads a fresh grid and countdown;
 leaving the map also resets the session.
 Music starts with the countdown at 15% of its configured volume and smoothly
 reaches normal volume at GO. Pausing driving also pauses music and the fade.
 Pine Loop plays every MP3 currently
-in `WolfNET.Game/wwwroot/music` in order, repeating the queue with a three-second
+in `WolfNET.Examples/wwwroot/music` in order, repeating the queue with a three-second
 crossfade (including the last track back to the first). Restarting resets music
 to the first track; leaving the map releases both streams.
-Edit `WolfNET.Game/wwwroot/audio-settings.json` and reload to change
+Edit `WolfNET.Examples/wwwroot/audio-settings.json` and reload to change
 `volume` (0–1, default 1), `musicVolume` (0–1, default 0.65),
 `musicCrossfadeSeconds` (nonnegative, default 3; zero disables blending), and
 `countdownStartVolume` (0–1, default 0.15; a fraction of normal music volume).
@@ -316,8 +339,8 @@ are synthesized mono WAVs; regenerate them from the repository root with
 `sfx.volume: 0` skips only effects. Effects pause with mouse capture and are
 released on map changes. Short effects are decoded once per scene; music streams.
 Missing clips are reported once per load and skipped. Generate the eleven files
-using the [ElevenLabs sound prompts](WolfNET.Game/wwwroot/sounds/GENERATE-SOUNDS.md),
-then put them in `WolfNET.Game/wwwroot/sounds/` and reload.
+using the [ElevenLabs sound prompts](WolfNET.Examples/wwwroot/sounds/GENERATE-SOUNDS.md),
+then put them in `WolfNET.Examples/wwwroot/sounds/` and reload.
 
 Pine Loop's checkpoint sequence permits its existing Mud Express shortcut.
 The map's optional `race` metadata stores a `startFinish` gate and ordered
@@ -371,12 +394,12 @@ driving input, both views, pause/resume, cockpit alignment, and walking-map rest
 Both launch profiles bind to all IPv4 interfaces. In Rider, select the `https` launch profile, or run:
 
 ```powershell
-dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile https
+dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile https
 ```
 
 On another device on the same network, open `https://<server-LAN-IP>:7279`. Use `ipconfig` on the server to find its IPv4 address. The address at setup time was `192.168.50.232`, so the URL was `https://192.168.50.232:7279`. This address can change with DHCP.
 
-The HTTP profile (`dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile http`) serves `http://<server-LAN-IP>:5025` for connectivity checks. WebGPU requires a secure context, so HTTP over a LAN IP will load the page but cannot render the game. See the [WebGPU specification](https://www.w3.org/TR/webgpu/#navigator-gpu).
+The HTTP profile (`dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile http`) serves `http://<server-LAN-IP>:5025` for connectivity checks. WebGPU requires a secure context, so HTTP over a LAN IP will load the page but cannot render the game. See the [WebGPU specification](https://www.w3.org/TR/webgpu/#navigator-gpu).
 
 ## HTTPS certificate for LAN devices
 
@@ -390,7 +413,7 @@ New-Item -ItemType Directory -Force .certs | Out-Null
 mkcert -cert-file .certs/lan.pem -key-file .certs/lan-key.pem localhost 127.0.0.1 192.168.50.232
 $env:ASPNETCORE_Kestrel__Certificates__Default__Path = (Resolve-Path .certs/lan.pem).Path
 $env:ASPNETCORE_Kestrel__Certificates__Default__KeyPath = (Resolve-Path .certs/lan-key.pem).Path
-dotnet run --project WolfNET.Game/WolfNET.Game.csproj --launch-profile https
+dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile https
 ```
 
 Install the `rootCA.pem` from the directory printed by `mkcert -CAROOT` into each client's trusted certificate authorities, following that device's certificate trust instructions. On iOS, also enable full trust in Certificate Trust Settings. Share only the public `rootCA.pem`, never `rootCA-key.pem` or `lan-key.pem`. Regenerate the server certificate if the LAN IP changes. The environment variables above apply to the current terminal; configure them in Rider's run configuration if launching there.
@@ -434,7 +457,7 @@ avatar rather than showing it through the camera. First-person movement, jump
 planning and collision stay at the player's position. Camera elevation uses the
 engine's existing simulated pitch and stays within floor/ceiling height limits.
 
-The character uses `WolfNET.Game/wwwroot/player-character.json` and the v3 atlas.
+The character uses `WolfNET.Examples/wwwroot/player-character.json` and the v3 atlas.
 Two-frame pairs are: rear walk 0–1, rear-left 2–3, rear-right 4–5, left strafe 6–7,
 right strafe 8–9, rear crouch 10–11, rear jump 12–13; frame 14 is idle. Actual
 movement advances walking/crouching frames every 160 ms; jumping uses the same

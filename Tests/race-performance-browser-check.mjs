@@ -58,7 +58,7 @@ async function waitFor(expression) {
     throw Error('Timed out: ' + expression + '\n' + logs.slice(-12).join('\n'));
 }
 const percentile = (values, p) => [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0;
-const report = {browser: await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(), settings: JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/graphics-settings.json')), views: []};
+const report = {browser: await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(), settings: JSON.parse(fs.readFileSync('WolfNET.Examples/wwwroot/graphics-settings.json')), views: []};
 report.sfxEnabled = !process.argv.includes('--no-sfx');
 if (process.argv.includes('--resume') && fs.existsSync(output)) {
     const previous = JSON.parse(fs.readFileSync(output));
@@ -84,7 +84,7 @@ try {
             }
             if(url.includes('maps/pine-loop.json')){
                 const map=await response.json(),view=views.get(new URLSearchParams(location.search).get('reviewView'));
-                if(view)Object.assign(map.playerStart,{x:view[0],y:view[1],directionX:view[2],directionY:view[3]});
+                if(view)Object.assign(map.spawn,{x:view[0],y:view[1],directionX:view[2],directionY:view[3]});
                 return new Response(JSON.stringify(map),{headers:{'Content-Type':'application/json'}});
             }
             ${process.argv.includes('--screenshots') ? `if(url.includes('/objects/')&&url.endsWith('.json')){
@@ -99,10 +99,13 @@ try {
             if(adapter)perf.adapter={preference:options?.powerPreference??'default',vendor:adapter.info?.vendor,architecture:adapter.info?.architecture,device:adapter.info?.device,description:adapter.info?.description};
             return adapter;
         };
+        const setPipeline=GPURenderPassEncoder.prototype.setPipeline,drawOverlay=GPURenderPassEncoder.prototype.draw;
+        GPURenderPassEncoder.prototype.setPipeline=function(pipeline){this.__overlay=pipeline.label==='WolfNET Overlay Pipeline';return setPipeline.call(this,pipeline);};
+        GPURenderPassEncoder.prototype.draw=function(...args){if(this.__overlay)perf.overlays++;return drawOverlay.apply(this,args);};
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,dataOffset=0,size){
-            if(buffer.label==='WolfNET First Person')perf.firstPerson=new Float32Array(data.buffer??data,data.byteOffset??0,3)[2];
             if(buffer.label==='WolfNET Camera'){
+                perf.overlays=0;
                 const camera=new Float32Array(data.buffer??data,data.byteOffset??0,2);perf.camera=[camera[0],camera[1]];
             }
             if(buffer.label==='WolfNET Sprites')perf.uploadBytes+=(size??(data.byteLength/(data.BYTES_PER_ELEMENT??1)-dataOffset))*(data.BYTES_PER_ELEMENT??1);
@@ -144,7 +147,7 @@ try {
             if (process.argv.includes('--chase')) {
                 await send('Input.dispatchKeyEvent', {type: 'keyDown', code: 'KeyV', key: 'v', windowsVirtualKeyCode: 86});
                 await send('Input.dispatchKeyEvent', {type: 'keyUp', code: 'KeyV', key: 'v', windowsVirtualKeyCode: 86});
-                await waitFor('window.__racePerf.firstPerson===0');
+                await waitFor('window.__racePerf.overlays===0');
             }
             await send('Input.dispatchKeyEvent', {type: 'keyDown', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87});
         }

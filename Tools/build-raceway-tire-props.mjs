@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sizeRacewayObject } from './size-raceway-props.mjs';
 
-const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Game/wwwroot/objects/raceway');
+const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Examples/wwwroot/objects/raceway');
 const stack = (spriteId, x, y, scale = .31) => ({ spriteId,
     offset: { x, y, z: (scale - 1) / 2 }, scale: { x: scale, y: scale } });
 const row = (spriteId, axis, scale = .31) => [-.32, 0, .32].map(offset =>

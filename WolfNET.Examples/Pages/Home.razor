@@ -1,0 +1,131 @@
+@page "/"
+@using SpawnDev.BlazorJS
+@using SpawnDev.BlazorJS.JSObjects
+@using WolfNET.Engine.World
+@using WolfNET.Engine.Input
+@using WolfNET.Engine.Graphics
+
+@inject BlazorJSRuntime JS
+@inject HttpClient Http
+
+@inject RendererSettings Settings
+
+@implements IDisposable
+
+<CascadingValue Value="Wolf" IsFixed="true">
+<div class="game-viewport" style="--render-width: @Settings.Width; --render-height: @Settings.Height;">
+    <canvas @ref="_canvas"
+            width="@Settings.Width"
+            height="@Settings.Height"
+            tabindex="0">
+    </canvas>
+
+@if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null &&
+    Wolf.Map.RendererMap.GetRaceMinimap() is { } raceMinimap && Wolf.Player is { } player)
+{
+    <WolfNET.Components.RaceMinimap @key="raceMinimap" Definition="raceMinimap"
+        InitialPose="@(new PlayerPose(player.Transform.Position, player.Transform.Rotation))" />
+}
+@if (!_loading && !_errorPresent && Wolf.Player is WolfNET.Engine.Actors.CarObject)
+{
+    <WolfNET.Components.DrivingPause @key="(typeof(WolfNET.Components.DrivingPause), Wolf.CurrentMapPath)" />
+    <WolfNET.Components.Speedometer @key="(typeof(WolfNET.Components.Speedometer), Wolf.CurrentMapPath)" />
+    @if (Wolf.RaceState != null)
+    {
+        <WolfNET.Components.RaceOverlay @key="Wolf.Map" OnRestart="RestartRaceAsync" />
+    }
+}
+</div>
+
+@if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null)
+{
+    <WolfNET.Components.FpsCounter @key="Wolf.CurrentMapPath" />
+}
+
+@if (_loading)
+{
+    <div class="loading-overlay" role="status" aria-live="polite" aria-atomic="true">
+        <div class="loading-card">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <h1>Loading scene</h1>
+            <p>@_loadingMessage</p>
+        </div>
+    </div>
+}
+
+<aside class="map-switcher" aria-label="Map selection">
+    <nav aria-label="Maps">
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == GlassworksMap))"
+                aria-pressed="@(_selectedMap == GlassworksMap ? "true" : "false")" @onclick="() => SelectMapAsync(GlassworksMap)">The Glassworks</button>
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == OriginalMap))"
+                aria-pressed="@(_selectedMap == OriginalMap ? "true" : "false")" @onclick="() => SelectMapAsync(OriginalMap)">The Brickyard</button>
+        <button type="button" disabled="@(_loading || (!_errorPresent && _selectedMap == ShowcaseMap))"
+                aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
+    </nav>
+    <a class="viewer-link" href="viewer">Scene viewer</a>
+    @if (_loading)
+    {
+        <p role="status">@_loadingMessage</p>
+    }
+    @if (_selectedMap == GlassworksMap)
+    {
+        <p>Explore an abandoned botanical station. Circle the central glasshouse through the potting room and pump room, or discover the maintenance shortcut.</p>
+    }
+    @if (_selectedMap == PineLoopMap)
+    {
+        <p>Follow the outdoor circuit from the five-wide starting grid through wide passing sections and narrow forest lanes. Pass the northern tunnel, tire-lined bends, grandstand, and three pit boxes.</p>
+        <div class="race-difficulty">
+            <span>Difficulty</span>
+            <div class="difficulty-options" role="group" aria-label="Race difficulty">
+                <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Normal)"
+                        aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Normal ? "true" : "false")"
+                        @onclick="() => SelectDifficultyAsync(RaceDifficulty.Normal)">Normal</button>
+                <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Easy)"
+                        aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Easy ? "true" : "false")"
+                        @onclick="() => SelectDifficultyAsync(RaceDifficulty.Easy)">Easy</button>
+            </div>
+            <small>Changing difficulty restarts the race.</small>
+        </div>
+        <button type="button" class="race-restart" disabled="@_loading" @onclick="RestartRaceAsync">Restart race</button>
+    }
+    @if (_selectedMap == ShowcaseMap)
+    {
+        <ul class="showcase-guide">
+            <li><strong>Top right:</strong> a compact missing-texture room just north of spawn. Pink is intentional.</li>
+            <li><strong>Top left:</strong> lanes from left: clear path, invisible barrier, walk-through wall, solid wall. All have textured floors and ceilings.</li>
+            <li><strong>Bottom right:</strong> props and a barrel pyramid are grouped on the west side. The clear east side has two jumpable rows of four columns at 0.4 scale near (9,20), with room to approach and land.</li>
+            <li><strong>Obstacle corridor:</strong> enter through (24,11) from the independent-flags gallery. The loop alternates jumping and crouching obstacles.</li>
+            <li><strong>Crouch test:</strong> ceiling-mounted columns at (9,16) leave room to pass underneath.</li>
+            <li><strong>Bottom left:</strong> floor and ceiling checkerboards and four wall faces around the pillar at (18,17).</li>
+            <li><strong>Doors:</strong> an opaque steel door at (18,12) and a glass door at (24,18).</li>
+            <li><strong>Far left annex:</strong> enter from the materials gallery to compare a mesh ceiling with open sky. Walk around the enlarged car at (30,18) to see its eight directional views.</li>
+        </ul>
+    }
+    @if (_selectedMap == OriginalMap)
+    {
+        <p>Explore the old motor depot. Beyond the gatehouse, the covered arcade leads to the courtyard and loading bays. The service passage offers a shorter way to the motor yard.</p>
+    }
+</aside>
+
+<aside class="controls-hint" aria-label="Game controls">
+    <strong>Controls</strong>
+    @if (Wolf.Player is WolfNET.Engine.Actors.CarObject)
+    {
+        <p>W accelerate &middot; A/D or arrows steer</p>
+        <p>S brake/reverse &middot; Space brake &middot; V camera</p>
+        <p>Mouse orbits in third person.</p>
+    }
+    else
+    {
+        <p>W/S forward/back &middot; A/D strafe &middot; Mouse look</p>
+        <p>Space jump &middot; Alt crouch &middot; V camera</p>
+    }
+    <p>Press "F" to interact with door or car.</p>
+    <p role="status">@(_observedMouse?.CaptureError ?? "Click the game to capture the mouse. Esc releases it.")</p>
+</aside>
+
+@if (_error != null)
+{
+    <pre class="game-error">@_error</pre>
+}
+</CascadingValue>

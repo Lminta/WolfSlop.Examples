@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const metersPerBlock = 3;
-const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Game/wwwroot/objects/raceway');
+const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Examples/wwwroot/objects/raceway');
 const treeHeights = new Map([
     [540, [12]], [541, [6]], [570, [12]], [571, [6]], [572, [14]], [573, [7]],
     [574, [11, 6]], [575, [12, 7]], [576, [13, 7]], [577, [11, 9, 13]],

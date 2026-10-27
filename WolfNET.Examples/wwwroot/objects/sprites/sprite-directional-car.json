@@ -1,0 +1,67 @@
+{
+  "type": "sprite",
+  "id": 119,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 10,
+  "texture": "textures/race/car-game-atlas.png",
+  "textureLayer": 32,
+  "rotationDegrees": -90,
+  "facingCamera": false,
+  "atlas": {
+    "directions": 8,
+    "frames": [
+      {
+        "x": 44,
+        "y": 107,
+        "width": 306,
+        "height": 224
+      },
+      {
+        "x": 396,
+        "y": 104,
+        "width": 450,
+        "height": 224
+      },
+      {
+        "x": 868,
+        "y": 90,
+        "width": 474,
+        "height": 224
+      },
+      {
+        "x": 1364,
+        "y": 97,
+        "width": 397,
+        "height": 224
+      },
+      {
+        "x": 44,
+        "y": 538,
+        "width": 306,
+        "height": 224
+      },
+      {
+        "x": 399,
+        "y": 540,
+        "width": 436,
+        "height": 224
+      },
+      {
+        "x": 868,
+        "y": 530,
+        "width": 474,
+        "height": 224
+      },
+      {
+        "x": 1357,
+        "y": 541,
+        "width": 406,
+        "height": 224
+      }
+    ]
+  },
+  "interactionTarget": "maps/pine-loop.json"
+}

@@ -1,0 +1,103 @@
+@using System.Globalization
+@using System.Numerics
+@using WolfNET.Engine.World
+@using WolfNET.Engine.Graphics
+@implements IDisposable
+
+<aside class="race-minimap" aria-label="Race minimap">
+    <div class="race-minimap-viewport">
+        <svg viewBox="0 0 100 100" role="img" aria-label="Nearby race track, rotating with your heading">
+            <g class="race-minimap-course" transform="@_transform">
+                <polyline class="race-minimap-road-edge" points="@_route" />
+                <polyline class="race-minimap-road" points="@_route" />
+                @foreach (var shortcut in _shortcuts)
+                {
+                    <polyline class="race-minimap-shortcut" points="@shortcut" />
+                }
+                <g class="race-minimap-start" transform="@_startTransform">
+                    <rect x="-2" y="-2" width="4" height="4" fill="#fff" stroke="#101923" stroke-width="1" vector-effect="non-scaling-stroke" />
+                    <path d="M-2 -2H0V0H-2ZM0 0H2V2H0Z" fill="#101923" />
+                </g>
+            </g>
+        </svg>
+        <svg class="race-minimap-opponents" viewBox="0 0 100 100" role="img" aria-label="Opponent positions">
+            @if (_bluePosition is { } blue)
+            {
+                <circle class="race-minimap-blue" cx="@Number(blue.X)" cy="@Number(blue.Y)" r="1.8">
+                    <title>Blue car</title>
+                </circle>
+            }
+            @if (_greenPosition is { } green)
+            {
+                <circle class="race-minimap-green" cx="@Number(green.X)" cy="@Number(green.Y)" r="1.8">
+                    <title>Green car</title>
+                </circle>
+            }
+        </svg>
+        <svg class="race-minimap-player" viewBox="0 0 16 20" aria-hidden="true">
+            <path d="M8 1L15 18L8 14L1 18Z" fill="#45bfff" stroke="#f2f8ff" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+    </div>
+    @if (_hasRace)
+    {
+        <RaceTiming />
+    }
+</aside>
+
+@code {
+    [CascadingParameter] public Wolf Wolf { get; set; } = null!;
+    [Parameter, EditorRequired] public RaceMinimapDefinition Definition { get; set; } = null!;
+    [Parameter] public PlayerPose InitialPose { get; set; }
+    private RaceMinimapDefinition? _cachedDefinition;
+    private string _route = "";
+    private string[] _shortcuts = [];
+    private string _startTransform = "";
+    private string _transform = "";
+    private Vector2? _bluePosition;
+    private Vector2? _greenPosition;
+    private bool _disposed;
+    private bool _hasRace;
+
+    private static string Number(float value) => value.ToString("0.#####", CultureInfo.InvariantCulture);
+    private static string Points(float[][] points) => string.Join(" ", points.Select(point => $"{Number(point[0])},{Number(point[1])}"));
+
+    protected override void OnInitialized() => Wolf.PlayerPoseChanged += OnPlayerPoseChanged;
+
+    protected override void OnParametersSet()
+    {
+        _hasRace = Wolf.RaceState != null;
+        if (!ReferenceEquals(_cachedDefinition, Definition))
+        {
+            _cachedDefinition = Definition;
+            _route = Points(Definition.Route);
+            _shortcuts = Definition.Shortcuts.Select(Points).ToArray();
+            _startTransform = $"translate({Number(Definition.StartFinish[0])} {Number(Definition.StartFinish[1])})";
+        }
+        UpdateTransform(InitialPose);
+    }
+
+    private void UpdateTransform(PlayerPose pose)
+    {
+        var matrix = RaceMinimapProjection.Create(pose.Position, pose.Direction);
+        _bluePosition = Wolf.OpponentPose is { } blue ? Vector2.Transform(blue.Position, matrix) : null;
+        _greenPosition = Wolf.SecondOpponentPose is { } green ? Vector2.Transform(green.Position, matrix) : null;
+        _transform = $"matrix({Number(matrix.M11)} {Number(matrix.M12)} {Number(matrix.M21)} {Number(matrix.M22)} {Number(matrix.M31)} {Number(matrix.M32)})";
+    }
+
+    private void OnPlayerPoseChanged(PlayerPose pose)
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            UpdateTransform(pose);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Wolf.PlayerPoseChanged -= OnPlayerPoseChanged;
+    }
+}

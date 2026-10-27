@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sizeRacewayObject } from './size-raceway-props.mjs';
 
-const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Game/wwwroot/objects/raceway');
+const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../WolfNET.Examples/wwwroot/objects/raceway');
 const faces = [
     { bit: 1, name: 'west', dx: -1, dy: 0 },
     { bit: 2, name: 'east', dx: 1, dy: 0 },

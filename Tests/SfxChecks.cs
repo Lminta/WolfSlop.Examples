@@ -1,10 +1,10 @@
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Audio;
-using WolfNET.Game;
-using WolfNET.Game.Physics;
-using WolfNET.Game.Player;
-using WolfNET.Graphics;
+using WolfNET.Engine.Audio;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Physics;
+using WolfNET.Engine.Actors;
+using WolfNET.Engine.Graphics;
 
 internal static class SfxChecks
 {
@@ -273,7 +273,7 @@ internal static class SfxChecks
         Check(CarContact.Resolve(car, other, nav, 1f / 120, false, false) is { Speed: > 9.9f }, "Car collisions must report closing speed independently of wall impacts.");
 
         var loaded = await new GameSceneLoader(http, new RendererSettings()).LoadAsync("maps/pine-loop.json");
-        Check(loaded.Map.CrowdPositions.Count > 0, "Pine Loop must expose crowd emitters from authored objects.");
+        Check(loaded.Map.AmbientEmitters.Any(emitter => emitter.Cue == "crowd"), "Pine Loop must expose crowd emitters from authored objects.");
         Check(loaded.Map.Objects.Values.Select(obj => obj.ImpactMaterial).Distinct().Count() == 4, "Pine Loop must include hard, metal, wood, and rubber collision materials.");
         using var scene = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new RendererSettings());
         var audioFrame = scene.CaptureAudioFrame(scene.CaptureFrame(), true, .1f);
@@ -282,7 +282,7 @@ internal static class SfxChecks
         return count;
     }
 
-    private sealed class FakeBackend : ISfxBackend
+    private sealed class FakeBackend : ISfxBackend<SfxCue>
     {
         public List<Voice> Voices { get; } = [];
         public bool Paused, Disposed, Missing;

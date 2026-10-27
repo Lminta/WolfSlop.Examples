@@ -1,7 +1,17 @@
 // Run the C# suite first to generate its List.Sort reference ordering.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sort, prepare, select, release} from '../WolfNET.Game/wwwroot/sprite-sort.js';
+import {sort, prepare, select as selectSprites, release, createSelector} from '../WolfNET.Engine/wwwroot/sprite-sort.js';
+
+// Keep the existing player/rival scenarios while adapting them to the public list API.
+function select(output, widths, count, x, y, range, dx, dy, plane, cull, ...slots) {
+    const actors = [];
+    for (let i = 0; i < slots.length; i += 4) {
+        // Preserve slot indices so the existing painter-order fixtures remain useful.
+        actors.push(slots[i] ? slots[i + 1] : 1e20, slots[i + 2] || 0, slots[i + 3] || 0, slots[i + 3] || 0);
+    }
+    return selectSprites(output, widths, count, x, y, range, dx, dy, plane, cull, new Float32Array(actors), actors.length / 4);
+}
 
 const cases = JSON.parse(fs.readFileSync('artifacts/performance/sprite-sort-oracle.json'));
 for (const {distances, expected} of cases) {
@@ -67,3 +77,25 @@ assert.equal(select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, true,
 release();
 console.log(`PASS: browser painter sort matches .NET for ${cases.length} fixtures, including equal distances, partition boundaries, reused buffers, and spare capacity.`);
 console.log(`PASS: browser spatial ordering matches .NET at all ${spatial.views.length} Pine Loop viewpoints.`);
+
+// More moving entities than the original three-car scene, with reused and grown buffers.
+release(); prepare(new Float32Array(4), 0);
+const moving = new Float32Array(128 * 4), manyOutput = new Uint32Array(130 * 2);
+for (let i = 0; i < 128; i++) moving.set([1 + i * .25, 0, 1, 1], i * 4);
+assert.equal(selectSprites(manyOutput, noWidths, 0, 0, 0, 60, 1, 0, 1, true, moving, 128), 128);
+assert.equal(manyOutput[2], 127);
+assert.equal(manyOutput[2 + 127 * 2], 0);
+moving[0] = -10;
+assert.equal(selectSprites(manyOutput, noWidths, 0, 0, 0, 60, 1, 0, 1, true, moving, 128), 127);
+release();
+const first = createSelector(), second = createSelector();
+first.prepare(new Float32Array([3, 0, 1, 1]), 1);
+second.prepare(new Float32Array([7, 0, 1, 1]), 1);
+first.select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, false);
+assert.equal(new Float32Array(output.buffer)[3], 9);
+second.select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, false);
+assert.equal(new Float32Array(output.buffer)[3], 49);
+first.release();
+assert.equal(second.select(output, noWidths, 0, 0, 0, 60, 1, 0, 1, false), 1,
+    'Releasing one canvas cleared another canvas sprite index');
+second.release();

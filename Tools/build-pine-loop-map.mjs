@@ -14,7 +14,7 @@ if (!process.argv.includes('--legacy')) {
 }
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web = path.join(repository, 'WolfNET.Game/wwwroot');
+const web = path.join(repository, 'WolfNET.Examples/wwwroot');
 const objectDirectory = path.join(web, 'objects/raceway');
 const width = 80, height = 70;
 const grid = Array.from({ length: width }, () => Array(height).fill(501));
@@ -186,12 +186,12 @@ for (const name of fs.readdirSync(objectDirectory).filter(name => name.endsWith(
     objects[definition.id] = `../objects/raceway/${name}`;
     ownedObjects.set(definition.id, definition);
 }
-const map = { objects, worldMap: grid, playerStart: { controller: 'car', x: 13.5, y: 47.5,
+const map = { objects, worldMap: grid, spawn: { controller: 'car', x: 13.5, y: 47.5,
     directionX: 0, directionY: -1, moveSpeed: 3.2, rotSpeed: 3, collisionRadius: .15,
     jumpRise: .4, jumpLength: 2, jumpSpeedMultiplier: 1.25, crouchDrop: .25, crouchSpeedMultiplier: .5 },
     sky: { texture: 'textures/skyboxes/countryside_sky.jpg', rotationDegrees: 110 } };
 const pretty = JSON.stringify(map, null, 2);
-const before = pretty.indexOf('  "worldMap": ['), after = pretty.indexOf('  "playerStart":', before);
+const before = pretty.indexOf('  "worldMap": ['), after = pretty.indexOf('  "spawn":', before);
 const columns = '  "worldMap": [\n' + grid.map(column => '    [' + column.join(', ') + ']').join(',\n') + '\n  ],\n';
 fs.writeFileSync(path.join(web, 'maps/pine-loop.json'), pretty.slice(0, before) + columns + pretty.slice(after) + '\n');
 

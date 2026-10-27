@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using System.Text;
 
-var directory = Path.Combine(Directory.GetCurrentDirectory(), "WolfNET.Game", "wwwroot", "sounds");
+var directory = Path.Combine(Directory.GetCurrentDirectory(), "WolfNET.Examples", "wwwroot", "sounds");
 if (!Directory.Exists(directory)) throw new DirectoryNotFoundException("Run from the WolfNET repository root.");
 WriteTone("countdown-tick.wav", 700, .15);
 WriteTone("countdown-go.wav", 1200, .4);

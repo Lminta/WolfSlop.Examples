@@ -1,10 +1,10 @@
 using System.Numerics;
-using WolfNET.Game;
-using WolfNET.Game.Core;
-using WolfNET.Game.InputEvents;
-using WolfNET.Game.Physics;
-using WolfNET.Game.Player;
-using WolfNET.Game.Player.Components;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Core;
+using WolfNET.Engine.Input;
+using WolfNET.Engine.Physics;
+using WolfNET.Engine.Actors;
+using WolfNET.Engine.Actors.Components;
 
 internal static class CarPhysicsChecks
 {

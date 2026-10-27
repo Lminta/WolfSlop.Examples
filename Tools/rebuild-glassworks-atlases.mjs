@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import zlib from 'node:zlib';
 // Run from the repository root: node Tools/rebuild-glassworks-atlases.mjs
 // Reads the preserved generated sheets; no generation API or dependencies needed.
-const directory='WolfNET.Game/wwwroot/textures/glassworks';
+const directory='WolfNET.Examples/wwwroot/textures/glassworks';
 fs.mkdirSync('artifacts',{recursive:true});
 function decode(filename){
  const file=fs.readFileSync(filename);let width,height,type,depth,parts=[];

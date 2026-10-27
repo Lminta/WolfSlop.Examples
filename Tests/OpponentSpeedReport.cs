@@ -1,9 +1,9 @@
 using System.Net.Http.Json;
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Game;
-using WolfNET.Game.Player;
-using WolfNET.Game.Physics;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Actors;
+using WolfNET.Engine.Physics;
 
 internal static class OpponentSpeedReport
 {
@@ -86,7 +86,7 @@ internal static class OpponentSpeedReport
         var profiles = gameplay.Opponents.Get(selectedDifficulty);
         Console.WriteLine($"Difficulty: {selectedDifficulty}");
         var loaded = await new GameSceneLoader(http, new(), gameplay).LoadAsync("maps/pine-loop.json");
-        var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
+        var route = new RaceRoute(loaded.Map.RendererMap.GetRaceMinimap()!);
         var results = new List<object>();
         using (var scene = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new(), gameplay, selectedDifficulty))
         {
@@ -115,14 +115,14 @@ internal static class OpponentSpeedReport
             var skilled = i == 1;
             var profile = profiles.Get(skilled);
             var settings = OpponentDriver.CreateCarSettings(gameplay.Car, profile);
-            var start = loaded.Map.PlayerStart;
+            var start = loaded.Map.Spawn;
             var position = new Vector2(start.X, start.Y);
             var driver = new OpponentDriver(route, loaded.Map.NavigationMap, settings, gameplay.Race, position, skilled, gridSide: 0, profile: profile);
             using var car = new CarObject(driver, driver, loaded.Map.NavigationMap, settings)
             {
                 Transform = new() { Position = position, Rotation = Vector2.Normalize(new(start.DirectionX, start.DirectionY)) }
             };
-            var race = new RaceSession(loaded.Map.RendererMap.Race!, gameplay.Race);
+            var race = new RaceSession(loaded.Map.RendererMap.GetRace()!, gameplay.Race);
             race.BeginCountdown();
             race.AdvanceStart(5000);
             var recorder = new Recorder("Solo", skilled ? "Green" : "Blue", car, route, loaded.Map.NavigationMap, gameplay.Race, profile);

@@ -1,6 +1,6 @@
 using System.Numerics;
-using WolfNET.Game;
-using WolfNET.Graphics;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Graphics;
 
 internal static class CarInteractionChecks
 {
@@ -15,8 +15,8 @@ internal static class CarInteractionChecks
         const string destination = "maps/pine-loop.json";
         foreach (var name in new[] { "glassworks", "level1", "showcase" })
         {
-            var map = await GameMap.LoadAsync(http, $"maps/{name}.json", 512, 512);
-            var cars = map.RendererMap.Sprites.Where(sprite => sprite.InteractionMap == destination).ToArray();
+            var map = await TileMap.LoadAsync(http, $"maps/{name}.json", 512, 512);
+            var cars = map.RendererMap.Sprites.Where(sprite => sprite.InteractionTarget == destination).ToArray();
             Check(cars.Length > 0, $"{name} has no car entrance to Pine Loop");
             foreach (var car in cars)
             {
@@ -24,7 +24,7 @@ internal static class CarInteractionChecks
                     .Select(offset => car.Position + offset)
                     .Where(position => map.NavigationMap.IsWalkable((int)position.X, (int)position.Y)).ToArray();
                 Check(approaches.Length > 0 && approaches.Any(position =>
-                    MapInteraction.FindDestination(map, position, car.Position - position) == destination),
+                    MapInteraction.FindTarget(map, position, car.Position - position) == destination),
                     $"{name} car cannot be interacted with from its surroundings");
             }
         }
@@ -48,33 +48,33 @@ internal static class CarInteractionChecks
         scene.Player.Camera.ThirdPerson = true;
         input.ActionRequested = true; scene.Update(16);
         Check(scene.ConsumeMapRequest() == destination, "Third-person interaction ignored the player's position/facing");
-        Check(MapInteraction.FindDestination(test, new(1.5f, 3.5f), Vector2.UnitX) == null,
+        Check(MapInteraction.FindTarget(test, new(1.5f, 3.5f), Vector2.UnitX) == null,
             "Car interaction has unlimited reach");
-        Check(MapInteraction.FindDestination(test, new(3.5f), Vector2.UnitY) == null,
+        Check(MapInteraction.FindTarget(test, new(3.5f), Vector2.UnitY) == null,
             "F interacted while looking beside the car");
-        Check(MapInteraction.FindDestination(test, new(2.5f, 3.5f), Vector2.UnitX) == destination,
+        Check(MapInteraction.FindTarget(test, new(2.5f, 3.5f), Vector2.UnitX) == destination,
             "Nearby car is out of interaction range");
         test.SetCell(3, 3, 1);
-        Check(MapInteraction.FindDestination(test, new(2.5f, 3.5f), Vector2.UnitX) == null,
+        Check(MapInteraction.FindTarget(test, new(2.5f, 3.5f), Vector2.UnitX) == null,
             "Car interaction passed through a wall");
         test.SetCell(3, 3, 4);
-        Check(MapInteraction.FindDestination(test, new(2.5f, 3.5f), Vector2.UnitX) == null,
+        Check(MapInteraction.FindTarget(test, new(2.5f, 3.5f), Vector2.UnitX) == null,
             "Car interaction passed through a closed door");
         scene.Player.Transform = scene.Player.Transform with { Position = new(2.5f, 3.5f), Rotation = Vector2.UnitX };
         input.ActionRequested = true; scene.Update(16);
         Check(test.Doors.Single().TargetOpen && scene.ConsumeMapRequest() == null,
             "Using a door also entered a car behind it");
         test.UpdateDoors(1000, scene.Player.Transform.Position, .15f);
-        Check(MapInteraction.FindDestination(test, scene.Player.Transform.Position, Vector2.UnitX) == destination,
+        Check(MapInteraction.FindTarget(test, scene.Player.Transform.Position, Vector2.UnitX) == destination,
             "Open doors incorrectly block car interaction");
         test.SetCell(3, 3, 0);
         test.SetCell(3, 2, 1);
-        Check(MapInteraction.FindDestination(test, new(3.5f, 2.5f), new(1, 1)) == null,
+        Check(MapInteraction.FindTarget(test, new(3.5f, 2.5f), new(1, 1)) == null,
             "Interaction starts inside a blocked cell");
 
         foreach (var invalid in new[] { "../pine-loop.json", "https://example.com/map.json", "maps/../../secret.json", "maps/pine-loop.json\n" })
         {
-            try { MakeMap(invalid); }
+            try { MakeMap(invalid).ValidateExample(); }
             catch (InvalidDataException) { count++; continue; }
             throw new Exception("Invalid interaction map path accepted");
         }
@@ -82,7 +82,7 @@ internal static class CarInteractionChecks
         return count;
     }
 
-    private static GameMap MakeMap(string target = "maps/pine-loop.json")
+    private static TileMap MakeMap(string target = "maps/pine-loop.json")
     {
         var cells = Enumerable.Range(0, 8).Select(x => Enumerable.Range(0, 8)
             .Select(y => x == 0 || y == 0 || x == 7 || y == 7 ? 1 : 0).ToArray()).ToArray();
@@ -92,12 +92,12 @@ internal static class CarInteractionChecks
             [0] = new PassageDefinition { Id = 0, RaycastTransparent = true, Collides = false },
             [1] = new WallDefinition { Id = 1, PassageId = 0, RaycastTransparent = false, Collides = true },
             [2] = new SpriteDefinition { Id = 2, PassageId = 0, RaycastTransparent = true, Collides = true,
-                Texture = "textures/car.png", TextureLayer = 10, InteractionMap = target },
+                Texture = "textures/car.png", TextureLayer = 10, InteractionTarget = target },
             [3] = new SpriteGroupDefinition { Id = 3, PassageId = 0, RaycastTransparent = true, Collides = true,
                 Sprites = [new() { SpriteId = 2, Offset = new() { X = 0, Y = 0 } }] },
             [4] = new DoorDefinition { Id = 4, PassageId = 0, RaycastTransparent = false, Collides = true, Axis = "x" }
         };
-        return new GameMap(new MapDefinition { WorldMap = cells, PlayerStart = new() {
+        return new TileMap(new MapDefinition { WorldMap = cells, Spawn = new() {
             X = 2.5f, Y = 2.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 3, RotSpeed = 3 } }, objects, 8, 8);
     }
 }

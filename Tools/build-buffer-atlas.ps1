@@ -45,7 +45,7 @@ public static class BufferAtlasAlpha
 }
 
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
-$textureDirectory = Join-Path $repositoryRoot 'WolfNET.Game/wwwroot/textures/raceway'
+$textureDirectory = Join-Path $repositoryRoot 'WolfNET.Examples/wwwroot/textures/raceway'
 $frontSource = [System.Drawing.Bitmap]::new((Join-Path $textureDirectory 'buffer.png'))
 $sideSource = [System.Drawing.Bitmap]::new((Join-Path $textureDirectory 'buffer-side.png'))
 $front = $null

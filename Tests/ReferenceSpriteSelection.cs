@@ -1,7 +1,7 @@
 using System.Numerics;
-using WolfNET.Game;
+using WolfNET.Engine.World;
 
-namespace WolfNET.Graphics;
+namespace WolfNET.Engine.Graphics;
 
 // Independent, deliberately unindexed reference for the browser's spatial and painter checks.
 internal sealed class ReferenceSpriteSelection

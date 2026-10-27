@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { sizeRacewayObject } from './size-raceway-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web = path.join(repository, 'WolfNET.Game/wwwroot');
+const web = path.join(repository, 'WolfNET.Examples/wwwroot');
 const objectDirectory = path.join(web, 'objects/raceway');
 const textureDirectory = path.join(web, 'textures/raceway');
 
@@ -109,7 +109,7 @@ export function writeRacewayEventProps() {
     fs.writeFileSync(path.join(textureDirectory, 'race-start-light-atlas.svg'),
         `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512">${redLight}${greenLight}</svg>\n`);
     object('sprite-race-start-light', 632, 'sprite', { passageId: 501,
-        texture: 'textures/raceway/race-start-light-atlas.svg', textureLayer: 180, planeAxis: 'y', raceStartLight: true,
+        texture: 'textures/raceway/race-start-light-atlas.svg', textureLayer: 180, planeAxis: 'y', tag: 'race-start-light',
         atlas: { directions: 1, frames: [0, 512].map(x => ({x, y: 0, width: 512, height: 512})) } });
     group('group-race-start-light', 645, 632, 3.4);
     advertisements.forEach((advertisement, index) => {

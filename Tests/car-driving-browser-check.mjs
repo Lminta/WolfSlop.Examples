@@ -4,8 +4,8 @@ import fs from 'node:fs';
 
 const port = process.argv[2] ?? '9260';
 const base = process.argv[3] ?? 'http://127.0.0.1:53727';
-const carDefinition = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/objects/sprites/sprite-directional-car.json', 'utf8'));
-const carSettings = JSON.parse(fs.readFileSync('WolfNET.Game/wwwroot/gameplay-settings.json', 'utf8')).car;
+const carDefinition = JSON.parse(fs.readFileSync('WolfNET.Examples/wwwroot/objects/sprites/sprite-directional-car.json', 'utf8'));
+const carSettings = JSON.parse(fs.readFileSync('WolfNET.Examples/wwwroot/gameplay-settings.json', 'utf8')).car;
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {method: 'PUT'})).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
@@ -132,7 +132,7 @@ try {
         const createViewTexture = GPUDevice.prototype.createTexture, destroyViewTexture = GPUTexture.prototype.destroy;
         GPUDevice.prototype.createTexture = function(descriptor) {
             const texture = createViewTexture.call(this, descriptor);
-            if (descriptor.label?.startsWith('WolfNET First Person Texture:')) window.__viewTextures.add(texture);
+            if (descriptor.label?.startsWith('WolfNET Overlay Texture:')) window.__viewTextures.add(texture);
             return texture;
         };
         GPUTexture.prototype.destroy = function() { window.__viewTextures.delete(this); return destroyViewTexture.call(this); };
@@ -150,12 +150,19 @@ try {
             if (source.source.__carFrame !== undefined) window.__carLayers[destination.origin.z] = source.source.__carFrame;
             return copy.call(this, source, destination, ...args);
         };
+        const setPipeline = GPURenderPassEncoder.prototype.setPipeline, drawOverlay = GPURenderPassEncoder.prototype.draw;
+        GPURenderPassEncoder.prototype.setPipeline = function(pipeline) {
+            this.__overlay = pipeline.label === 'WolfNET Overlay Pipeline'; return setPipeline.call(this, pipeline);
+        };
+        GPURenderPassEncoder.prototype.draw = function(...args) {
+            if(this.__overlay) window.__overlayCount++; return drawOverlay.apply(this, args);
+        };
         const write = GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer = function(buffer, offset, data, ...args) {
             const unit = data.BYTES_PER_ELEMENT ?? 1, raw = data.buffer ?? data, start = (data.byteOffset ?? 0) + (args[0] ?? 0) * unit;
             const words = (args[1] ?? (data.byteLength / unit - (args[0] ?? 0))) * unit / 4;
-            if (buffer.label === 'WolfNET Camera') window.__camera = Array.from(new Float32Array(raw, start, 12));
-            if (buffer.label === 'WolfNET First Person') window.__firstPerson = Array.from(new Float32Array(raw, start, 12));
+            if (buffer.label === 'WolfNET Camera') {window.__overlayCount = 0; window.__camera = Array.from(new Float32Array(raw, start, 12));}
+            if (buffer.label === 'WolfNET Screen Layers') window.__overlays = Array.from(new Float32Array(raw, start, 32));
             if (buffer.label === 'WolfNET Map Info' && offset === 0) window.__mapInfo = Array.from(new Uint32Array(raw, start, 4));
             if (buffer.label === 'WolfNET Sprites') {
                 const ints = new Uint32Array(raw, start, words), floats = new Float32Array(raw, start, words);
@@ -174,7 +181,7 @@ try {
     `});
     await send('Page.navigate', {url: base + '/?map=pine-loop'});
     await send('Page.bringToFront');
-    await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__firstPerson?.[2] === 2 && document.querySelector('.car-paused')`);
+    await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__overlayCount === 2 && document.querySelector('.car-paused')`);
     assert.equal(await evaluate(`document.querySelectorAll('.car-cockpit, .player-hands').length`), 0, 'First-person images still use DOM overlays');
     assert.equal(await evaluate('window.__viewTextures.size'), 2, 'Car did not upload its two first-person textures');
     fs.mkdirSync('artifacts/car-driving', {recursive: true});
@@ -212,7 +219,7 @@ try {
     for (const [width, height] of [[1280, 850], [1920, 720], [390, 850]]) {
         await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
         await delay(100);
-        assert.equal(await evaluate(`window.__firstPerson[2]`), 2, 'Resize hid the shader cockpit');
+        assert.equal(await evaluate(`window.__overlayCount`), 2, 'Resize hid the shader cockpit');
         const timing = await evaluate(`(() => {
             const map=document.querySelector('.race-minimap-viewport').getBoundingClientRect();
             const hud=document.querySelector('.race-timing').getBoundingClientRect();
@@ -231,11 +238,11 @@ try {
     await waitFor(`document.querySelector('.race-countdown-number')?.textContent.trim() === '5'`);
     await key('KeyW'); await key('KeyA'); await tap('KeyV');
     await delay(300);
-    await waitFor(`window.__firstPerson?.[2] === 0 && !!window.__avatar`);
+    await waitFor(`window.__overlayCount === 0 && !!window.__avatar`);
     const countdownCar = await evaluate('window.__avatar');
     assert(distance([countdownCar.x, countdownCar.y], parked) < .001, 'Countdown camera switch allowed driving');
     await tap('KeyV');
-    await waitFor(`window.__firstPerson?.[2] === 2`);
+    await waitFor(`window.__overlayCount === 2`);
     assert.deepEqual(await camera(), parked, 'Countdown camera switch changed the car pose');
     assert.equal(await evaluate(`document.querySelector('.race-total').textContent.trim()`), '0:00.00');
     await key('KeyW', false); await key('KeyA', false);
@@ -264,12 +271,12 @@ try {
     console.log('PASS start: click-to-start countdown, camera switching with driving locked, frozen timers, pause/resume, animated GO.');
 
     await key('KeyA');
-    await waitFor(`window.__firstPerson[3] < -100 * Math.PI / 180`);
+    await waitFor(`window.__overlays[26] < -100 * Math.PI / 180`);
     assert(distance(await camera(), parked) < .001, 'Steering at rest moved the car');
     assert(Math.abs((await camera())[2]) < .001, 'Steering at rest rotated the car');
     await snapshot('cockpit-steering');
     await key('KeyA', false);
-    await waitFor(`Math.abs(window.__firstPerson[3]) < .01 * Math.PI / 180`);
+    await waitFor(`Math.abs(window.__overlays[26]) < .01 * Math.PI / 180`);
     await key('Space'); await key('AltLeft'); await delay(250);
     assert.equal((await camera())[9], 0, 'Car Space or Alt changed camera height');
     await key('Space', false); await key('AltLeft', false);
@@ -308,7 +315,7 @@ try {
     console.log('PASS driving: gradual acceleration, continued coasting, braking without a jump, and accelerated reverse.');
 
     await tap('KeyV');
-    await waitFor(`window.__firstPerson?.[2] === 0 && window.__avatar?.frame === 4`);
+    await waitFor(`window.__overlayCount === 0 && window.__avatar?.frame === 4`);
     const avatar = await evaluate('window.__avatar');
     assert(Math.abs(avatar.width - carSettings.width) < .001 && Math.abs(avatar.height - carSettings.height) < .001, 'Chase view used the wrong car sprite dimensions');
     assert.equal(avatar.kind & 24, 24, 'Car character is still a camera-facing billboard');
@@ -349,7 +356,7 @@ try {
         'Race timer advanced while driving was paused');
     assert.equal(await evaluate(`document.querySelector('.race-gap').textContent`), pausedGap,
         'Opponent gap advanced while driving was paused');
-    assert.equal(await evaluate('window.__firstPerson[2]'), 0, 'Paused chase view displayed the cockpit');
+    assert.equal(await evaluate('window.__overlayCount'), 0, 'Paused chase view displayed the cockpit');
     await key('KeyW', false); await key('KeyA', false); await key('Space', false);
     await snapshot('third-person-paused');
     await capture();
@@ -360,7 +367,7 @@ try {
     assert(Math.abs(afterResume[2] - paused[2]) < .001 && Math.abs(afterResume[8] - paused[8]) < .001,
         'Inactive mouse or steering input leaked into the resumed race');
     await tap('KeyV');
-    await waitFor(`window.__firstPerson?.[2] === 2 && window.__avatar === null`);
+    await waitFor(`window.__overlayCount === 2 && window.__avatar === null`);
     assert.deepEqual(missing, [], 'Race map requested a missing asset');
     console.log('PASS camera and pause: eight-view chase car, V switching, Esc pose freeze, inactive-input rejection, and preserved momentum on recapture.');
 
@@ -388,7 +395,7 @@ try {
     assert.equal(await evaluate('document.querySelectorAll(".car-cockpit, .car-paused, .race-minimap").length'), 0,
         'Race overlays survived leaving the race map');
     assert([...requests].some(url => /main-character-atlas/.test(url)), 'Exploration map did not restore the human character');
-    await waitFor(`window.__firstPerson?.[2] === 1`);
+    await waitFor(`window.__overlayCount === 2 && window.__viewTextures.size === 1`);
     assert.equal(await evaluate('window.__viewTextures.size'), 1, 'Car first-person textures survived switching to the human scene');
     assert(requests.has('/textures/characters/first-person-hands.png'), 'Human hands were not uploaded on returning to exploration');
     await capture();

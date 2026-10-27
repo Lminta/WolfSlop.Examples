@@ -1,7 +1,7 @@
 using System.Numerics;
-using WolfNET.Game;
-using WolfNET.Game.Physics;
-using WolfNET.Game.Player;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Physics;
+using WolfNET.Engine.Actors;
 
 internal static class CarContactChecks
 {

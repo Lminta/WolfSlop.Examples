@@ -1,13 +1,13 @@
-using WolfNET.Game;
-using WolfNET.Game.Physics;
-using WolfNET.Game.Player;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Physics;
+using WolfNET.Engine.Actors;
 using System.Numerics;
 
 internal static class OpponentChecks
 {
     public static async Task<int> RunAsync(HttpClient http)
     {
-        var loaded = await new GameSceneLoader(http, new WolfNET.Graphics.RendererSettings()).LoadAsync("maps/pine-loop.json");
+        var loaded = await new GameSceneLoader(http, new WolfNET.Engine.Graphics.RendererSettings()).LoadAsync("maps/pine-loop.json");
         using var scene = new GameScene(loaded.Map, loaded.Character, new FakeKeyboard(), new FakeMouse(), new());
         var opponent = scene.Opponent ?? throw new Exception("Race has no opponent.");
         var green = scene.SecondOpponent ?? throw new Exception("Race has no green opponent.");
@@ -136,7 +136,7 @@ internal static class OpponentChecks
                 "Opponents lost the player on the opening straight through unnecessary rival fighting.");
         }
         // Both driver profiles defend either passing lane against any faster racer.
-        var route = new RaceRoute(loaded.Map.RendererMap.RaceMinimap!);
+        var route = new RaceRoute(loaded.Map.RendererMap.GetRaceMinimap()!);
         var blueLine = new OpponentRacingLine(route, loaded.Map.NavigationMap, opponent.Settings);
         foreach (var settings in new[] { green.Settings with
                  { Asphalt = green.Settings.Asphalt with { MaxLateralAcceleration = 4, BrakeDeceleration = 3 } },
@@ -434,7 +434,7 @@ internal static class OpponentChecks
             fastPlayer.Controller.ResolveCarContact(position, direction * 2);
             playerFirst.Update(1000f / 60);
         }
-        var gates = loaded.Map.RendererMap.Race!;
+        var gates = loaded.Map.RendererMap.GetRace()!;
         Cross(gates.StartFinish);
         Check(playerFirst.RaceState?.GapMilliseconds == null, "Leading player showed a gap before completing a lap.");
         for (var lap = 0; lap < 3; lap++)

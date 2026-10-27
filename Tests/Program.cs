@@ -1,11 +1,11 @@
 using System.Net;
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Game;
-using WolfNET.Game.Player.Components;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Actors.Components;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
-var webRoot = Path.Combine(root, "WolfNET.Game", "wwwroot");
+var webRoot = Path.Combine(root, "WolfNET.Examples", "wwwroot");
 using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
 if (args.Contains("--opponent-speeds"))
 {
@@ -29,7 +29,7 @@ void Reject(Action action, string message)
 foreach (var file in Directory.EnumerateFiles(Path.Combine(webRoot, "maps"), "*.json").Order())
 {
     var name = Path.GetFileNameWithoutExtension(file);
-    var loaded = await GameMap.LoadAsync(http, $"maps/{name}.json", 512, 512);
+    var loaded = await TileMap.LoadAsync(http, $"maps/{name}.json", 512, 512);
     Check(loaded.RendererMap.Cells.Count == loaded.RendererMap.Width * loaded.RendererMap.Height,
         $"{name}: render grid is incomplete");
     Check(loaded.RendererMap.Sprites.All(sprite => sprite.OwnerCell > 0 &&
@@ -42,7 +42,7 @@ var definition = new MapDefinition
 {
     WorldMap = Enumerable.Range(0, 9).Select(x => Enumerable.Range(0, 9)
         .Select(y => x == 0 || y == 0 || x == 8 || y == 8 ? 1 : 0).ToArray()).ToArray(),
-    PlayerStart = new() { X = 4.5f, Y = 4.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2 }
+    Spawn = new() { X = 4.5f, Y = 4.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 5, RotSpeed = 2 }
 };
 
 new MusicDefinition().Validate();
@@ -56,7 +56,7 @@ var objects = new Dictionary<int, MapObjectDefinition>
     [2] = new SpriteDefinition { Id = 2, PassageId = 0, RaycastTransparent = true, Collides = true,
         Texture = "textures/wolf/barrel.png", TextureLayer = 8 }
 };
-GameMap Compile(MapDefinition? source = null) => new(source ?? definition, objects, 64, 64);
+TileMap Compile(MapDefinition? source = null) => new(source ?? definition, objects, 64, 64);
 var map = Compile();
 var navigation = map.NavigationMap;
 var snapshot = map.RendererMap;
@@ -75,14 +75,14 @@ Check(!map.NavigationMap.IsWalkable(5, 4), "External grid mutation changed the m
 map.ReplaceMap(definition.WorldMap);
 Check(navigation.IsWalkable(5, 4) && map.RendererMap.Sprites.Count == 0, "Replacement retained stale state");
 Reject(() => Compile(definition with { WorldMap = [[1], [1, 0]] }), "Ragged map accepted");
-Reject(() => Compile(definition with { PlayerStart = definition.PlayerStart with { X = 0, Y = 0 } }), "Blocked spawn accepted");
-Reject(() => Compile(definition with { PlayerStart = definition.PlayerStart with { DirectionX = 0 } }), "Zero heading accepted");
+Reject(() => Compile(definition with { Spawn = definition.Spawn with { X = 0, Y = 0 } }), "Blocked spawn accepted");
+Reject(() => Compile(definition with { Spawn = definition.Spawn with { DirectionX = 0 } }), "Zero heading accepted");
 using (var malformedHttp = new HttpClient(new FileHandler(webRoot, path => path == "maps/level1.json" ? "{}" : null))
        { BaseAddress = http.BaseAddress })
 {
     try
     {
-        await GameMap.LoadAsync(malformedHttp, "maps/level1.json", 64, 64);
+        await TileMap.LoadAsync(malformedHttp, "maps/level1.json", 64, 64);
         throw new Exception("Malformed level accepted");
     }
     catch (JsonException) { assertions++; }
@@ -93,7 +93,7 @@ using (var player = new TestObject { Transform = new() { Position = new(4.5f), R
 {
     var keys = new FakeKeyboard { KeyState = new() { Forward = true } };
     var camera = new CameraComponent(player) { Plane = new(0, -.66f) };
-    var controller = new PlayerController(keys, new FakeMouse(), navigation, camera, map.PlayerStart, player);
+    var controller = new WalkingController(keys, new FakeMouse(), navigation, camera, map.Spawn, player);
     for (var frame = 0; frame < 120; frame++) controller.Update(1000f / 60);
     Check(player.Transform.Position.X > 7 && player.Transform.Position.X < 8 &&
         navigation.IsWalkable((int)player.Transform.Position.X, (int)player.Transform.Position.Y),

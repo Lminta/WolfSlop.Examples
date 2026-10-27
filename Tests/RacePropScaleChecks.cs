@@ -1,6 +1,6 @@
 using System.Numerics;
-using WolfNET.Game;
-using WolfNET.Game.Player;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Actors;
 
 internal static class RacePropScaleChecks
 {

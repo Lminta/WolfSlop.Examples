@@ -1,4 +1,6 @@
 <Solution>
-  <Project Path="WolfNET.Game/WolfNET.Game.csproj" />
+  <Project Path="WolfNET.Engine/WolfNET.Engine.csproj" />
+  <Project Path="WolfNET.Examples/WolfNET.Examples.csproj" />
   <Project Path="Tests/WolfNET.MapTests.csproj" />
+  <Project Path="Tests/EngineConsumer/WolfNET.EngineConsumer.csproj" />
 </Solution>

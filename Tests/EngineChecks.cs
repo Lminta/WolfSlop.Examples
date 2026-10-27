@@ -1,8 +1,8 @@
 using System.Numerics;
-using WolfNET.Game;
-using WolfNET.Game.Core;
-using WolfNET.Game.InputEvents;
-using WolfNET.Graphics;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Core;
+using WolfNET.Engine.Input;
+using WolfNET.Engine.Graphics;
 
 internal static class EngineChecks
 {
@@ -129,7 +129,7 @@ internal static class EngineChecks
         Check(scene.CaptureFrame().Character != null && scene.Player.AnimationFrame != 14,
             "Scene did not connect movement, animation, and third-person rendering.");
         Check(scene.CaptureFrame().FirstPerson.Kind == FirstPersonViewKind.None &&
-              MathF.Abs(((WolfNET.Game.Player.PlayerObject)scene.Player).Animation.HandSwing) > .1f,
+              MathF.Abs(((PlayerObject)scene.Player).Animation.HandSwing) > .1f,
             "Third-person frame retained first-person sprites or lost player animation.");
         scene.Player.Camera.ThirdPerson = false;
         keyboard.Press("KeyF");
@@ -174,7 +174,7 @@ internal static class EngineChecks
         return assertions;
     }
 
-    private static GameMap MakeMap(int width, int height, int doorX = 5)
+    private static TileMap MakeMap(int width, int height, int doorX = 5)
     {
         var cells = Enumerable.Range(0, width).Select(x => Enumerable.Range(0, height)
             .Select(y => x == 0 || y == 0 || x == width - 1 || y == height - 1 ? 1 : 0).ToArray()).ToArray();
@@ -182,9 +182,9 @@ internal static class EngineChecks
         var definition = new MapDefinition
         {
             WorldMap = cells,
-            PlayerStart = new PlayerStartDefinition { X = 4.5f, Y = 4.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 2, RotSpeed = 2 }
+            Spawn = new ActorStartDefinition { X = 4.5f, Y = 4.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 2, RotSpeed = 2 }
         };
-        return new GameMap(definition, new Dictionary<int, MapObjectDefinition>
+        return new TileMap(definition, new Dictionary<int, MapObjectDefinition>
         {
             [0] = new PassageDefinition { Id = 0, RaycastTransparent = true, Collides = false },
             [1] = new WallDefinition { Id = 1, PassageId = 0, RaycastTransparent = false, Collides = true },

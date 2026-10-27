@@ -5,6 +5,7 @@ Run from the repository root with the .NET 10 SDK and Node 22 or newer:
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
+dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
 node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
 ```
 
@@ -12,6 +13,15 @@ The C# runner loads every shipped map and checks map edits, validation, walking,
 jumping, crouching, input, frame timing, scene ownership, doors, car interaction,
 car physics and cameras, ordered checkpoint/lap timing, pause behavior,
 sprite animation, parked/driven car dimensions, and music/SFX lifecycle and mixing.
+It references the actual Engine and Examples projects. The separate
+`EngineConsumer` references only Engine and checks its public API with a map
+without a spawn, custom metadata, surface/material/audio names, input actions,
+interaction commands, 128 dynamic sprites, six overlays, and scene/audio disposal.
+The JavaScript checks also exercise dynamic sprite counts above the original
+three actors and independent canvas indexes. Browser smoke checks observe the
+general screen overlay pipeline. Run `node Tests/framework-browser-check.mjs 9244
+http://127.0.0.1:5194` with the dev server and a browser debugging port available to
+check the viewer, six GPU overlays, library asset hosting, navigation, and cleanup.
 Car contact checks cover rubbing during blocked overtakes, clean passes and steering
 away, momentum transfer, finished cars, update-rate independence, and three cars beside a barrier.
 The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,

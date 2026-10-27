@@ -1,6 +1,6 @@
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Game;
+using WolfNET.Engine.World;
 
 internal static class SpriteAnimationChecks
 {
@@ -117,7 +117,7 @@ internal static class SpriteAnimationChecks
         return assertions;
     }
 
-    private static WolfNET.Graphics.RenderMap Compile(SpriteDefinition sprite, bool group = false)
+    private static WolfNET.Engine.Graphics.RenderMap Compile(SpriteDefinition sprite, bool group = false)
     {
         var objects = new Dictionary<int, MapObjectDefinition>
         {
@@ -133,7 +133,7 @@ internal static class SpriteAnimationChecks
         var map = new MapDefinition
         {
             WorldMap = [[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, group ? 3 : 2, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]],
-            PlayerStart = new() { X = 1.5f, Y = 1.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 2, RotSpeed = 2 }
+            Spawn = new() { X = 1.5f, Y = 1.5f, DirectionX = 1, DirectionY = 0, MoveSpeed = 2, RotSpeed = 2 }
         };
         return new MapCompiler(objects, 8, 8).Compile(map, 1).Renderer;
     }

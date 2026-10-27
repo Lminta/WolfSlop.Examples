@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text.Json;
-using WolfNET.Game;
-using WolfNET.Graphics;
+using WolfNET.Engine.World;
+using WolfNET.Engine.Graphics;
 
 internal static class SpriteSelectionFixtures
 {
@@ -25,7 +25,7 @@ internal static class SpriteSelectionFixtures
         var artifactDirectory = Path.GetFullPath(Path.Combine(webRoot, "../../artifacts/performance"));
         Directory.CreateDirectory(artifactDirectory);
         File.WriteAllText(Path.Combine(artifactDirectory, "sprite-sort-oracle.json"), JsonSerializer.Serialize(orderingCases));
-        var map = await GameMap.LoadAsync(http, "maps/pine-loop.json", 512, 512);
+        var map = await TileMap.LoadAsync(http, "maps/pine-loop.json", 512, 512);
         var sourcePositions = map.RendererMap.Sprites.SelectMany(sprite => new[] { sprite.Position.X, sprite.Position.Y,
             sprite.Scale.X, sprite.MaximumViewWidth }).ToArray();
         var spatialCases = new List<object>();

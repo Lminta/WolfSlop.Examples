@@ -1,0 +1,369 @@
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #111;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    container-type: size;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game-viewport {
+    position: relative;
+    /* Fit the page while keeping the backing buffer and its aspect ratio. */
+    width: min(100cqw, calc(100cqh * var(--render-width) / var(--render-height)));
+    aspect-ratio: var(--render-width) / var(--render-height);
+    flex-shrink: 0;
+    container-type: size;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    outline: none;
+}
+
+.fps-counter {
+    position: fixed;
+    left: 8px;
+    bottom: 8px;
+    z-index: 30;
+    padding: 3px 5px;
+    border-radius: 3px;
+    background: #111923b3;
+    color: #e0e8ee;
+    font: 11px/1.2 ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    user-select: none;
+}
+
+.map-switcher,
+.controls-hint {
+    right: 16px;
+    width: min(330px, calc(100vw - 32px));
+}
+
+.map-switcher {
+    position: fixed;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923ee;
+    color: #e0e8ee;
+    font: 13px/1.45 system-ui, sans-serif;
+    z-index: 20;
+}
+
+.map-switcher nav {
+    display: flex;
+    gap: 8px;
+}
+
+.map-switcher button {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #657a8c;
+    border-radius: 4px;
+    background: #23313d;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.map-switcher button[aria-pressed="true"] {
+    border-color: #45bfff;
+    background: #194a64;
+}
+
+.map-switcher button:disabled {
+    cursor: default;
+}
+
+.map-switcher button:focus-visible {
+    outline: 2px solid #45bfff;
+    outline-offset: 2px;
+}
+
+.map-switcher p { margin: 10px 0 0; }
+.race-difficulty { margin-top: 12px; }
+.difficulty-options { display: flex; gap: 8px; margin: 6px 0; }
+.race-difficulty small { color: #b7c7d4; }
+.race-restart { width: 100%; margin-top: 10px; }
+.controls-hint {
+    position: fixed;
+    bottom: 16px;
+    padding: 12px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923ee;
+    color: #adbeca;
+    font: 13px/1.45 system-ui, sans-serif;
+    pointer-events: none;
+    z-index: 20;
+}
+.controls-hint strong { color: #e0e8ee; }
+.controls-hint p { margin: 6px 0 0; }
+
+.race-minimap {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: min(240px, 35cqw, calc(100cqh - 24px));
+    pointer-events: none;
+    z-index: 20;
+}
+.race-minimap-viewport {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 50%;
+}
+.race-minimap:has(.race-timing) {
+    width: min(240px, 35cqw, max(64px, calc(100cqh - 240px)));
+}
+.race-timing {
+    width: max-content;
+    margin: 8px 0 0;
+    padding: 0;
+}
+.race-timing,
+.speedometer {
+    color: #fff;
+    font: 44px/1.15 ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    -webkit-text-stroke: 3px #000;
+    paint-order: stroke fill;
+}
+.race-timing > div { display: grid; grid-template-columns: 5ch auto; gap: .5ch; }
+.race-timing dt { color: inherit; }
+.race-timing dd { margin: 0; font-weight: 700; font-style: italic; }
+.race-gap-ahead { color: #79ff88; }
+.race-gap-behind { color: #ff6969; }
+.race-countdown {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    z-index: 30;
+    color: #fff;
+    font: italic 900 clamp(80px, 20cqw, 200px)/1 system-ui, sans-serif;
+    -webkit-text-stroke: 6px #000;
+    paint-order: stroke fill;
+}
+.race-countdown-number { animation: race-countdown-fade 1s ease-out both; }
+.race-countdown.is-paused .race-countdown-number { animation-play-state: paused; }
+.race-go { color: #7dff80; }
+@keyframes race-countdown-fade {
+    0%, 25% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.3); }
+}
+.race-results-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    align-items: safe center;
+    justify-items: center;
+    overflow: auto;
+    padding: 12px;
+    background: #081019c9;
+}
+.race-results {
+    width: min(520px, 100%);
+    padding: clamp(12px, 3cqh, 32px);
+    border: 1px solid #82919e;
+    border-radius: 12px;
+    background: #111923f5;
+    color: #fff;
+    font: clamp(16px, 3cqh, 24px)/1.4 system-ui, sans-serif;
+    text-align: center;
+}
+.race-results h1 { margin: 0 0 .5em; font-size: 1.5em; }
+.race-result-total { margin: 0 0 .6em; }
+.race-results table { width: 100%; border-collapse: collapse; margin: 0 0 1em; font-variant-numeric: tabular-nums; }
+.race-results th, .race-results td { padding: .35em .2em; text-align: right; }
+.race-results thead { color: #adbeca; font-size: .75em; }
+.race-results th:first-child, .race-results td:first-child { text-align: left; }
+.race-standings th[scope="row"] { text-align: left; }
+.race-standings small { display: block; color: #abc6e8; font-size: .65em; }
+.race-player-result { color: #c5f4a0; }
+.race-lap-results { font-size: .8em; }
+.race-results strong { font-style: italic; font-variant-numeric: tabular-nums; }
+.race-results button {
+    border: 2px solid #c5f4a0;
+    border-radius: 6px;
+    padding: .5em 1em;
+    background: #315625;
+    color: #fff;
+    font: 700 1em system-ui, sans-serif;
+    cursor: pointer;
+}
+.race-results button:hover, .race-results button:focus-visible { background: #497d37; outline: 2px solid white; outline-offset: 3px; }
+.race-minimap-viewport > svg:first-child {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* Feather the course into the scene, leaving the player arrow sharp. */
+    mask-image: radial-gradient(circle closest-side, #000 70%, rgb(0 0 0 / 65%) 85%, transparent 100%);
+}
+.race-minimap-course polyline { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.race-minimap-road-edge { stroke: #071018; stroke-width: 11px; }
+.race-minimap-road { stroke: #edf4f8; stroke-width: 8px; }
+.race-minimap-shortcut { stroke: #e6bb68; stroke-width: 5px; stroke-dasharray: 6px 5px; }
+.race-minimap-opponents {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.race-minimap-opponents circle { stroke: #fff; stroke-width: .5; }
+.race-minimap-blue { fill: #275cff; }
+.race-minimap-green { fill: #32ed39; }
+.race-minimap-player {
+    position: absolute;
+    left: 50%;
+    top: 70%;
+    width: 16px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 1px 2px #000);
+}
+.showcase-guide { margin: 10px 0 0; padding-left: 18px; }
+.showcase-guide li + li { margin-top: 5px; }
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #0b1119ed;
+    color: #e0e8ee;
+    font: 15px/1.5 system-ui, sans-serif;
+    text-align: center;
+}
+
+.loading-card h1 {
+    margin: 24px 0 8px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.loading-card p {
+    margin: 0;
+    color: #adbeca;
+}
+
+.loading-spinner {
+    width: 56px;
+    height: 56px;
+    margin: auto;
+    border: 4px solid #2a3e50;
+    border-top-color: #45bfff;
+    border-radius: 50%;
+    animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner { animation: none; }
+}
+
+.game-error {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    max-width: 90vw;
+    max-height: 70vh;
+    overflow: auto;
+    padding: 16px;
+    background: #400;
+    color: white;
+    font-family: monospace;
+    white-space: pre-wrap;
+    z-index: 100;
+}
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px;
+    background: #621c1c;
+    color: white;
+    font-family: monospace;
+    z-index: 1000;
+}
+
+#blazor-error-ui a {
+    color: white;
+}
+
+.car-paused {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: 0;
+    padding: 12px 18px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923e6;
+    color: #e0e8ee;
+    font: 15px/1.4 system-ui, sans-serif;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 25;
+}
+
+.speedometer {
+    position: absolute;
+    left: 12px;
+    bottom: clamp(28px, 4cqh, 40px);
+    display: flex;
+    align-items: baseline;
+    gap: .5ch;
+    pointer-events: none;
+    user-select: none;
+    z-index: 20;
+}
+.speedometer-value { font-size: 5em; font-weight: 700; font-style: italic; }
+
+.scene-viewer {
+    width: min(100vw, calc((100vh - 110px) * 16 / 9), 1000px);
+    padding: 16px;
+    color: #e0e8ee;
+    font: 14px/1.5 system-ui, sans-serif;
+}
+.scene-viewer p { margin: 0 0 12px; }
+.scene-viewer a, .viewer-link { color: #8ad6ff; }
+.scene-viewer button { margin-left: 8px; padding: 4px 12px; cursor: pointer; }
+.scene-viewer canvas { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.viewer-link { display: inline-block; margin-top: 10px; }

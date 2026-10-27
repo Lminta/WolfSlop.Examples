@@ -1,0 +1,121 @@
+# WolfNET.Engine
+
+A .NET 10 Razor class library for browser raycasting with WebGPU. It contains
+rendering, tile maps, scenes and components, input, collision, optional walking
+and vehicle controllers, cameras, sprite animation, and audio primitives.
+
+The library has no dependency on `WolfNET.Examples`, its assets, race rules,
+opponents, or UI. The browser backend uses SpawnDev.BlazorJS; the simulation
+contracts can also be used in ordinary .NET programs.
+
+## Reference and initialize
+
+Reference `WolfNET.Engine.csproj` from a Blazor WebAssembly host. The host registers
+`AddBlazorJSRuntime()` and starts with `BlazorJSRunAsync()`, as shown in
+[`WolfNET.Examples/Program.cs`](../WolfNET.Examples/Program.cs).
+
+Engine JavaScript and shaders are Razor static web assets, served automatically
+under `_content/WolfNET.Engine/`. Do not copy them into the application. Artwork,
+map/object JSON, audio clips, settings, and UI belong to the host application.
+Use a secure browser context (`https` or `localhost`) with WebGPU support.
+
+```csharp
+using WolfNET.Engine.Core;
+using WolfNET.Engine.Graphics;
+using WolfNET.Engine.World;
+
+var settings = new RendererSettings(960, 540);
+var map = await TileMap.LoadAsync(http, "maps/room.json",
+    settings.MaxMapWidth, settings.MaxMapHeight, cancellationToken);
+using var scene = new Scene(map.RendererMap);
+scene.Camera.Position = new(4.5f, 4.5f);
+scene.Camera.Direction = new(1, 0);
+scene.Camera.Plane = new(0, -settings.CameraPlaneScale);
+
+using var renderer = new WebGpuRenderer(settings, js);
+await renderer.InitializeAsync(canvas,
+    await ShaderSources.LoadAsync(http, cancellationToken), cancellationToken);
+await renderer.PrepareSceneAsync(scene.Map, cancellationToken);
+using var loop = new BrowserFrameLoop(js, settings.TargetFPS);
+loop.Start(milliseconds =>
+{
+    scene.Update(milliseconds);
+    renderer.Render(scene.CaptureFrame());
+});
+// Keep these owners alive until the host component is disposed.
+```
+
+[`Viewer.razor`](../WolfNET.Examples/Pages/Viewer.razor) is a complete procedural
+viewer using `Scene` and an `ISceneSystem`, with twelve moving sprites and no actor,
+controls, race state, or audio configuration. The exploration/racing example
+implements `IScene` separately, showing that applications can own scene assembly.
+
+## Extension points
+
+| System | Application supplies |
+| --- | --- |
+| Scene | `IScene` or `Scene` with `ISceneSystem` instances and `ObjectBase` components |
+| Rendering | A `RenderFrame` with camera, map, arbitrary `DynamicSprites`, and ordered `ScreenOverlay` layers |
+| Scene resources | Optional extra `TextureCatalog` entries and overlay image paths through `SceneResources` |
+| Input | `InputBindings` mapping action names to key codes, or `IKeyboardInput`/`IMouseInput` implementations |
+| Physics | `INavigationMap`, circle/box colliders, or optional `WalkingController`/`CarController` |
+| Paths and triggers | `PolylinePath` for indexed open/looping paths and `DirectedGate` for directed crossing sensors |
+| Vehicle terrain | Surface identifiers in `CarSettings.RoadSurfaces` and primary/off-road handling profiles |
+| Map behavior | Arbitrary JSON `Metadata`, sprite `Tag`, and `InteractionTarget` commands |
+| Audio | `ISfxBackend<TCue>`, `SpatialSoundSystem<TCue>`, and application-defined cue types and clip dictionaries |
+| Music | `MusicPlayer`, `MusicDefinition`, `MusicSettings`, and `IAudioBackend` |
+
+The renderer never interprets map metadata, sprite tags, controller names, or
+interaction targets. For example, an interaction target can be `inspect:42`, an
+inventory action, or a scene key. `MapInteraction.FindTarget` traces a configurable
+distance with occlusion; the application decides what the returned value means.
+Racing metadata parsing and validation live entirely in the example.
+
+`ScreenOverlay` coordinates are normalized to the viewport. `Position` anchors
+the layer's local `Pivot`, `Size` controls its dimensions, `Rotation` is in radians,
+and `UV` selects a texture rectangle. Overlay texture indices refer to
+`SceneResources.OverlayTextures`. Layers are composited in list order without
+world depth or fog; the engine has no hands, cockpit, or HUD layout assumptions.
+
+## Maps and assets
+
+Maps use `worldMap[x][y]` and an object registry whose JSON paths are relative to
+the map file. Passages, walls, doors, sprites, and sprite groups preserve separate
+rendering, collision, jump/crouch, material, and animation properties. One cell is
+one world unit; outer boundaries must block movement and rays. Texture paths are
+relative to the host's base URL. There are at most 256 world texture layers.
+
+`spawn` is optional. Applications that use the bundled controllers can declare an
+`ActorStartDefinition`; custom controller names are accepted. Scenes and viewers
+can omit spawn data. Surface, impact-material, and ambient-sound identifiers are
+application-defined strings. Unknown top-level JSON fields are retained in
+`MapDefinition.Metadata` and the compiled `RenderMap.Metadata`.
+
+`TileMap.SetCell` and `ReplaceMap` publish only successful compilations and keep
+the navigation object stable. Doors update through `Interact` and `UpdateDoors`.
+If editing changes the texture catalog, serialize a new `PrepareSceneAsync`
+before rendering again; include the current extra textures and overlays.
+
+## Timing and ownership
+
+Simulation update durations are milliseconds; controller speeds use world units
+and radians per second. `BrowserFrameLoop` follows animation timestamps and
+invalidates stale callbacks on stop/restart. Vehicle simulation uses fixed 120 Hz
+steps. Applications own pause rules, map transitions, and renderer preparation.
+
+Scenes own registered objects, components, and disposable scene systems.
+`BrowserInput` owns browser input subscriptions; capture loss clears input.
+`WebGpuRenderer` owns GPU resources and accepts one scene preparation at a time.
+`MusicPlayer` and `SpatialSoundSystem` own their audio backends. Dispose these
+owners when switching scenes or leaving the host component, and pass cancellation
+tokens to asynchronous loading/preparation.
+
+## Validation and packaging
+
+```powershell
+dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
+dotnet pack WolfNET.Engine/WolfNET.Engine.csproj -o artifacts/packages
+```
+
+The independent consumer references only the engine and exercises its public API.
+The package includes the library and its static web assets.
