@@ -104,6 +104,7 @@ using (var sound = new SpatialSoundSystem<string>(backend, maxVoices: 2))
     Check(backend.Voices.All(voice => voice.Disposals == 1), "Resume did not clean finished shots and absent loops.");
 }
 Check(backend.Disposals == 1, "Spatial sound system did not own its backend.");
+checks += UiChecks.Run();
 Console.WriteLine($"PASS: {checks} independent engine consumer assertions (no game reference, custom maps/input/audio, scenes, and lifetime).");
 
 sealed class MotionSystem : ISceneSystem, IDisposable

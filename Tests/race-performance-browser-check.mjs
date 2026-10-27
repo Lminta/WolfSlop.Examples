@@ -3,6 +3,7 @@
 // Optional: --seconds=5 --warmup=2 --views=start,tires --trace --screenshots --min-fps=58 --drive --chase --no-sfx
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {uiInspectionSource} from './ui-browser-helpers.mjs';
 import path from 'node:path';
 
 const port = process.argv[2] ?? '9252', base = process.argv[3] ?? 'http://127.0.0.1:5195';
@@ -74,6 +75,7 @@ try {
     await send('Runtime.enable'); await send('Page.enable');
     await send('Emulation.setDeviceMetricsOverride', {width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false});
     await send('Page.addScriptToEvaluateOnNewDocument', {source: `
+        ${uiInspectionSource}
         window.__racePerf={frames:[],rafFrames:[],cpu:[],bytes:[],counts:[],active:false,submitted:0,uploadBytes:0,spriteCount:0,adapter:null};
         const perf=window.__racePerf,views=new Map(${JSON.stringify(fixture.views)}),originalFetch=window.fetch;
         window.fetch=async function(input,...args){
@@ -99,13 +101,9 @@ try {
             if(adapter)perf.adapter={preference:options?.powerPreference??'default',vendor:adapter.info?.vendor,architecture:adapter.info?.architecture,device:adapter.info?.device,description:adapter.info?.description};
             return adapter;
         };
-        const setPipeline=GPURenderPassEncoder.prototype.setPipeline,drawOverlay=GPURenderPassEncoder.prototype.draw;
-        GPURenderPassEncoder.prototype.setPipeline=function(pipeline){this.__overlay=pipeline.label==='WolfNET Overlay Pipeline';return setPipeline.call(this,pipeline);};
-        GPURenderPassEncoder.prototype.draw=function(...args){if(this.__overlay)perf.overlays++;return drawOverlay.apply(this,args);};
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,dataOffset=0,size){
             if(buffer.label==='WolfNET Camera'){
-                perf.overlays=0;
                 const camera=new Float32Array(data.buffer??data,data.byteOffset??0,2);perf.camera=[camera[0],camera[1]];
             }
             if(buffer.label==='WolfNET Sprites')perf.uploadBytes+=(size??(data.byteLength/(data.BYTES_PER_ELEMENT??1)-dataOffset))*(data.BYTES_PER_ELEMENT??1);
@@ -147,7 +145,7 @@ try {
             if (process.argv.includes('--chase')) {
                 await send('Input.dispatchKeyEvent', {type: 'keyDown', code: 'KeyV', key: 'v', windowsVirtualKeyCode: 86});
                 await send('Input.dispatchKeyEvent', {type: 'keyUp', code: 'KeyV', key: 'v', windowsVirtualKeyCode: 86});
-                await waitFor('window.__racePerf.overlays===0');
+                await waitFor('window.__uiImages.length===0');
             }
             await send('Input.dispatchKeyEvent', {type: 'keyDown', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87});
         }

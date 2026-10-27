@@ -4,6 +4,7 @@ using WolfNET.Engine.Input;
 using WolfNET.Engine.World;
 using WolfNET.Engine.Graphics;
 using Microsoft.Extensions.DependencyInjection;
+using WolfNET.Engine.UI;
 
 namespace WolfNET.Pages;
 
@@ -77,6 +78,7 @@ public partial class Home
             _canvasElement = new HTMLCanvasElement(_canvas);
             await ShowLoadingProgressAsync("Starting graphics...");
             await Renderer.InitializeAsync(_canvasElement, shaders, _lifetime.Token);
+            Wolf.AttachUi(await BrowserUiHost.CreateAsync(UiRuntime, _canvas, _lifetime.Token));
 
             var initialMap = ShowcaseMap;
             if (!string.IsNullOrWhiteSpace(RequestedMap))

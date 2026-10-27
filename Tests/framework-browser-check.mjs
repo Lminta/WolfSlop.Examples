@@ -48,16 +48,13 @@ try {
         GPUBuffer.prototype.destroy=function(){state.buffers.delete(this);return destroyBuffer.call(this);};
         const write=GPUQueue.prototype.writeBuffer;
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...args){
-            if(buffer.label==='WolfNET Camera'){state.camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,12));state.frames++;state.overlays=0;}
+            if(buffer.label==='WolfNET Camera'){state.camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,12));state.frames++;}
             if(buffer.label==='WolfNET Sprites')state.sprites=data.byteLength/32;
             return write.call(this,buffer,offset,data,...args);
         };
-        const pipeline=GPURenderPassEncoder.prototype.setPipeline,draw=GPURenderPassEncoder.prototype.draw;
-        GPURenderPassEncoder.prototype.setPipeline=function(value){this.__overlay=value.label==='WolfNET Overlay Pipeline';return pipeline.call(this,value);};
-        GPURenderPassEncoder.prototype.draw=function(...args){if(this.__overlay)state.overlays++;return draw.apply(this,args);};
     `});
     await send('Page.navigate', {url: base + '/viewer'}); await send('Page.bringToFront');
-    await waitFor('window.__framework.frames>5 && window.__framework.overlays===6');
+    await waitFor(`window.__framework.frames>5 && document.querySelector('.wolf-ui-canvas')?.__uiFrame?.nodes.filter(node=>node.kind==='image').length===6`);
     const before = await evaluate('window.__framework.camera.slice(0,2)');
     await delay(200);
     assert.notDeepEqual(await evaluate('window.__framework.camera.slice(0,2)'), before);
@@ -69,7 +66,7 @@ try {
     const snapshot = await send('Page.captureScreenshot', {format: 'png'});
     fs.mkdirSync('artifacts/framework', {recursive: true});
     fs.writeFileSync('artifacts/framework/viewer.png', Buffer.from(snapshot.data, 'base64'));
-    const assets = await evaluate(`Promise.all(['sprite-sort.js','texture-upload.js','sfx-mixer.js','shaders/raycast.wgsl','shaders/walls.wgsl','shaders/sprites.wgsl','shaders/overlays.wgsl'].map(async name=>{
+    const assets = await evaluate(`Promise.all(['sprite-sort.js','texture-upload.js','sfx-mixer.js','ui.js','shaders/raycast.wgsl','shaders/walls.wgsl','shaders/sprites.wgsl','shaders/overlays.wgsl'].map(async name=>{
         const response=await fetch('_content/WolfNET.Engine/'+name);return {name,status:response.status,type:response.headers.get('content-type')};
     }))`);
     assert(assets.every(asset => asset.status === 200 && !asset.type.includes('text/html')), JSON.stringify(assets));
@@ -77,7 +74,7 @@ try {
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.fps-counter')`);
     const firstGame = await evaluate('({textures:window.__framework.textures.size,buffers:window.__framework.buffers.size})');
     await evaluate(`document.querySelector('a[href="viewer"]').click()`);
-    await waitFor(`location.pathname==='/viewer' && window.__framework.overlays===6`);
+    await waitFor(`location.pathname==='/viewer' && document.querySelector('.wolf-ui-canvas')?.__uiFrame?.nodes.filter(node=>node.kind==='image').length===6`);
     const viewer = await evaluate('({textures:window.__framework.textures.size,buffers:window.__framework.buffers.size})');
     await evaluate(`document.querySelector('a').click()`);
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.fps-counter')`);
@@ -85,7 +82,7 @@ try {
         firstGame, 'Navigating between examples retained GPU resources');
     assert(viewer.textures > 0 && viewer.buffers > 0);
     assert.deepEqual(errors, []);
-    console.log('PASS: viewer camera, pause, twelve moving sprites, six GPU overlays, library static assets, navigation and resource cleanup.');
+    console.log('PASS: viewer camera, pause, twelve moving sprites, six UI images, library static assets, navigation and resource cleanup.');
 } finally {
     await send('Page.close').catch(() => {}); socket.close();
 }

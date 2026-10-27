@@ -5,10 +5,10 @@ The existing `car-game-atlas.png` was a car/style reference for the cockpit;
 the generated cockpit was the materials reference for the wheel. References
 were not overwritten. Alpha is preserved in both project PNGs.
 
-`ExampleOverlays` lays out both images; the engine draws the resulting screen
-layers with `shaders/overlays.wgsl` after world sprites.
-Steering rotation and camera visibility travel with each `RenderFrame`; no DOM
-image overlay is used. GPU textures are loaded and released with the scene.
+`ExampleHud` lays out both images as engine `UiImage` controls. The UI renderer
+composites them over the world with the same layout/input system used by the HUD.
+Steering rotation and camera visibility come from the captured presentation state.
+Decoded images are cached by the UI host and released on scene switches.
 
 ## cockpit.png — generation prompt
 

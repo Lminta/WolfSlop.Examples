@@ -6,9 +6,9 @@ reference; its blue jacket and skin palette carry into the hands. Original
 generated alpha is preserved.
 
 The 1536 x 1024 image contains the left hand in its left half and the right hand
-in its right half. `ExampleOverlays` supplies UV rectangles and independent transforms to
-the engine's `shaders/overlays.wgsl`, which renders each half
-in the engine's alpha-blended first-person pass after world sprites. Simulation-driven swing, bob and strafe settle when actual
+in its right half. `ExampleHud` supplies cropped `UiImage` controls and independent
+transforms to the engine UI renderer, which composites both halves over the world.
+Simulation-driven swing, bob and strafe settle when actual
 movement stops; jumping raises the hands and crouching lowers them. The overlay
 appears only for the human first-person camera.
 Pressing F also plays a 360 ms right-hand reach, even without an interaction

@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <SupportedPlatform>browser</SupportedPlatform>
-    <Description>Reusable WebGPU raycasting, tile worlds, scenes, input, physics and audio for .NET applications.</Description>
+    <Description>Reusable WebGPU raycasting, tile worlds, scenes, input, physics, audio and retained UI for .NET applications.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
@@ -12,5 +12,6 @@
     <PackageReference Include="SpawnDev.BlazorJS" Version="3.5.30" />
     <InternalsVisibleTo Include="WolfNET.MapTests" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Update="UI/README.md" Pack="true" PackagePath="UI/README.md" />
   </ItemGroup>
 </Project>

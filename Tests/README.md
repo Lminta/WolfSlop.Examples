@@ -6,7 +6,7 @@ Run from the repository root with the .NET 10 SDK and Node 22 or newer:
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
 dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
+node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs Tests/ui.test.mjs
 ```
 
 The C# runner loads every shipped map and checks map edits, validation, walking,
@@ -16,12 +16,18 @@ sprite animation, parked/driven car dimensions, and music/SFX lifecycle and mixi
 It references the actual Engine and Examples projects. The separate
 `EngineConsumer` references only Engine and checks its public API with a map
 without a spawn, custom metadata, surface/material/audio names, input actions,
-interaction commands, 128 dynamic sprites, six overlays, and scene/audio disposal.
+interaction commands, 128 dynamic sprites, six low-level overlays, and scene/audio
+disposal. `UiChecks` also covers retained layout, text/graphemes, transforms,
+clipping, pointer capture, focus, modal scopes, controls, text editing, scrolling,
+invalidation and lifetime through the engine's public API.
 The JavaScript checks also exercise dynamic sprite counts above the original
 three actors and independent canvas indexes. Browser smoke checks observe the
-general screen overlay pipeline. Run `node Tests/framework-browser-check.mjs 9244
+engine UI display list. Run `node Tests/framework-browser-check.mjs 9244
 http://127.0.0.1:5194` with the dev server and a browser debugging port available to
-check the viewer, six GPU overlays, library asset hosting, navigation, and cleanup.
+check the viewer, six UI images, library asset hosting, navigation, and cleanup.
+`node Tests/ui-browser-check.mjs 9254 http://127.0.0.1:5196` exercises the UI gallery
+with real pointer/keyboard input, native text editing, modal isolation, scrolling,
+DPI/resize and dirty rendering, then verifies walking and racing HUDs and cleanup.
 Car contact checks cover rubbing during blocked overtakes, clean passes and steering
 away, momentum transfer, finished cars, update-rate independence, and three cars beside a barrier.
 The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,
@@ -70,9 +76,9 @@ node Tests/browser-check.mjs 9243 http://127.0.0.1:5194
 node Tests/car-driving-browser-check.mjs 9243 http://127.0.0.1:5194
 ```
 
-The game smoke check covers startup, movement, input capture, shader-rendered hands
+The game smoke check covers startup, movement, input capture, UI-rendered hands
 and their F gesture, map switching, texture cleanup, and failed-load recovery.
-The driving check covers real input, shader cockpit/steering and chase views,
+The driving check covers real input, UI cockpit/steering and chase views,
 countdown control locking, start lights, difficulty switching beneath the map description, configured lap limits and results,
 mid-race and results-screen restarts with the selected difficulty, pause/resume, and returning to walking. Its short-race fixture changes
 invisible gates and the configured lap limit to exercise finishing on the real starting straight.

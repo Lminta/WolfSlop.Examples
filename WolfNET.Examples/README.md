@@ -10,6 +10,8 @@ dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj
 movement, doors, cameras, artwork, audio, opponents, and race UI. `/viewer` runs a
 procedural scene with an orbiting camera and twelve moving sprites, using only
 engine scene systems and rendering. The viewer has no actor spawn or game rules.
+`/ui` demonstrates text, images, vector drawing, buttons, toggles, sliders, native
+text editing, scrolling, modal focus, and responsive layout without a game scene.
 
 The engine's public API and ownership contracts are documented in
 [WolfNET.Engine/README.md](../WolfNET.Engine/README.md).
@@ -43,8 +45,11 @@ by movement, door obstruction, and the third-person camera. Jump planning and st
 rules remain in `WalkingController`.
 
 `GameScene.CaptureFrame` returns an `ExampleRenderFrame`, which converts the
-example's characters, rivals, hands, and cockpit into the engine's general
-`RenderFrame`. `ExampleOverlays` owns artwork paths and screen layout.
+example's characters and rivals into the engine's general `RenderFrame` and
+exposes animation state for presentation. `ExampleHud` owns application-specific
+screen content: hands, cockpit/wheel, vector minimap, timing, speed, pause,
+countdown, results and restart. These all use the engine's retained UI controls
+and `BrowserUiHost`; there is no separate Razor or SVG HUD implementation.
 The engine frame is consumed by `ISceneRenderer`.
 `WebGpuRenderer` implements that contract. Its partial files separate device and
 pipeline initialization, GPU buffers, scene bindings, and frame submission.
@@ -52,15 +57,18 @@ pipeline initialization, GPU buffers, scene bindings, and frame submission.
 cleanup when preparation fails or is canceled. Scene preparation and map switches
 are serialized by `Wolf`; the renderer expects one scene preparation at a time.
 
-`Pages/Home.razor` contains the UI, with browser startup and map selection in
-`Home.razor.cs`. Shader requests run together and use the page's cancellation token.
+`Pages/Home.razor` contains the application shell and map selection, with browser
+startup in `Home.razor.cs`. `Wolf` owns the UI host and resets its document on map
+switches. Shader requests run together and use the page's cancellation token.
+See the [UI guide](../WolfNET.Engine/UI/README.md) for layout, input and ownership.
 
 Run the regression suite from the repository root:
 
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
+dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
+node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs Tests/ui.test.mjs
 ```
 
 The C# suite references the built Engine and Examples assemblies. Only device

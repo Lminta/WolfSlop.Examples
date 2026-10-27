@@ -1,7 +1,7 @@
 # WolfNET.Engine
 
 A .NET 10 Razor class library for browser raycasting with WebGPU. It contains
-rendering, tile maps, scenes and components, input, collision, optional walking
+rendering, retained UI, tile maps, scenes and components, input, collision, optional walking
 and vehicle controllers, cameras, sprite animation, and audio primitives.
 
 The library has no dependency on `WolfNET.Examples`, its assets, race rules,
@@ -57,6 +57,7 @@ implements `IScene` separately, showing that applications can own scene assembly
 | Scene | `IScene` or `Scene` with `ISceneSystem` instances and `ObjectBase` components |
 | Rendering | A `RenderFrame` with camera, map, arbitrary `DynamicSprites`, and ordered `ScreenOverlay` layers |
 | Scene resources | Optional extra `TextureCatalog` entries and overlay image paths through `SceneResources` |
+| UI | `UiDocument`, layout/styles, text/images/vector widgets and controls; `BrowserUiHost` or an `IUiRenderer` backend |
 | Input | `InputBindings` mapping action names to key codes, or `IKeyboardInput`/`IMouseInput` implementations |
 | Physics | `INavigationMap`, circle/box colliders, or optional `WalkingController`/`CarController` |
 | Paths and triggers | `PolylinePath` for indexed open/looping paths and `DirectedGate` for directed crossing sensors |
@@ -75,7 +76,9 @@ Racing metadata parsing and validation live entirely in the example.
 the layer's local `Pivot`, `Size` controls its dimensions, `Rotation` is in radians,
 and `UV` selects a texture rectangle. Overlay texture indices refer to
 `SceneResources.OverlayTextures`. Layers are composited in list order without
-world depth or fog; the engine has no hands, cockpit, or HUD layout assumptions.
+world depth or fog. This remains a low-level graphics API. The examples' hands,
+cockpit, minimap, timing, countdown and results use the retained UI system described
+in the [UI guide](UI/README.md). `/ui` is an interactive control gallery.
 
 ## Maps and assets
 

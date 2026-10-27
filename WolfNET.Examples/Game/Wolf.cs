@@ -6,6 +6,7 @@ using WolfNET.Engine.Input;
 using WolfNET.Engine.Actors;
 using WolfNET.Engine.Graphics;
 using WolfNET.Engine.Audio;
+using WolfNET.Engine.UI;
 
 namespace WolfNET.Examples.Game;
 
@@ -25,6 +26,8 @@ public sealed class Wolf : IDisposable
     private BrowserInput? _input;
     private MusicPlayer? _audio;
     private SfxSystem? _sfx;
+    private BrowserUiHost? _ui;
+    private ExampleHud? _hud;
     private TextureCatalog? _sceneTextures;
     private bool _disposed;
     private int _frameGeneration;
@@ -72,6 +75,13 @@ public sealed class Wolf : IDisposable
         _loop = new(js, settings.TargetFPS);
     }
 
+    public void AttachUi(BrowserUiHost ui)
+    {
+        if (_disposed) { ui.Dispose(); throw new ObjectDisposedException(nameof(Wolf)); }
+        if (_ui != null) throw new InvalidOperationException("A UI host is already attached.");
+        _ui = ui;
+    }
+
     public Task StartAsync(HTMLCanvasElement canvas, CancellationToken cancellationToken = default) =>
         _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/showcase.json", cancellationToken);
 
@@ -84,6 +94,7 @@ public sealed class Wolf : IDisposable
         await _mapSwitchLock.WaitAsync(token);
         BrowserInput? input = null;
         GameScene? scene = null;
+        ExampleHud? hud = null;
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -91,7 +102,11 @@ public sealed class Wolf : IDisposable
             _pendingLoad = operation;
             if (reportProgress != null) await reportProgress("Loading map and objects...");
             var loaded = await _loader.LoadAsync(mapPath, token);
-            await _renderer.PrepareSceneAsync(loaded.Map.RendererMap, token, reportProgress, new(loaded.Character.AddTextures(loaded.Map.RendererMap.Textures), ExampleOverlays.Textures(loaded.Map.Spawn.Controller == "car")));
+            await _renderer.PrepareSceneAsync(loaded.Map.RendererMap, token, reportProgress, new(loaded.Character.AddTextures(loaded.Map.RendererMap.Textures)));
+            hud = new(loaded.Map.Spawn.Controller == "car", loaded.Map.RendererMap.GetRaceMinimap());
+            hud.RestartRequested += () => { if (CurrentMapPath is { } path) MapSwitchRequested?.Invoke(path); };
+            _ui?.SetDocument(hud.Document);
+            if (_ui != null) await _ui.PrepareImagesAsync(token);
             try
             {
                 if (loaded.Map.Music is { Tracks.Length: > 0 } music && _sound.GetMusicVolume(music) > 0)
@@ -127,8 +142,10 @@ public sealed class Wolf : IDisposable
             scene.SetPaused(!input.Mouse.IsLocked);
             _input = input;
             _scene = scene;
+            _hud = hud;
             input = null;
             scene = null;
+            hud = null;
             _sceneTextures = loaded.Map.RendererMap.Textures;
             CurrentMapPath = mapPath;
             Difficulty = selectedDifficulty;
@@ -145,6 +162,7 @@ public sealed class Wolf : IDisposable
         {
             scene?.Dispose();
             input?.Dispose();
+            hud?.Dispose();
             Stop();
             throw;
         }
@@ -200,6 +218,12 @@ public sealed class Wolf : IDisposable
             _sfx?.Update(_scene.CaptureAudioFrame(renderFrame, _input.Mouse.IsLocked && !_scene.Paused, deltaTime / 1000));
             _renderer.Render(renderFrame);
             ReportFrameRate();
+            if (_ui != null && _hud != null)
+            {
+                var viewport = _ui.Viewport;
+                _hud.Update(_scene, renderFrame, viewport, FramesPerSecond, deltaTime);
+                _ui.Render(viewport.X, viewport.Y);
+            }
             if (_scene.PlayerRaceState is { } race && RaceStateChanged != null &&
                 (_clock.Elapsed.TotalMilliseconds - _lastRaceNotification >= 100 ||
                  _lastRaceState?.Phase != race.Phase || _lastRaceState?.CountdownNumber != race.CountdownNumber ||
@@ -254,7 +278,7 @@ public sealed class Wolf : IDisposable
             if (!IsCurrent(generation)) return;
             _pendingLoad = operation;
             var map = _scene!.Map.RendererMap;
-            await _renderer.PrepareSceneAsync(map, operation.Token, resources: new(_scene.Character.AddTextures(map.Textures), ExampleOverlays.Textures(_scene.Player is CarObject)));
+            await _renderer.PrepareSceneAsync(map, operation.Token, resources: new(_scene.Character.AddTextures(map.Textures)));
             if (!IsCurrent(generation)) return;
             _sceneTextures = map.Textures;
             ScheduleFrame(generation);
@@ -286,6 +310,8 @@ public sealed class Wolf : IDisposable
         _audio = null;
         _sfx?.Dispose();
         _sfx = null;
+        _ui?.SetDocument(null);
+        _hud?.Dispose(); _hud = null;
         _input?.Dispose();
         _scene?.Dispose();
         _input = null;
@@ -302,6 +328,7 @@ public sealed class Wolf : IDisposable
         _lifetime.Cancel();
         Stop();
         _loop.Dispose();
+        _ui?.Dispose(); _ui = null;
         // Pending operations still own linked tokens and release the semaphore in finally.
         _lifetime.Dispose();
     }

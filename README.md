@@ -5,7 +5,7 @@ Browser raycasting engine built with Blazor WebAssembly and WebGPU. Requires the
 The solution contains:
 
 - `WolfNET.Engine/`: reusable rendering, worlds, scenes/components, input, physics,
-  cameras, animation, and audio, packaged as a Razor class library.
+  cameras, retained UI, animation, and audio, packaged as a Razor class library.
 - `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
   and example assets in `wwwroot`. It references Engine.
 - `Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
@@ -16,6 +16,7 @@ Build the solution with `dotnet build WolfNET.slnx`.
 Start the examples with `dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj`.
 Open `/` for exploration/racing or `/viewer` for a procedural scene with twelve
 moving objects and an orbiting camera, using the engine without a player or race.
+Open `/ui` for the interactive UI control gallery.
 
 See [the engine guide](WolfNET.Engine/README.md) for consumption, extension points,
 asset hosting, timing, and ownership. Engine shaders and JavaScript are served from
@@ -24,6 +25,13 @@ accepts arbitrary dynamic sprites and screen overlays, configurable input action
 application-defined sound/surface identifiers and interaction commands, and custom
 map metadata. Race rules, opponent AI, character art layouts, and cockpit/hand
 presentation belong to Examples.
+
+Screen UI is built with `WolfNET.Engine.UI`: a retained tree with anchored/stacked
+layout, themes, text/wrapping, cropped images, vector widgets, buttons, toggles,
+sliders, text input, scrolling, keyboard focus and modal scopes. Hands, cockpit,
+lap timing, the race minimap, countdown and results now use this shared system.
+The browser renderer uses a DPI-aware canvas plus an accessibility/input bridge,
+independently of WebGPU world rendering. See the [UI guide](WolfNET.Engine/UI/README.md).
 
 Maps now use optional `spawn` instead of `playerStart`; object interactions use
 `interactionTarget` instead of `interactionMap`, and the example starting signal
@@ -134,7 +142,7 @@ Run the regular regression checks from the repository root:
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
 dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs
+node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs Tests/ui.test.mjs
 ```
 
 Run the C# suite first because it generates the sprite ordering reference files.

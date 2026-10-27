@@ -2,6 +2,7 @@
 // node Tests/browser-check.mjs 9243 http://127.0.0.1:5194
 import fs from "node:fs";
 import path from "node:path";
+import {uiInspectionSource} from "./ui-browser-helpers.mjs";
 
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
@@ -100,33 +101,30 @@ function assert(condition,message) { if(!condition) throw Error(message); }
 try {
     await send("Runtime.enable"); await send("Page.enable");
     await send("Page.addScriptToEvaluateOnNewDocument",{source:`
+        ${uiInspectionSource}
         const write=GPUQueue.prototype.writeBuffer;
         const copy=GPUQueue.prototype.copyExternalImageToTexture;
         window.__copiedTextures=0;
         window.__cameraWrites=0;
         window.__duplicateFrames=0;
         window.__sceneTextures=new Set();
-        window.__overlayTextures=new Set();
-        window.__overlayDraws=0;
         window.__sceneBuffers=new Set();
         window.__destroyedSceneTextures=0;
         const createTexture=GPUDevice.prototype.createTexture;
         GPUDevice.prototype.createTexture=function(descriptor) {
             const texture=createTexture.call(this,descriptor);
             if(descriptor.label==='WolfNET Scene Textures') window.__sceneTextures.add(texture);
-            if(descriptor.label?.startsWith('WolfNET Overlay Texture:') || descriptor.label?.startsWith('WolfNET Overlay Missing:')) window.__overlayTextures.add(texture);
             return texture;
         };
         const destroyTexture=GPUTexture.prototype.destroy;
         GPUTexture.prototype.destroy=function() {
             if(window.__sceneTextures.delete(this)) window.__destroyedSceneTextures++;
-            window.__overlayTextures.delete(this);
             return destroyTexture.call(this);
         };
         const createBuffer=GPUDevice.prototype.createBuffer;
         GPUDevice.prototype.createBuffer=function(descriptor) {
             const buffer=createBuffer.call(this,descriptor);
-            if(['WolfNET Wall Materials','WolfNET Sprites','WolfNET Screen Layers'].includes(descriptor.label))window.__sceneBuffers.add(buffer);
+            if(['WolfNET Wall Materials','WolfNET Sprites'].includes(descriptor.label))window.__sceneBuffers.add(buffer);
             return buffer;
         };
         const destroyBuffer=GPUBuffer.prototype.destroy;
@@ -141,13 +139,8 @@ try {
         GPUQueue.prototype.copyExternalImageToTexture=function(...args) {
             window.__copiedTextures++; return copy.apply(this,args);
         };
-        const pipeline=GPURenderPassEncoder.prototype.setPipeline,draw=GPURenderPassEncoder.prototype.draw;
-        GPURenderPassEncoder.prototype.setPipeline=function(value){this.__overlay=value.label==='WolfNET Overlay Pipeline';return pipeline.call(this,value);};
-        GPURenderPassEncoder.prototype.draw=function(...args){if(this.__overlay){window.__overlayDraws++;window.__overlayCount++};return draw.apply(this,args);};
         GPUQueue.prototype.writeBuffer=function(buffer,offset,data,...rest) {
-            if(buffer.label==='WolfNET Screen Layers')window.__overlays=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,32));
             if(buffer.label==='WolfNET Camera') {
-                window.__overlayCount=0;
                 window.__camera=Array.from(new Float32Array(data.buffer??data,data.byteOffset??0,12));
                 window.__cameraWrites++;
                 if(window.__frameStamp!==undefined&&window.__lastCameraStamp===window.__frameStamp)window.__duplicateFrames++;
@@ -177,8 +170,8 @@ try {
     await send("Fetch.disable");
     assert(logs.some(line=>line.includes(`revision=1, cells=${level.worldMap.length * level.worldMap[0].length}`)),"Initial compiled revision missing");
     assert(logs.some(line=>line.includes(`${expectedSpriteCount} sprites`)),"Level sprites missing");
-    assert(await evaluate("document.querySelectorAll('canvas').length")===1,"Unexpected extra canvas");
-    await waitFor("window.__overlayCount===2 && window.__overlayDraws>0");
+    assert(await evaluate("document.querySelectorAll('canvas').length")===2,"Unexpected extra canvas");
+    await waitFor("window.__uiImages.length===2 && window.__uiDraws>0");
     assert(await evaluate("document.querySelectorAll('.player-hands,.car-cockpit').length")===0,"First-person sprites still use DOM overlays");
     const start=await evaluate("window.__camera");
     assert(start.slice(0,4).every((value,i)=>Math.abs(value-[...expectedSpawn,...expectedDirection][i])<.0001),"Level spawn incorrect");
@@ -212,9 +205,9 @@ try {
     await assertKeyboardInactive("Keyboard moved the player before capture");
     await captureMouse();
     await key('keyDown','KeyF');
-    await waitFor('window.__overlays[17]<1.26');
+    await waitFor('window.__uiHandAnchor<1.26');
     await key('keyUp','KeyF');
-    await waitFor('Math.abs(window.__overlays[17]-1.28)<.00001');
+    await waitFor('Math.abs(window.__uiHandAnchor-1.28)<.00001');
     const leftAxis = [-start[3],start[2]];
     const projectLeft = camera => camera[0] * leftAxis[0] + camera[1] * leftAxis[1];
     const projectForward = camera => camera[0] * start[2] + camera[1] * start[3];
@@ -404,8 +397,8 @@ try {
         }
         await waitFor(`window.__cameraWrites>${before}&&window.__camera[0]===${spawn[0]}&&window.__camera[1]===${spawn[1]}&&(${buttonExpression}).getAttribute('aria-pressed')==='true'`,600);
         assert(await evaluate("document.pointerLockElement===null"),"Map switch did not release the mouse");
-        assert(await evaluate("window.__sceneTextures.size===1&&window.__sceneBuffers.size===3"),"Old scene GPU resources retained");
-        assert(await evaluate("window.__overlayTextures.size===1"),"First-person scene textures leaked across map switches");
+        assert(await evaluate("window.__sceneTextures.size===1&&window.__sceneBuffers.size===2"),"Old scene GPU resources retained");
+        assert(await evaluate("window.__uiImageCount===1"),"First-person scene textures leaked across map switches");
         if(hadScene) assert(await evaluate("window.__destroyedSceneTextures")>destroyedBefore,"Old textures were not destroyed");
     }
     await selectMap("Showcase",[18.5,22.5]);
@@ -426,7 +419,7 @@ try {
     await evaluate("Array.from(document.querySelectorAll('.map-switcher button')).find(button=>button.textContent==='Showcase').click()");
     await waitFor("!!document.querySelector('.game-error')&&!Array.from(document.querySelectorAll('.map-switcher button')).some(button=>button.disabled)");
     assert(await evaluate("window.__sceneTextures.size===0&&window.__sceneBuffers.size===0"),"Failed switch retained scene resources");
-    assert(await evaluate("window.__overlayTextures.size===0"),"Failed switch retained first-person textures");
+    assert(await evaluate("window.__uiImageCount===0"),"Failed switch retained first-person textures");
     await send("Fetch.disable");
     await selectMap(mainMapLabel,expectedSpawn);
     assert(!await evaluate("!!document.querySelector('.game-error')"),"Map retry did not clear error");

@@ -7,12 +7,12 @@
 
 @inject BlazorJSRuntime JS
 @inject HttpClient Http
+@inject IJSRuntime UiRuntime
 
 @inject RendererSettings Settings
 
 @implements IDisposable
 
-<CascadingValue Value="Wolf" IsFixed="true">
 <div class="game-viewport" style="--render-width: @Settings.Width; --render-height: @Settings.Height;">
     <canvas @ref="_canvas"
             width="@Settings.Width"
@@ -20,27 +20,7 @@
             tabindex="0">
     </canvas>
 
-@if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null &&
-    Wolf.Map.RendererMap.GetRaceMinimap() is { } raceMinimap && Wolf.Player is { } player)
-{
-    <WolfNET.Components.RaceMinimap @key="raceMinimap" Definition="raceMinimap"
-        InitialPose="@(new PlayerPose(player.Transform.Position, player.Transform.Rotation))" />
-}
-@if (!_loading && !_errorPresent && Wolf.Player is WolfNET.Engine.Actors.CarObject)
-{
-    <WolfNET.Components.DrivingPause @key="(typeof(WolfNET.Components.DrivingPause), Wolf.CurrentMapPath)" />
-    <WolfNET.Components.Speedometer @key="(typeof(WolfNET.Components.Speedometer), Wolf.CurrentMapPath)" />
-    @if (Wolf.RaceState != null)
-    {
-        <WolfNET.Components.RaceOverlay @key="Wolf.Map" OnRestart="RestartRaceAsync" />
-    }
-}
 </div>
-
-@if (!_loading && !_errorPresent && Wolf.CurrentMapPath != null)
-{
-    <WolfNET.Components.FpsCounter @key="Wolf.CurrentMapPath" />
-}
 
 @if (_loading)
 {
@@ -63,6 +43,7 @@
                 aria-pressed="@(_selectedMap == ShowcaseMap ? "true" : "false")" @onclick="() => SelectMapAsync(ShowcaseMap)">Showcase</button>
     </nav>
     <a class="viewer-link" href="viewer">Scene viewer</a>
+    <a class="viewer-link" href="ui">UI controls</a>
     @if (_loading)
     {
         <p role="status">@_loadingMessage</p>
@@ -128,4 +109,3 @@
 {
     <pre class="game-error">@_error</pre>
 }
-</CascadingValue>

@@ -5,8 +5,10 @@
 @using WolfNET.Engine.Core
 @using WolfNET.Engine.Graphics
 @using WolfNET.Engine.World
+@using WolfNET.Engine.UI
 @inject BlazorJSRuntime JS
 @inject HttpClient Http
+@inject IJSRuntime UiRuntime
 @implements IDisposable
 
 <PageTitle>WolfNET map viewer</PageTitle>
@@ -23,6 +25,8 @@
     private WebGpuRenderer? _renderer;
     private BrowserFrameLoop? _loop;
     private Scene? _scene;
+    private BrowserUiHost? _ui;
+    private readonly UiDocument _uiDocument = new() { ReferenceSize = new(960, 540) };
     private readonly CancellationTokenSource _lifetime = new();
     private string? _error;
 
@@ -48,15 +52,23 @@
             var textures = map.RendererMap.Textures.Layers.ToDictionary();
             textures.Add(240, "textures/wolf/barrel.png");
             _scene = new(map.RendererMap);
-            _scene.Systems.Add(new GallerySystem(settings.CameraPlaneScale));
+            var images = Enumerable.Range(0, 6).Select(i => _uiDocument.Root.Add(new UiImage("viewer-image-" + i)
+            {
+                Source = "textures/wolf/barrel.png",
+                Style = new() { Anchor = new(.1f + .16f * i, .12f), Pivot = new(.5f), Width = 48, Height = 48.6f }
+            })).ToArray();
+            _scene.Systems.Add(new GallerySystem(settings.CameraPlaneScale, images));
             _scene.Update(0);
             _element = new(_canvas);
             _renderer = new(settings, JS);
             await _renderer.InitializeAsync(_element, await ShaderSources.LoadAsync(Http, _lifetime.Token), _lifetime.Token);
             await _renderer.PrepareSceneAsync(map.RendererMap, _lifetime.Token,
-                resources: new(new TextureCatalog(textures), ["textures/wolf/barrel.png"]));
+                resources: new(new TextureCatalog(textures)));
+            _ui = await BrowserUiHost.CreateAsync(UiRuntime, _canvas, _lifetime.Token);
+            _ui.SetDocument(_uiDocument);
+            await _ui.PrepareImagesAsync(_lifetime.Token);
             _loop = new(JS, settings.TargetFPS);
-            _loop.Start(milliseconds => { _scene.Update(milliseconds); _renderer.Render(_scene.CaptureFrame()); },
+            _loop.Start(milliseconds => { _scene.Update(milliseconds); _renderer.Render(_scene.CaptureFrame()); _ui.Render(960, 540); },
                 exception => { _error = exception.Message; _ = InvokeAsync(StateHasChanged); });
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -67,11 +79,11 @@
 
     public void Dispose()
     {
-        _lifetime.Cancel(); _loop?.Dispose(); _scene?.Dispose(); _renderer?.Dispose(); _element?.Dispose();
+        _lifetime.Cancel(); _loop?.Dispose(); _ui?.Dispose(); _uiDocument.Dispose(); _scene?.Dispose(); _renderer?.Dispose(); _element?.Dispose();
         _lifetime.Dispose();
     }
 
-    private sealed class GallerySystem(float planeScale) : ISceneSystem
+    private sealed class GallerySystem(float planeScale, UiImage[] images) : ISceneSystem
     {
         private float _angle;
         public void Update(Scene scene, float milliseconds)
@@ -82,14 +94,13 @@
             scene.Camera.Direction = Vector2.Normalize(center - scene.Camera.Position);
             scene.Camera.Plane = new(scene.Camera.Direction.Y * planeScale, -scene.Camera.Direction.X * planeScale);
             scene.DynamicSprites.Clear();
-            scene.Overlays.Clear();
             for (var i = 0; i < 12; i++)
             {
                 var angle = i * MathF.Tau / 12 - _angle;
                 scene.DynamicSprites.Add(new(center + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * 2.5f, 240, 0));
             }
             for (var i = 0; i < 6; i++)
-                scene.Overlays.Add(new(0, new(.1f + .16f * i, .12f), new(.05f, .09f), new(.5f), _angle + i * .2f));
+                images[i].Style = images[i].Style with { Rotation = _angle + i * .2f };
         }
     }
 }

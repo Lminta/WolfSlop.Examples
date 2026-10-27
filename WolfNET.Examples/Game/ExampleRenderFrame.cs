@@ -4,7 +4,7 @@ using WolfNET.Engine.Graphics;
 
 namespace WolfNET.Examples.Game;
 
-// Presentation state interpreted by ExampleOverlays.
+// Presentation state interpreted by ExampleHud.
 public enum FirstPersonViewKind { None = 0, Hands = 1, Cockpit = 2 }
 
 /// <summary>Simulation state for screen-space sprites, composited after the world.</summary>
@@ -36,8 +36,7 @@ public readonly record struct ExampleRenderFrame(
         {
             DynamicSprites = sprites,
             ShowMinimap = frame.Map.GetRaceMinimap() == null,
-            CullSpritesOutsideView = frame.Map.GetRaceMinimap() != null,
-            Overlays = ExampleOverlays.Compose(frame.FirstPerson, frame.AspectRatio)
+            CullSpritesOutsideView = frame.Map.GetRaceMinimap() != null
         };
     }
 }
