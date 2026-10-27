@@ -87,7 +87,7 @@
     },
     "wife": {
       "blue": {
-        "maxSpeedOffset": -11,
+        "maxSpeedOffset": -9.9,
         "accelerationMultiplier": 1.2,
         "cornerGripFraction": 0.92,
         "steeringCurvatureGain": 1.3,
@@ -101,7 +101,7 @@
         }
       },
       "green": {
-        "maxSpeedOffset": -11.5,
+        "maxSpeedOffset": -10.8,
         "accelerationMultiplier": 1.2,
         "cornerGripFraction": 0.96,
         "steeringCurvatureGain": 1.4,

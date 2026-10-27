@@ -129,8 +129,9 @@ internal static class OpponentDifficultyChecks
                 Check(mean >= 15.8 && mean <= 17.2, $"Easy {(green ? "green" : "blue")} missed its 16-17 blocks/s loop target: {mean:F2}.");
             if (difficulty == RaceDifficulty.Wife)
             {
-                Check(race.Status.LapTimes.Count == 3 && race.Status.LapTimes.All(time => time >= 170000 && time <= 180000),
-                    $"Wife mode {(green ? "green" : "blue")} missed its 2:50-3:00 solo lap target.");
+                var minimumLapTime = green ? 165000 : 160000;
+                Check(race.Status.LapTimes.Count == 3 && race.Status.LapTimes.All(time => time >= minimumLapTime && time <= minimumLapTime + 5000),
+                    $"Wife mode {(green ? "green" : "blue")} missed its {(green ? "2:45-2:50" : "2:40-2:45")} solo lap target.");
                 Console.WriteLine($"Wife {(green ? "green" : "blue")} solo laps: {string.Join(", ", race.Status.LapTimes.Select(time => $"{time / 1000:F2}s"))}.");
             }
             Console.WriteLine($"{difficulty} {(green ? "green" : "blue")} lap: mean {mean:F2} blocks/s, {driver.MistakesMade} mistakes.");
@@ -174,8 +175,9 @@ internal static class OpponentDifficultyChecks
                     Check(mean >= 15.8 && mean <= 17.2, $"Easy traffic average missed its 16-17 blocks/s target: {mean:F2}.");
                 else
                 {
-                    Check(result.LapTimes.All(time => time >= 170000 && time <= 180000),
-                        $"Wife mode opponent {i} missed its 2:50-3:00 traffic lap target.");
+                    var minimumLapTime = i == 1 ? 165000 : 160000;
+                    Check(result.LapTimes.All(time => time >= minimumLapTime && time <= minimumLapTime + 5000),
+                        $"Wife mode opponent {i} missed its {(i == 1 ? "2:45-2:50" : "2:40-2:45")} traffic lap target.");
                     Console.WriteLine($"Wife traffic {i} laps: {string.Join(", ", result.LapTimes.Select(time => $"{time / 1000:F2}s"))}.");
                 }
                 Check(mud[i] < samples[i] * .01f, $"A {difficulty} opponent repeatedly left the asphalt in traffic.");

@@ -346,7 +346,7 @@ Each profile configures `maxSpeedOffset` relative to the player, `accelerationMu
 Easy blue brakes early more often and for longer. Easy green remains consistent, with a top speed
 5 blocks/s below the player (20 blocks/s at the default player limit) and gentler acceleration.
 Easy targets an average loop pace around 16-17 blocks/s.
-Wife mode is tuned for 2:50-3:00 laps on Pine Loop with the shipped car settings.
+Wife mode is tuned for blue laps of 2:40-2:45 and green laps of 2:45-2:50 on Pine Loop with the shipped car settings.
 Both opponents use lower top speeds; blue keeps its occasional early-braking mistakes and green drives consistently.
 The Normal/Easy/Wife mode buttons beneath Pine Loop's description start a fresh race with the selected profiles.
 The selection carries through race restarts and map switches; reloading the app uses the JSON default.

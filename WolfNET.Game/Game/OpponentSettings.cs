@@ -84,8 +84,8 @@ public sealed record OpponentSettings
     };
     public OpponentDifficultySettings Wife { get; init; } = new()
     {
-        Blue = OpponentProfileSettings.Normal(false) with { MaxSpeedOffset = -11 },
-        Green = OpponentProfileSettings.Normal(true) with { MaxSpeedOffset = -11.5f, AccelerationMultiplier = 1.2f }
+        Blue = OpponentProfileSettings.Normal(false) with { MaxSpeedOffset = -9.9f },
+        Green = OpponentProfileSettings.Normal(true) with { MaxSpeedOffset = -10.8f, AccelerationMultiplier = 1.2f }
     };
 
     public OpponentDifficultySettings Get(RaceDifficulty difficulty) => difficulty switch

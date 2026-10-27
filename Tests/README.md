@@ -34,7 +34,7 @@ Keep regression cases around behavior that could break gameplay or map loading.
 Avoid tests that pin decorative prop sizes, exact CSS values, or equality between
 editable JSON settings and code defaults. Full-race simulations cover normal
 and easy traffic; the difficulty checks also compare solo mistake profiles and verify every
-Wife mode lap takes 170-180 seconds across three solo and traffic laps for both opponents.
+Wife mode lap takes 160-165 seconds for blue and 165-170 seconds for green across three solo and traffic laps.
 Use manual review for artwork, shader appearance, and actual browser audio playback.
 
 ## Opponent speed measurements
