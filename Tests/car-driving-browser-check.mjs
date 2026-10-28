@@ -6,7 +6,7 @@ import fs from 'node:fs';
 const port = process.argv[2] ?? '9260';
 const base = process.argv[3] ?? 'https://localhost:7279';
 const racePath = '/?map=pine-loop';
-const project = 'WolfNET.Examples';
+const project = 'WolfSlop.Examples';
 const carDefinition = JSON.parse(fs.readFileSync(`${project}/wwwroot/objects/sprites/sprite-directional-car.json`, 'utf8'));
 const carSettings = JSON.parse(fs.readFileSync(`${project}/wwwroot/gameplay-settings.json`, 'utf8')).car;
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {method: 'PUT'})).json();

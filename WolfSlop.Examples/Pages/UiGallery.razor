@@ -1,0 +1,95 @@
+@page "/ui"
+@using System.Numerics
+@using SpawnDev.BlazorJS
+@using WolfNET.Engine.Core
+@using WolfNET.Engine.UI
+@using WolfNET.Engine.Browser.Core
+@using WolfNET.Engine.Browser.UI
+@inject BlazorJSRuntime JS
+@inject IJSRuntime UiRuntime
+@implements IDisposable
+
+<PageTitle>WolfSlop UI controls</PageTitle>
+<main class="ui-gallery">
+    <header><a href="/">Game examples</a> <h1>UI controls</h1></header>
+    <div class="ui-gallery-viewport"><canvas @ref="_canvas" width="1200" height="800" tabindex="0"></canvas></div>
+    @if (_error != null) { <p role="alert">@_error</p> }
+</main>
+
+@code {
+    private ElementReference _canvas;
+    private BrowserUiHost? _host;
+    private IFrameLoop? _loop;
+    private readonly UiDocument _document = new() { ScaleMode = UiScaleMode.Pixels };
+    private readonly CancellationTokenSource _lifetime = new();
+    private string? _error;
+    private int _count;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            BuildUi();
+            _host = await BrowserUiHost.CreateAsync(UiRuntime, _canvas, _lifetime.Token);
+            _host.SetDocument(_document);
+            await _host.PrepareImagesAsync(_lifetime.Token);
+            _loop = new BrowserFrameLoop(JS, 60);
+            _loop.Start(_ => { var size = _host.Viewport; _host.Render(size.X, size.Y); });
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _error = exception.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void BuildUi()
+    {
+        _document.Root.Style = UiStyle.Fill with { Background = "#0b111b" };
+        var card = _document.Root.Add(new UiPanel("gallery") { Style = new()
+        {
+            Anchor = new(.5f), Pivot = new(.5f), Width = UiLength.Percent(.94f), Height = UiLength.Percent(.94f),
+            Background = "#142232", CornerRadius = 12, Padding = new(24), Layout = UiLayoutMode.Column, Gap = 14, Clip = true
+        } });
+        var title = card.Add(new UiText("gallery-title") { Text = "One UI system, any scene", Font = new(Size: 28, Weight: 700) });
+        card.Add(new UiText("gallery-description") { Text = "Text, images, custom drawings and interactive controls share layout, styling, clipping and keyboard focus.",
+            Wrap = true, Style = new() { Width = UiLength.Percent(1) } });
+        var controls = card.Add(new UiPanel("controls") { Style = new() { Layout = UiLayoutMode.Row, Width = UiLength.Percent(1), Gap = 20 } });
+        var left = controls.Add(new UiPanel("control-column") { Style = new() { Layout = UiLayoutMode.Column, Width = UiLength.Percent(.55f), Gap = 12 } });
+        var count = left.Add(new UiText("counter") { Text = "Count: 0", ClassName = "ui-counter", Font = new(Size: 22, Weight: 700) });
+        var add = left.Add(new UiButton("increment") { Text = "Increment", Style = new() { Width = UiLength.Percent(1), Height = 42, BorderWidth = 2, CornerRadius = 6 } });
+        add.Clicked += _ => count.Text = "Count: " + ++_count;
+        var toggle = left.Add(new UiToggle("theme") { Text = "Green accent", Style = new() { Width = UiLength.Percent(1), Height = 42, BorderWidth = 2, CornerRadius = 6 } });
+        toggle.Changed += value => _document.Theme = _document.Theme with { Accent = value ? "#79ff88" : "#45bfff" };
+        var progress = left.Add(new UiProgressBar("progress") { Value = .35f, Style = new() { Width = UiLength.Percent(1), Height = 12 } });
+        var slider = left.Add(new UiSlider("amount") { Value = .35f, Label = "Amount", Style = new() { Width = UiLength.Percent(1), Height = 28, BorderWidth = 2 } });
+        slider.ValueChanged += value => progress.Value = value;
+        var open = left.Add(new UiButton("open-dialog") { Text = "Open dialog", Style = new() { Width = UiLength.Percent(1), Height = 42, BorderWidth = 2, CornerRadius = 6 } });
+        var right = controls.Add(new UiPanel("art-column") { Style = new() { Layout = UiLayoutMode.Column, Width = UiLength.Percent(.4f), Gap = 10 } });
+        var name = right.Add(new UiTextInput("display-name") { Placeholder = "Display name", Label = "Display name", MaxLength = 32,
+            Style = new() { Width = UiLength.Percent(1), Height = 42, Padding = new(10, 6), BorderWidth = 1, CornerRadius = 6, Clip = true } });
+        name.TextChanged += value => title.Text = value.Length == 0 ? "One UI system, any scene" : "Welcome, " + value;
+        right.Add(new UiImage("sample-image") { Source = "textures/wolf/barrel.png", Label = "Barrel image", Fit = UiImageFit.Contain,
+            Style = new() { Width = 140, Height = 140, Background = "#0b111b", CornerRadius = 8 } });
+        right.Add(new UiCanvas("sample-drawing") { Label = "Vector diagram", Style = new() { Width = 180, Height = 100 }, ViewBox = new(0, 0, 180, 100),
+            Drawing = new UiDrawingBuilder().Polyline([new(15, 65), new(70, 25), new(150, 65)], "#8ad6ff", 3)
+                .Circle(new(15, 65), 8, "#79ff88").Circle(new(70, 25), 8, "#45bfff").Circle(new(150, 65), 8, "#e6bb68").Build() });
+        var scroll = card.Add(new UiScrollView("scroll-list") { Label = "Scrollable example list",
+            Style = new() { Layout = UiLayoutMode.Column, Width = UiLength.Percent(1), Height = 120, Gap = 4, Clip = true, Background = "#0b111b", Padding = new(10) } });
+        for (var i = 1; i <= 20; i++) scroll.Add(new UiText("item-" + i) { Text = $"Scrollable item {i:00}", Style = new() { Height = 24 } });
+        var shade = _document.Root.Add(new UiPanel("dialog-shade") { Visible = false,
+            Style = UiStyle.Fill with { Background = "#00000099", ZIndex = 100 }, BlocksInput = true });
+        var dialog = shade.Add(new UiPanel("dialog") { Role = "dialog", Label = "Example dialog", Style = new()
+        {
+            Anchor = new(.5f), Pivot = new(.5f), Width = 300, Padding = new(20), Layout = UiLayoutMode.Column, Gap = 16,
+            Background = "#233b50", BorderColor = "#8ad6ff", BorderWidth = 2, CornerRadius = 10
+        } });
+        dialog.Add(new UiText("dialog-message") { Text = "Focus stays inside this dialog.", Wrap = true, Style = new() { Width = UiLength.Percent(1) } });
+        var close = dialog.Add(new UiButton("close-dialog") { Text = "Close", Style = new() { Width = UiLength.Percent(1), Height = 42, BorderWidth = 2 } });
+        open.Clicked += _ => { shade.Visible = true; _document.ModalRoot = dialog; _document.Input.Focus(close); };
+        close.Clicked += _ => { _document.ModalRoot = null; shade.Visible = false; _document.Input.Focus(open); };
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel(); _loop?.Dispose(); _host?.Dispose(); _document.Dispose(); _lifetime.Dispose();
+    }
+}

@@ -10,7 +10,7 @@ import { sizeRacewayObject, sizeRacewayProps } from './size-raceway-props.mjs';
 import { applyRacewayAudioMetadata } from './raceway-audio-metadata.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web = path.join(repository, 'WolfNET.Examples/wwwroot');
+const web = path.join(repository, 'WolfSlop.Examples/wwwroot');
 const objectDirectory = path.join(web, 'objects/raceway');
 const textureDirectory = path.join(web, 'textures/raceway');
 const width = 256, height = 512;

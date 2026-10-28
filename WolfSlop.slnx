@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Engine/WolfSlop.Engine/WolfNET.Engine.csproj" />
+  <Project Path="Engine/WolfSlop.Engine.Browser/WolfNET.Engine.Browser.csproj" />
+  <Project Path="Engine/Tests/EngineTests/WolfNET.EngineTests.csproj" />
+  <Project Path="WolfSlop.Examples/WolfSlop.Examples.csproj" />
+  <Project Path="Tests/WolfSlop.MapTests.csproj" />
+  <Project Path="Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj" />
+</Solution>

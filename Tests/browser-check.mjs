@@ -7,7 +7,7 @@ import {uiInspectionSource} from "./ui-browser-helpers.mjs";
 const port = process.argv[2] ?? "9243";
 const appUrl = process.argv[3] ?? "http://127.0.0.1:5194";
 const missingTextures = process.argv.includes("--missing-textures");
-const levelPath = path.resolve("WolfNET.Examples/wwwroot/maps/level1.json");
+const levelPath = path.resolve("WolfSlop.Examples/wwwroot/maps/level1.json");
 const level = JSON.parse(fs.readFileSync(levelPath, "utf8"));
 const definitions = new Map();
 function loadDefinition(id) {
@@ -36,7 +36,7 @@ for (const id of level.worldMap.flat()) {
     expectedSpriteCount += object.type === "spriteGroup" ? object.sprites.length : ["sprite", "door"].includes(object.type) ? 1 : 0;
 }
 if (level.sky?.texture) expectedImages.add(level.sky.texture);
-expectedImages.add(JSON.parse(fs.readFileSync("WolfNET.Examples/wwwroot/player-character.json", "utf8")).texture);
+expectedImages.add(JSON.parse(fs.readFileSync("WolfSlop.Examples/wwwroot/player-character.json", "utf8")).texture);
 expectedImages.add('textures/characters/first-person-hands.png');
 const expectedSpawn = [level.spawn.x, level.spawn.y];
 const directionLength = Math.hypot(level.spawn.directionX, level.spawn.directionY);

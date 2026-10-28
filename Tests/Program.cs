@@ -5,7 +5,7 @@ using WolfNET.Engine.World;
 using WolfNET.Engine.Actors.Components;
 
 var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
-var webRoot = Path.Combine(root, "WolfNET.Examples", "wwwroot");
+var webRoot = Path.Combine(root, "WolfSlop.Examples", "wwwroot");
 using var http = new HttpClient(new FileHandler(webRoot)) { BaseAddress = new Uri("https://test.local/") };
 if (args.Contains("--opponent-speeds"))
 {

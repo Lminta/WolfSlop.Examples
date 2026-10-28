@@ -5,10 +5,10 @@ The portable engine, browser provider, and their unit/public API tests live in
 
 ```powershell
 git submodule update --init --recursive
-dotnet build WolfNET.slnx
+dotnet build WolfSlop.slnx
 dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
 dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
-dotnet run --project Tests/WolfNET.MapTests.csproj
+dotnet run --project Tests/WolfSlop.MapTests.csproj
 node --test Engine/Tests/sprite-sort.test.mjs Engine/Tests/texture-upload.test.mjs Engine/Tests/sfx-mixer.test.mjs Engine/Tests/ui.test.mjs
 node --test Tests/sprite-sort.test.mjs
 ```
@@ -18,7 +18,7 @@ repository can also build and run all its tests independently, with procedural
 fixtures and no game assets. Run both C# suites before the Node sprite checks:
 each suite generates the reference data used by its own JavaScript checks.
 
-`WolfNET.MapTests` checks the shipped maps, application scene assembly and
+`WolfSlop.MapTests` checks the shipped maps, application scene assembly and
 cancellation, character presentation, car interaction, checkpoint/lap timing,
 racing pause/restart, opponents/difficulty, race props, game sound configuration,
 and SFX policy. Race Imperialis's integration and browser checks live in
@@ -44,8 +44,8 @@ Use manual review for artwork, shader appearance, and actual audio playback.
 ## Opponent speed measurements
 
 ```powershell
-dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds
-dotnet run --project Tests/WolfNET.MapTests.csproj -- --opponent-speeds --easy
+dotnet run --project Tests/WolfSlop.MapTests.csproj -- --opponent-speeds
+dotnet run --project Tests/WolfSlop.MapTests.csproj -- --opponent-speeds --easy
 ```
 
 Loads the shipped gameplay settings and runs three-lap traffic and solo simulations

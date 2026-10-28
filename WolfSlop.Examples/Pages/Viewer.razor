@@ -1,0 +1,109 @@
+@page "/viewer"
+@using System.Numerics
+@using SpawnDev.BlazorJS
+@using SpawnDev.BlazorJS.JSObjects
+@using WolfNET.Engine.Core
+@using WolfNET.Engine.Graphics
+@using WolfNET.Engine.World
+@using WolfNET.Engine.UI
+@using WolfNET.Engine.Browser.Core
+@using WolfNET.Engine.Browser.Graphics
+@using WolfNET.Engine.Browser.UI
+@inject BlazorJSRuntime JS
+@inject HttpClient Http
+@inject IJSRuntime UiRuntime
+@implements IDisposable
+
+<PageTitle>WolfSlop map viewer</PageTitle>
+<main class="scene-viewer">
+<p><a href="/">Exploration and racing</a> · Map viewer · <button @onclick="TogglePause">@(_scene?.Paused == true ? "Resume" : "Pause")</button></p>
+<p>A procedural scene with twelve moving objects and an orbiting camera.</p>
+<canvas @ref="_canvas" width="960" height="540"></canvas>
+@if (_error != null) { <p role="alert">@_error</p> }
+</main>
+
+@code {
+    private ElementReference _canvas;
+    private HTMLCanvasElement? _element;
+    private WebGpuRenderer? _renderer;
+    private IFrameLoop? _loop;
+    private Scene? _scene;
+    private BrowserUiHost? _ui;
+    private readonly UiDocument _uiDocument = new() { ReferenceSize = new(960, 540) };
+    private readonly CancellationTokenSource _lifetime = new();
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var settings = new RendererSettings(960, 540);
+            var objects = new Dictionary<int, MapObjectDefinition>
+            {
+                [0] = new PassageDefinition { Id = 0, Collides = false, RaycastTransparent = true,
+                    FloorTexture = "textures/wolf/greystone.png", CeilingTexture = "textures/wolf/wood.png" },
+                [1] = new WallDefinition { Id = 1, PassageId = 0, Collides = true, RaycastTransparent = false,
+                    Textures = new() { North = "textures/wolf/redbrick.png", South = "textures/wolf/redbrick.png",
+                        East = "textures/wolf/redbrick.png", West = "textures/wolf/redbrick.png" } }
+            };
+            var map = new TileMap(new()
+            {
+                WorldMap = Enumerable.Range(0, 16).Select(x => Enumerable.Range(0, 16)
+                    .Select(y => x == 0 || y == 0 || x == 15 || y == 15 ? 1 : 0).ToArray()).ToArray()
+            }, objects, settings.MaxMapWidth, settings.MaxMapHeight);
+            var textures = map.RendererMap.Textures.Layers.ToDictionary();
+            textures.Add(240, "textures/wolf/barrel.png");
+            _scene = new(map.RendererMap);
+            var images = Enumerable.Range(0, 6).Select(i => _uiDocument.Root.Add(new UiImage("viewer-image-" + i)
+            {
+                Source = "textures/wolf/barrel.png",
+                Style = new() { Anchor = new(.1f + .16f * i, .12f), Pivot = new(.5f), Width = 48, Height = 48.6f }
+            })).ToArray();
+            _scene.Systems.Add(new GallerySystem(settings.CameraPlaneScale, images));
+            _scene.Update(0);
+            _element = new(_canvas);
+            _renderer = new(settings, JS);
+            await _renderer.InitializeAsync(_element, await ShaderSources.LoadAsync(Http, _lifetime.Token), _lifetime.Token);
+            await _renderer.PrepareSceneAsync(map.RendererMap, _lifetime.Token,
+                resources: new(new TextureCatalog(textures)));
+            _ui = await BrowserUiHost.CreateAsync(UiRuntime, _canvas, _lifetime.Token);
+            _ui.SetDocument(_uiDocument);
+            await _ui.PrepareImagesAsync(_lifetime.Token);
+            _loop = new BrowserFrameLoop(JS, settings.TargetFPS);
+            _loop.Start(milliseconds => { _scene.Update(milliseconds); _renderer.Render(_scene.CaptureFrame()); _ui.Render(960, 540); },
+                exception => { _error = exception.Message; _ = InvokeAsync(StateHasChanged); });
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _error = exception.Message; await InvokeAsync(StateHasChanged); }
+    }
+
+    private void TogglePause() { if (_scene != null) _scene.Paused = !_scene.Paused; }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel(); _loop?.Dispose(); _ui?.Dispose(); _uiDocument.Dispose(); _scene?.Dispose(); _renderer?.Dispose(); _element?.Dispose();
+        _lifetime.Dispose();
+    }
+
+    private sealed class GallerySystem(float planeScale, UiImage[] images) : ISceneSystem
+    {
+        private float _angle;
+        public void Update(Scene scene, float milliseconds)
+        {
+            _angle += milliseconds * .00015f;
+            var center = new Vector2(8);
+            scene.Camera.Position = center + new Vector2(MathF.Cos(_angle), MathF.Sin(_angle)) * 5;
+            scene.Camera.Direction = Vector2.Normalize(center - scene.Camera.Position);
+            scene.Camera.Plane = new(scene.Camera.Direction.Y * planeScale, -scene.Camera.Direction.X * planeScale);
+            scene.DynamicSprites.Clear();
+            for (var i = 0; i < 12; i++)
+            {
+                var angle = i * MathF.Tau / 12 - _angle;
+                scene.DynamicSprites.Add(new(center + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * 2.5f, 240, 0));
+            }
+            for (var i = 0; i < 6; i++)
+                images[i].Style = images[i].Style with { Rotation = _angle + i * .2f };
+        }
+    }
+}

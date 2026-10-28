@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="WolfNET.MapTests" type="DotNetProject" factoryName=".NET Project">
-    <option name="PROJECT_PATH" value="$PROJECT_DIR$/Tests/WolfNET.MapTests.csproj" />
+  <configuration default="false" name="WolfSlop.MapTests" type="DotNetProject" factoryName=".NET Project">
+    <option name="PROJECT_PATH" value="$PROJECT_DIR$/Tests/WolfSlop.MapTests.csproj" />
     <option name="PROJECT_KIND" value="DotNetCore" />
     <option name="PROJECT_TFM" value="net10.0" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />

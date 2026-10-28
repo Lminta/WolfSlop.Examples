@@ -14,7 +14,7 @@ if (!process.argv.includes('--legacy')) {
 }
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web = path.join(repository, 'WolfNET.Examples/wwwroot');
+const web = path.join(repository, 'WolfSlop.Examples/wwwroot');
 const objectDirectory = path.join(web, 'objects/raceway');
 const width = 80, height = 70;
 const grid = Array.from({ length: width }, () => Array(height).fill(501));

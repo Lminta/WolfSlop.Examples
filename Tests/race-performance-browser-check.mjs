@@ -59,7 +59,7 @@ async function waitFor(expression) {
     throw Error('Timed out: ' + expression + '\n' + logs.slice(-12).join('\n'));
 }
 const percentile = (values, p) => [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0;
-const report = {browser: await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(), settings: JSON.parse(fs.readFileSync('WolfNET.Examples/wwwroot/graphics-settings.json')), views: []};
+const report = {browser: await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(), settings: JSON.parse(fs.readFileSync('WolfSlop.Examples/wwwroot/graphics-settings.json')), views: []};
 report.sfxEnabled = !process.argv.includes('--no-sfx');
 if (process.argv.includes('--resume') && fs.existsSync(output)) {
     const previous = JSON.parse(fs.readFileSync(output));

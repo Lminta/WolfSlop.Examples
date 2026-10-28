@@ -5,7 +5,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-$textureDirectory = Join-Path (Split-Path -Parent $PSScriptRoot) 'WolfNET.Examples/wwwroot/textures/raceway'
+$textureDirectory = Join-Path (Split-Path -Parent $PSScriptRoot) 'WolfSlop.Examples/wwwroot/textures/raceway'
 
 foreach ($asset in @('flags', 'crowd')) {
     $source = [System.Drawing.Bitmap]::new((Join-Path $textureDirectory "festival-$asset-source.png"))

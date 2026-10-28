@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { sizeRacewayObject } from './size-raceway-props.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web = path.join(repository, 'WolfNET.Examples/wwwroot');
+const web = path.join(repository, 'WolfSlop.Examples/wwwroot');
 const objectDirectory = path.join(web, 'objects/raceway');
 const textureDirectory = path.join(web, 'textures/raceway');
 

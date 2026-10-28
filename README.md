@@ -1,16 +1,18 @@
-# WolfNET
+# WolfSlop.Examples
 
 Raycasting framework with a platform-independent .NET 10 engine and a Blazor WebAssembly/WebGPU provider. The current examples require a browser/device with WebGPU support.
 
 The solution uses the independent [**WolfSlop** engine repository](https://github.com/Lminta/WolfSlop)
 as the `Engine/` Git submodule. Clone with
-`git clone --recurse-submodules <repository-url>`, or initialize an existing checkout with:
+`git clone --recurse-submodules https://github.com/Lminta/WolfSlop.Examples.git`,
+or initialize an existing checkout with:
 
 ```powershell
 git submodule update --init --recursive
 ```
 
-WolfSlop's upstream is `https://github.com/Lminta/WolfSlop.git`.
+The examples upstream is `https://github.com/Lminta/WolfSlop.Examples.git`.
+The engine submodule uses `https://github.com/Lminta/WolfSlop.git`.
 
 The solution contains:
 
@@ -19,14 +21,14 @@ The solution contains:
   .NET library without browser or UI-framework dependencies.
 - `Engine/WolfSlop.Engine.Browser/`: WebGPU rendering, Canvas UI, browser input, frame
   scheduling, Web Audio, JavaScript and shaders, packaged as a Razor class library.
-- `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
+- `WolfSlop.Examples/`: exploration and racing, application rules/UI, launch profiles,
   and example assets in `wwwroot`. It references Engine and the browser provider.
 - `Engine/Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
 - `Tests/`: compiler, simulation, and browser regression checks.
 
-Build the solution with `dotnet build WolfNET.slnx`.
+Build the solution with `dotnet build WolfSlop.slnx`.
 
-Start the examples with `dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj`.
+Start the examples with `dotnet run --project WolfSlop.Examples/WolfSlop.Examples.csproj`.
 Open `/` for Showcase at `https://localhost:7279`, or `/viewer` for a procedural scene with twelve
 moving objects and an orbiting camera, using the engine without a player or race.
 Open `/ui` for the interactive UI control gallery.
@@ -67,10 +69,10 @@ objects, and movement examples. Race Imperialis starts directly on **Pine Loop**
 **The Glassworks** is a compact abandoned botanical station
 built around a central glasshouse. Explore its potting room and pump room, then
 find the maintenance shortcut that links the rooms. See the
-[Glassworks notes](WolfNET.Examples/wwwroot/maps/glassworks.md) for the layout.
+[Glassworks notes](WolfSlop.Examples/wwwroot/maps/glassworks.md) for the layout.
 **The Brickyard**, the original motor depot, and **Showcase** remain available
 from the map selector. Open `?map=level1` to load The Brickyard directly; its
-[level notes](WolfNET.Examples/wwwroot/maps/level1.md) describe the original routes.
+[level notes](WolfSlop.Examples/wwwroot/maps/level1.md) describe the original routes.
 
 **Pine Loop** is a 256 × 512 outdoor racing circuit with a five-tile starting grid
 and road sections varying from two to four tiles, large infield loops, a long eastern straight, a 44-block tunnel,
@@ -81,7 +83,7 @@ tire stacks protect the bends, and long buffer sprites keep a fixed orientation.
 Find a parked car in the Glassworks east service room, the Brickyard motor yard,
 or the Showcase annex, face it from nearby, and press **F** to enter Pine Loop.
 Its
-[map notes](WolfNET.Examples/wwwroot/maps/pine-loop.md) describe the route and assets.
+[map notes](WolfSlop.Examples/wwwroot/maps/pine-loop.md) describe the route and assets.
 
 Pine Loop uses a rotating local minimap with a 120-block viewing width. Its player
 arrow stays below center and points up, leaving more room for upcoming bends.
@@ -94,7 +96,7 @@ Texture rendering uses mipmaps, trilinear filtering and 4× anisotropic filterin
 to reduce moiré and shimmering on detailed walls, floors and ceilings. Sprite
 filtering preserves alpha without adding dark borders.
 
-Edit `WolfNET.Examples/wwwroot/graphics-settings.json` to change render width, height,
+Edit `WolfSlop.Examples/wwwroot/graphics-settings.json` to change render width, height,
 target FPS, `maxAnisotropy` (1–16, default 4), and `fovDegrees` (horizontal field of
 view, 1–179°, default 66.85°). `renderDistance` sets the horizontal viewing radius
 in map blocks (default **60**, positive and finite). `fogStartDistance` sets where
@@ -163,7 +165,7 @@ The image check excludes the FPS counter and allows a three-level RGB tolerance.
 Run the regular regression checks from the repository root:
 
 ```powershell
-dotnet run --project Tests/WolfNET.MapTests.csproj
+dotnet run --project Tests/WolfSlop.MapTests.csproj
 dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
 dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
 node --test Engine/Tests/sprite-sort.test.mjs Engine/Tests/texture-upload.test.mjs Engine/Tests/sfx-mixer.test.mjs Engine/Tests/ui.test.mjs
@@ -260,7 +262,7 @@ fully off-road footprints use their full respective profiles.
 Defaults are **19 blocks/s** forward and
 **4 blocks/s** reverse on asphalt, **8** and **2** off-road.
 
-Edit [gameplay-settings.json](WolfNET.Examples/wwwroot/gameplay-settings.json) and
+Edit [gameplay-settings.json](WolfSlop.Examples/wwwroot/gameplay-settings.json) and
 reload to tune dimensions, engine acceleration, speed limits, braking, lateral
 grip, rolling resistance, terrain penalty, steering, and cameras. Distances use
 blocks, speeds blocks/second, accelerations blocks/second², response coefficients
@@ -282,7 +284,7 @@ First-person mouse camera control is disabled; the cockpit wheel still follows
 the simulated steering angle. Switching to the cockpit resets orbit and pitch.
 **Esc**, capture loss, or window blur pauses the car and retains momentum;
 clicking the canvas resumes. Asset prompts are in
-[cockpit-assets.md](WolfNET.Examples/wwwroot/textures/race/cockpit-assets.md).
+[cockpit-assets.md](WolfSlop.Examples/wwwroot/textures/race/cockpit-assets.md).
 
 The panel beneath the race minimap shows completed/total laps (for example `1/3`), total elapsed time,
 current lap time, and the last completed lap. The first click starts a five-second
@@ -293,16 +295,16 @@ count only after passing all invisible checkpoints in order. Reversing over the
 line or repeatedly crossing it cannot add laps. An incomplete finish clears
 checkpoint progress while time continues. The configured final lap freezes driving
 and timing, releases the mouse, and shows total and individual lap times with a
-restart button. Set `race.lapCount` in `WolfNET.Examples/wwwroot/gameplay-settings.json`
+restart button. Set `race.lapCount` in `WolfSlop.Examples/wwwroot/gameplay-settings.json`
 to change the race length (default: 3). Restarting loads a fresh grid and countdown;
 leaving the map also resets the session.
 Music starts with the countdown at 15% of its configured volume and smoothly
 reaches normal volume at GO. Pausing driving also pauses music and the fade.
 Pine Loop plays every MP3 currently
-in `WolfNET.Examples/wwwroot/music` in order, repeating the queue with a three-second
+in `WolfSlop.Examples/wwwroot/music` in order, repeating the queue with a three-second
 crossfade (including the last track back to the first). Restarting resets music
 to the first track; leaving the map releases both streams.
-Edit `WolfNET.Examples/wwwroot/audio-settings.json` and reload to change
+Edit `WolfSlop.Examples/wwwroot/audio-settings.json` and reload to change
 `volume` (0–1, default 1), `musicVolume` (0–1, default 0.65),
 `musicCrossfadeSeconds` (nonnegative, default 3; zero disables blending), and
 `countdownStartVolume` (0–1, default 0.15; a fraction of normal music volume).
@@ -372,8 +374,8 @@ are synthesized mono WAVs; regenerate them from the repository root with
 `sfx.volume: 0` skips only effects. Effects pause with mouse capture and are
 released on map changes. Short effects are decoded once per scene; music streams.
 Missing clips are reported once per load and skipped. Generate the eleven files
-using the [ElevenLabs sound prompts](WolfNET.Examples/wwwroot/sounds/GENERATE-SOUNDS.md),
-then put them in `WolfNET.Examples/wwwroot/sounds/` and reload.
+using the [ElevenLabs sound prompts](WolfSlop.Examples/wwwroot/sounds/GENERATE-SOUNDS.md),
+then put them in `WolfSlop.Examples/wwwroot/sounds/` and reload.
 
 Pine Loop's checkpoint sequence permits its existing Mud Express shortcut.
 The map's optional `race` metadata stores a `startFinish` gate and ordered
@@ -412,7 +414,7 @@ Results show both racers' total and individual lap times. If the player finishes
 first, the opponent continues while results are open and its final time fills in
 when it finishes. Restart resets both cars, timers, and lap comparisons.
 
-Run the normal checks with `dotnet run --project Tests/WolfNET.MapTests.csproj`.
+Run the normal checks with `dotnet run --project Tests/WolfSlop.MapTests.csproj`.
 The normal checks include portable C# music queue and lifecycle tests.
 They also cover SFX mixing, collision telemetry/materials, engine load, braking,
 countdown events, crowd limits, and missing clips.
@@ -427,7 +429,7 @@ driving input, both views, pause/resume, cockpit alignment, and walking-map rest
 The Examples HTTPS profiles bind to all IPv4 interfaces. In Rider, select the `https` launch profile, or run:
 
 ```powershell
-dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile https
+dotnet run --project WolfSlop.Examples/WolfSlop.Examples.csproj --launch-profile https
 ```
 
 On another device on the same network, open `https://<server-LAN-IP>:7279`. Use `ipconfig` on the server to find its IPv4 address. The address at setup time was `192.168.50.232`, so the URL was `https://192.168.50.232:7279`. This address can change with DHCP.
@@ -444,7 +446,7 @@ New-Item -ItemType Directory -Force .certs | Out-Null
 mkcert -cert-file .certs/lan.pem -key-file .certs/lan-key.pem localhost 127.0.0.1 192.168.50.232
 $env:ASPNETCORE_Kestrel__Certificates__Default__Path = (Resolve-Path .certs/lan.pem).Path
 $env:ASPNETCORE_Kestrel__Certificates__Default__KeyPath = (Resolve-Path .certs/lan-key.pem).Path
-dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile https
+dotnet run --project WolfSlop.Examples/WolfSlop.Examples.csproj --launch-profile https
 ```
 
 Install the `rootCA.pem` from the directory printed by `mkcert -CAROOT` into each client's trusted certificate authorities, following that device's certificate trust instructions. On iOS, also enable full trust in Certificate Trust Settings. Share only the public `rootCA.pem`, never `rootCA-key.pem` or `lan-key.pem`. Regenerate the server certificate if the LAN IP changes. The environment variables above apply to the current terminal; configure them in Rider's run configuration if launching there.
@@ -469,13 +471,13 @@ automatic browser refresh.
 If another device cannot connect, check Windows Firewall and ensure the devices are on the same LAN without guest Wi-Fi/client isolation. If needed, run this in an administrator PowerShell to allow only local-subnet connections to these ports:
 
 ```powershell
-New-NetFirewallRule -DisplayName 'WolfNET LAN development' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7279 -RemoteAddress LocalSubnet -Profile Any
+New-NetFirewallRule -DisplayName 'WolfSlop LAN development' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7279 -RemoteAddress LocalSubnet -Profile Any
 ```
 
 To remove that rule later:
 
 ```powershell
-Remove-NetFirewallRule -DisplayName 'WolfNET LAN development'
+Remove-NetFirewallRule -DisplayName 'WolfSlop LAN development'
 ```
 
 Third-person view: press **V** while the mouse is captured to toggle modes. Mouse
@@ -488,7 +490,7 @@ avatar rather than showing it through the camera. First-person movement, jump
 planning and collision stay at the player's position. Camera elevation uses the
 engine's existing simulated pitch and stays within floor/ceiling height limits.
 
-The character uses `WolfNET.Examples/wwwroot/player-character.json` and the v3 atlas.
+The character uses `WolfSlop.Examples/wwwroot/player-character.json` and the v3 atlas.
 Two-frame pairs are: rear walk 0–1, rear-left 2–3, rear-right 4–5, left strafe 6–7,
 right strafe 8–9, rear crouch 10–11, rear jump 12–13; frame 14 is idle. Actual
 movement advances walking/crouching frames every 160 ms; jumping uses the same

@@ -5,7 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 export function applyRacewayAudioMetadata() {
-    const directory = fileURLToPath(new URL('../WolfNET.Examples/wwwroot/objects/raceway/', import.meta.url));
+    const directory = fileURLToPath(new URL('../WolfSlop.Examples/wwwroot/objects/raceway/', import.meta.url));
     let changed = 0;
     for (const name of fs.readdirSync(directory).filter(name => name.endsWith('.json'))) {
         const file = path.join(directory, name);
