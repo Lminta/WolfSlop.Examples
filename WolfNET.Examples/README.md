@@ -7,16 +7,16 @@ This Blazor WebAssembly application references portable `WolfNET.Engine` and its
 dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj
 ```
 
-`/` opens Pine Loop directly, with opponents, difficulty, lap timing, and race UI.
-The map selector and `?map=showcase`, `?map=glassworks`, or `?map=level1` retain
-the exploration examples, movement, doors, cameras, artwork, and audio. `/viewer` runs a
+`/` opens Showcase at `https://localhost:7279`. The map selector and
+`?map=glassworks` or `?map=level1` open the other exploration examples.
+Enter a parked car or use `?map=pine-loop` to race. `/viewer` runs a
 procedural scene with an orbiting camera and twelve moving sprites, using only
 engine scene systems and rendering. The viewer has no actor spawn or game rules.
 `/ui` demonstrates text, images, vector drawing, buttons, toggles, sliders, native
 text editing, scrolling, modal focus, and responsive layout without a game scene.
 
 The engine's public API and ownership contracts are documented in
-[WolfNET.Engine/README.md](../Engine/WolfNET.Engine/README.md).
+[WolfSlop.Engine/README.md](../Engine/WolfSlop.Engine/README.md).
 
 ## Application composition
 
@@ -62,7 +62,7 @@ are serialized by `Wolf`; the renderer expects one scene preparation at a time.
 `Pages/Home.razor` contains the application shell and map selection, with browser
 startup in `Home.razor.cs`. `Wolf` owns the UI host and resets its document on map
 switches. Shader requests run together and use the page's cancellation token.
-See the [UI guide](../Engine/WolfNET.Engine/UI/README.md) for layout, input and ownership.
+See the [UI guide](../Engine/WolfSlop.Engine/UI/README.md) for layout, input and ownership.
 
 Run the regression suite from the repository root:
 
@@ -81,7 +81,7 @@ input is substituted in movement fixtures. The independent engine consumer in
 Browser implementations live under `WolfNET.Engine.Browser.*`, and their static
 assets are served from `_content/WolfNET.Engine.Browser/`. Future Android and
 native Windows hosts should supply their own providers; see
-[platform architecture](../Engine/WolfNET.Engine/PLATFORMS.md).
+[platform architecture](../Engine/WolfSlop.Engine/PLATFORMS.md).
 `Engine/Tests/EngineTests` covers portable behavior; `Tests/SceneChecks.cs` covers
 application scene assembly, cancellation, character presentation, and interaction. Run the C# suite before the Node checks
 so the sprite ordering reference files are available. The retained browser smoke

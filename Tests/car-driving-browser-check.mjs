@@ -6,6 +6,7 @@ import fs from 'node:fs';
 const port = process.argv[2] ?? '9260';
 const base = process.argv[3] ?? 'http://127.0.0.1:53727';
 const standalone = process.argv.includes('--standalone');
+const racePath = standalone ? '/' : '/?map=pine-loop';
 const project = standalone ? 'RaceImperialis' : 'WolfNET.Examples';
 const carDefinition = JSON.parse(fs.readFileSync(`${project}/wwwroot/objects/sprites/sprite-directional-car.json`, 'utf8'));
 const carSettings = JSON.parse(fs.readFileSync(`${project}/wwwroot/gameplay-settings.json`, 'utf8')).car;
@@ -167,7 +168,7 @@ try {
             return write.call(this, buffer, offset, data, ...args);
         };
     `});
-    await send('Page.navigate', {url: base + '/'});
+    await send('Page.navigate', {url: base + racePath});
     await send('Page.bringToFront');
     await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__uiImages.length === 2 && document.querySelector('.car-paused')`);
     if (standalone) {
@@ -405,7 +406,7 @@ try {
 
     // Keep real map geometry, car physics, rendering and UI, but shorten the
     // invisible gate sequence and configure two laps to verify gameplay settings.
-    await send('Page.navigate', {url: base + '/?short-race'});
+    await send('Page.navigate', {url: base + racePath + (standalone ? '?short-race' : '&short-race')});
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.race-timing') && !!document.querySelector('.car-paused')`);
     await selectDifficulty('Easy');
     await capture();

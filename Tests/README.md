@@ -4,7 +4,7 @@ The portable engine, browser provider, and their unit/public API tests live in
 [the Engine submodule](../Engine/README.md). Initialize it before building:
 
 ```powershell
-git -c protocol.file.allow=always submodule update --init --recursive
+git submodule update --init --recursive
 dotnet build WolfNET.slnx
 dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
 dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
@@ -66,7 +66,7 @@ node Tests/car-driving-browser-check.mjs 9243 http://127.0.0.1:5194
 ```
 
 To run the driving checks against the standalone project, start `RaceImperialis`
-and use `node Tests/car-driving-browser-check.mjs 9243 http://localhost:5026 --standalone`.
+and use `node Tests/car-driving-browser-check.mjs 9243 https://localhost:7280 --standalone`.
 This checks direct startup at `/` and skips the Examples-only return to exploration.
 For headless Edge, include `--enable-unsafe-webgpu` and
 `--autoplay-policy=no-user-gesture-required` when launching the browser.

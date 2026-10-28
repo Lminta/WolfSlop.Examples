@@ -2,27 +2,22 @@
 
 Raycasting framework with a platform-independent .NET 10 engine and a Blazor WebAssembly/WebGPU provider. The current examples require a browser/device with WebGPU support.
 
-The solution uses the independent **WolfSlop** engine repository as the `Engine/` Git submodule.
-Its current source is the separate local repository at
-`C:/Users/lmint/RiderProjects/WolfSlop`. Initialize this local setup with:
+The solution uses the independent [**WolfSlop** engine repository](https://github.com/Lminta/WolfSlop)
+as the `Engine/` Git submodule. Clone with
+`git clone --recurse-submodules <repository-url>`, or initialize an existing checkout with:
 
 ```powershell
-git -c protocol.file.allow=always submodule update --init --recursive
+git submodule update --init --recursive
 ```
 
-The file-transport setting applies only to that command. Before sharing a clone
-with another machine, publish the engine repository and set the hosted URL with
-`git submodule set-url Engine <engine-repository-url>`. Also update the engine's
-own remote using `git -C Engine remote set-url origin <engine-repository-url>`.
-Once hosted, normal `git clone --recurse-submodules <repository-url>` and
-`git submodule update --init --recursive` work without the local-transport option.
+WolfSlop's upstream is `https://github.com/Lminta/WolfSlop.git`.
 
 The solution contains:
 
-- `Engine/WolfNET.Engine/`: portable worlds, scenes/components, input state, physics,
+- `Engine/WolfSlop.Engine/`: portable worlds, scenes/components, input state, physics,
   cameras, retained UI, animation, audio policy and provider contracts. A plain
   .NET library without browser or UI-framework dependencies.
-- `Engine/WolfNET.Engine.Browser/`: WebGPU rendering, Canvas UI, browser input, frame
+- `Engine/WolfSlop.Engine.Browser/`: WebGPU rendering, Canvas UI, browser input, frame
   scheduling, Web Audio, JavaScript and shaders, packaged as a Razor class library.
 - `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
   and example assets in `wwwroot`. It references Engine and the browser provider.
@@ -34,17 +29,17 @@ The solution contains:
 Build the solution with `dotnet build WolfNET.slnx`.
 
 Start the examples with `dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj`.
-Open `/` to race Pine Loop directly or `/viewer` for a procedural scene with twelve
+Open `/` for Showcase at `https://localhost:7279`, or `/viewer` for a procedural scene with twelve
 moving objects and an orbiting camera, using the engine without a player or race.
 Open `/ui` for the interactive UI control gallery.
 
 Start the standalone racing project with
 `dotnet run --project RaceImperialis/RaceImperialis.csproj`, then open
-`http://localhost:5026`. It loads Pine Loop directly and includes opponents,
+`https://localhost:7280`. It loads Pine Loop directly and includes opponents,
 difficulty, lap timing, results, restart, cameras, music, and sound effects.
 See [the racing project](RaceImperialis/README.md) for controls and settings.
 
-See [the engine guide](Engine/WolfNET.Engine/README.md) for consumption, extension points,
+See [the engine guide](Engine/WolfSlop.Engine/README.md) for consumption, extension points,
 asset hosting, timing, and ownership. Browser shaders and JavaScript are served from
 `_content/WolfNET.Engine.Browser/`; applications supply their own content. The engine
 accepts arbitrary dynamic sprites and screen overlays, configurable input actions,
@@ -54,7 +49,7 @@ presentation belong to Examples.
 
 Android and native Windows providers are planned future work. Keep platform APIs
 inside providers, with dependencies pointing toward Engine. The
-[platform architecture guide](Engine/WolfNET.Engine/PLATFORMS.md) records the boundary,
+[platform architecture guide](Engine/WolfSlop.Engine/PLATFORMS.md) records the boundary,
 extension contracts, and requirements for future providers. Only the browser
 provider is implemented today.
 
@@ -63,7 +58,7 @@ layout, themes, text/wrapping, cropped images, vector widgets, buttons, toggles,
 sliders, text input, scrolling, keyboard focus and modal scopes. Hands, cockpit,
 lap timing, the race minimap, countdown and results now use this shared system.
 The browser renderer uses a DPI-aware canvas plus an accessibility/input bridge,
-independently of WebGPU world rendering. See the [UI guide](Engine/WolfNET.Engine/UI/README.md).
+independently of WebGPU world rendering. See the [UI guide](Engine/WolfSlop.Engine/UI/README.md).
 
 Maps now use optional `spawn` instead of `playerStart`; object interactions use
 `interactionTarget` instead of `interactionMap`, and the example starting signal
@@ -71,9 +66,8 @@ uses `tag: "race-start-light"` instead of `raceStartLight: true`. Shipped maps,
 objects, generation tools, and checks have been migrated together. Map metadata
 such as `race` and `raceMinimap` is interpreted and validated by Examples.
 
-The default level is **Pine Loop**, ready to race after clicking the game.
-**Showcase** is a gallery of materials, doors, objects, and movement examples,
-available from the examples' map selector or `?map=showcase`.
+The default level in Examples is **Showcase**, a gallery of materials, doors,
+objects, and movement examples. Race Imperialis starts directly on **Pine Loop**.
 **The Glassworks** is a compact abandoned botanical station
 built around a central glasshouse. Explore its potting room and pump room, then
 find the maintenance shortcut that links the rooms. See the
@@ -434,15 +428,13 @@ driving input, both views, pause/resume, cockpit alignment, and walking-map rest
 
 ## Run on the local network
 
-Both launch profiles bind to all IPv4 interfaces. In Rider, select the `https` launch profile, or run:
+The Examples HTTPS profiles bind to all IPv4 interfaces. In Rider, select the `https` launch profile, or run:
 
 ```powershell
 dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile https
 ```
 
 On another device on the same network, open `https://<server-LAN-IP>:7279`. Use `ipconfig` on the server to find its IPv4 address. The address at setup time was `192.168.50.232`, so the URL was `https://192.168.50.232:7279`. This address can change with DHCP.
-
-The HTTP profile (`dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj --launch-profile http`) serves `http://<server-LAN-IP>:5025` for connectivity checks. WebGPU requires a secure context, so HTTP over a LAN IP will load the page but cannot render the game. See the [WebGPU specification](https://www.w3.org/TR/webgpu/#navigator-gpu).
 
 ## HTTPS certificate for LAN devices
 
@@ -481,7 +473,7 @@ automatic browser refresh.
 If another device cannot connect, check Windows Firewall and ensure the devices are on the same LAN without guest Wi-Fi/client isolation. If needed, run this in an administrator PowerShell to allow only local-subnet connections to these ports:
 
 ```powershell
-New-NetFirewallRule -DisplayName 'WolfNET LAN development' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5025,7279 -RemoteAddress LocalSubnet -Profile Any
+New-NetFirewallRule -DisplayName 'WolfNET LAN development' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7279 -RemoteAddress LocalSubnet -Profile Any
 ```
 
 To remove that rule later:

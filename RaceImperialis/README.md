@@ -8,7 +8,7 @@ required. Click the game to capture the mouse and begin the countdown.
 dotnet run --project RaceImperialis/RaceImperialis.csproj
 ```
 
-Open `http://localhost:5026`, or select **Race Imperialis: http** in Rider.
+Open `https://localhost:7280`, or select **Race Imperialis: https** in Rider.
 
 The game includes both AI opponents, Normal/Easy difficulty, three-lap races,
 ordered checkpoints, standings and results, restart, cockpit/chase cameras,
@@ -31,5 +31,5 @@ checks. To run the browser driving checks against this project, start it and a
 Chromium browser with remote debugging, then run:
 
 ```powershell
-node Tests/car-driving-browser-check.mjs 9243 http://localhost:5026 --standalone
+node Tests/car-driving-browser-check.mjs 9243 https://localhost:7280 --standalone
 ```

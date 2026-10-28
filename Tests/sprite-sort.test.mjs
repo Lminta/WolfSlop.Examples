@@ -1,7 +1,7 @@
 // Run the game C# suite first to generate Pine Loop reference ordering.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {prepare, select as selectSprites, release} from '../Engine/WolfNET.Engine.Browser/wwwroot/sprite-sort.js';
+import {prepare, select as selectSprites, release} from '../Engine/WolfSlop.Engine.Browser/wwwroot/sprite-sort.js';
 
 function select(output, widths, count, x, y, range, dx, dy, plane, cull, ...slots) {
     const actors = [];

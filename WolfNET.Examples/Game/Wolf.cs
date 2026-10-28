@@ -18,7 +18,7 @@ namespace WolfNET.Examples.Game;
 /// <summary>Coordinates browser frames, scene loading, and renderer lifetime.</summary>
 public sealed class Wolf : IDisposable
 {
-    public const string DefaultMapPath = "maps/pine-loop.json";
+    public const string DefaultMapPath = "maps/showcase.json";
 
     private readonly ISceneRenderer _renderer;
     private readonly GameSceneLoader _loader;

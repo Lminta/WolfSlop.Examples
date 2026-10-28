@@ -73,6 +73,8 @@ try {
     await evaluate(`document.querySelector('a').click()`);
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.fps-counter')`);
     const firstGame = await evaluate('({textures:window.__framework.textures.size,buffers:window.__framework.buffers.size})');
+    assert(await evaluate(`!!document.querySelector('.showcase-guide') && !document.querySelector('.race-timing')`),
+        'Examples must open Showcase by default');
     await evaluate(`document.querySelector('a[href="viewer"]').click()`);
     await waitFor(`location.pathname==='/viewer' && document.querySelector('.wolf-ui-canvas')?.__uiFrame?.nodes.filter(node=>node.kind==='image').length===6`);
     const viewer = await evaluate('({textures:window.__framework.textures.size,buffers:window.__framework.buffers.size})');
