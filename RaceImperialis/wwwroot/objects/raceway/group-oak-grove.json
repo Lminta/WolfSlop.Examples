@@ -1,0 +1,36 @@
+{
+  "type": "spriteGroup",
+  "id": 575,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "sprites": [
+    {
+      "spriteId": 529,
+      "offset": {
+        "x": -0.3,
+        "y": -0.2,
+        "z": 1.5
+      },
+      "scale": {
+        "x": 3.4,
+        "y": 4
+      }
+    },
+    {
+      "spriteId": 529,
+      "offset": {
+        "x": 0.31,
+        "y": 0.25,
+        "z": 0.666667
+      },
+      "scale": {
+        "x": 1.983333,
+        "y": 2.333333
+      }
+    }
+  ],
+  "impactMaterial": "wood"
+}

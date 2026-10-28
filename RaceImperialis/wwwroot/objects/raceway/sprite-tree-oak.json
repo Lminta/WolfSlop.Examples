@@ -1,0 +1,11 @@
+{
+  "type": "sprite",
+  "id": 529,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/tree-oak.png",
+  "textureLayer": 106
+}

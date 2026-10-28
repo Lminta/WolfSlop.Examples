@@ -13,8 +13,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" PrivateAssets="all" />
-    <ProjectReference Include="../WolfNET.Engine/WolfNET.Engine.csproj" />
-    <ProjectReference Include="../WolfNET.Engine.Browser/WolfNET.Engine.Browser.csproj" />
+    <ProjectReference Include="../Engine/WolfNET.Engine/WolfNET.Engine.csproj" />
+    <ProjectReference Include="../Engine/WolfNET.Engine.Browser/WolfNET.Engine.Browser.csproj" />
     <InternalsVisibleTo Include="WolfNET.MapTests" />
   </ItemGroup>
 

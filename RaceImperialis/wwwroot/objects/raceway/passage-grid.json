@@ -1,0 +1,11 @@
+{
+  "type": "passage",
+  "id": 506,
+  "surface": "asphalt",
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "floorTexture": "textures/raceway/grid.svg",
+  "ceilingMode": "sky"
+}

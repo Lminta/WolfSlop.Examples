@@ -7,8 +7,9 @@
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="EngineConsumer/**/*.cs" />
-    <ProjectReference Include="../WolfNET.Engine/WolfNET.Engine.csproj" />
+    <Compile Include="../Engine/Tests/Shared/ReferenceSpriteSelection.cs" Link="ReferenceSpriteSelection.cs" />
+    <ProjectReference Include="../Engine/WolfNET.Engine/WolfNET.Engine.csproj" />
     <ProjectReference Include="../WolfNET.Examples/WolfNET.Examples.csproj" />
+    <ProjectReference Include="../RaceImperialis/RaceImperialis.csproj" />
   </ItemGroup>
 </Project>

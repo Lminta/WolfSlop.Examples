@@ -1,0 +1,23 @@
+{
+  "type": "spriteGroup",
+  "id": 646,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "sprites": [
+    {
+      "spriteId": 633,
+      "offset": {
+        "x": 0,
+        "y": 0,
+        "z": -0.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 0.8
+      }
+    }
+  ]
+}

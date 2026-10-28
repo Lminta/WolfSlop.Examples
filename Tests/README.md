@@ -1,59 +1,45 @@
-# Regression checks
+# Game regression checks
 
-Run from the repository root with the .NET 10 SDK and Node 22 or newer:
+The portable engine, browser provider, and their unit/public API tests live in
+[the Engine submodule](../Engine/README.md). Initialize it before building:
 
 ```powershell
+git -c protocol.file.allow=always submodule update --init --recursive
 dotnet build WolfNET.slnx
+dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
+dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
 dotnet run --project Tests/WolfNET.MapTests.csproj
-dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs Tests/ui.test.mjs
+node --test Engine/Tests/sprite-sort.test.mjs Engine/Tests/texture-upload.test.mjs Engine/Tests/sfx-mixer.test.mjs Engine/Tests/ui.test.mjs
+node --test Tests/sprite-sort.test.mjs
 ```
 
-The C# runner loads every shipped map and checks map edits, validation, walking,
-jumping, crouching, input, frame timing, scene ownership, doors, car interaction,
-car physics and cameras, ordered checkpoint/lap timing, pause behavior,
-sprite animation, parked/driven car dimensions, and music/SFX lifecycle and mixing.
-It references the actual Engine and Examples projects. The separate
-`EngineConsumer` references only Engine and checks its public API with a map
-without a spawn, custom metadata, surface/material/audio names, input actions,
-interaction commands, 128 dynamic sprites, six low-level overlays, and scene/audio
-disposal. `UiChecks` also covers retained layout, text/graphemes, transforms,
-clipping, pointer capture, focus, modal scopes, controls, text editing, scrolling,
-invalidation and lifetime through the engine's public API. The consumer also checks
-that Engine has no browser/provider assembly dependencies or platform restriction.
-Engine is a plain .NET library; browser JavaScript, shaders and interop are in
-`WolfNET.Engine.Browser`, with static assets under `_content/WolfNET.Engine.Browser/`.
-The JavaScript checks also exercise dynamic sprite counts above the original
-three actors and independent canvas indexes. Browser smoke checks observe the
-engine UI display list. Run `node Tests/framework-browser-check.mjs 9244
-http://127.0.0.1:5194` with the dev server and a browser debugging port available to
-check the viewer, six UI images, library asset hosting, navigation, and cleanup.
+Run from this repository's root with .NET 10 and Node 22 or newer. The engine
+repository can also build and run all its tests independently, with procedural
+fixtures and no game assets. Run both C# suites before the Node sprite checks:
+each suite generates the reference data used by its own JavaScript checks.
+
+`WolfNET.MapTests` checks the shipped maps, application scene assembly and
+cancellation, character presentation, car interaction, checkpoint/lap timing,
+racing pause/restart, opponents/difficulty, race props, game sound configuration,
+and SFX policy. `RacingProjectChecks` loads Race Imperialis's own settings,
+map, and assets and exercises countdown, both difficulties, driving, pause/resume,
+fresh race state, and ordered finishing. Pine Loop's 25 authored sprite viewpoints
+remain a game integration check in `Tests/sprite-sort.test.mjs`, using the engine
+repository's independent native selection oracle.
+
+Browser smoke checks use the game application as a host. Run
+`node Tests/framework-browser-check.mjs 9244 http://127.0.0.1:5194` to check the
+procedural viewer, provider asset hosting, navigation, and cleanup.
 `node Tests/ui-browser-check.mjs 9254 http://127.0.0.1:5196` exercises the UI gallery
 with real pointer/keyboard input, native text editing, modal isolation, scrolling,
-DPI/resize and dirty rendering, then verifies walking and racing HUDs and cleanup.
-Car contact checks cover rubbing during blocked overtakes, clean passes and steering
-away, momentum transfer, finished cars, update-rate independence, and three cars beside a barrier.
-The opponent checks simulate both rivals through three full checkpoint-validated laps on Pine Loop,
-check individual top speeds and throttle/braking, blue mistake events and clean green laps, launches against an accelerating player, player-priority blocking and chase recovery, moving overtakes and defensive lane holding on both sides,
-standings, grid/pause/finish behavior, car contact and solid boundaries. They measure full-footprint
-asphalt coverage and a time-weighted mean pace near 19 blocks/s during traffic laps (including launch),
-check recovery from mud and a wall-facing pose, and compare
-lap-finish gaps that grow, freeze at matching finishes, and reset on the next lap.
-Difficulty checks load the shipped JSON, validate and round-trip the profile structs,
-check overrides and speed offsets, and simulate easy solo laps and a three-lap traffic race.
-They verify the 16-17 blocks/s target, more blue mistakes, clean green driving, and asphalt coverage.
-The Node checks cover browser sprite selection/order and
-texture upload filtering, mip coverage, cancellation, and bitmap cleanup.
-The SFX mixer checks cover shared timestamps, smoothing, unchanged parameters,
-voice removal/reuse, and isolation between scenes.
-Run them after C#: `SpriteSelectionFixtures.cs` generates independent native
-references in `artifacts/performance` for the browser implementation to compare.
+DPI/resize, walking/racing HUDs, and cleanup. `Tests/ui-browser-helpers.mjs` observes
+the retained engine UI display list.
 
+Opponent simulations cover three-lap traffic and solo runs on Pine Loop,
+checkpoint progress, standings, start/pause/finish behavior, speed profiles,
+launches, blocking, overtaking, recovery, mistakes, and asphalt coverage.
 Keep regression cases around behavior that could break gameplay or map loading.
-Avoid tests that pin decorative prop sizes, exact CSS values, or equality between
-editable JSON settings and code defaults. Full-race simulations cover normal
-and easy traffic; the difficulty checks also compare solo mistake profiles.
-Use manual review for artwork, shader appearance, and actual browser audio playback.
+Use manual review for artwork, shader appearance, and actual audio playback.
 
 ## Opponent speed measurements
 
@@ -78,6 +64,12 @@ debugging port, then pass that port and the app URL:
 node Tests/browser-check.mjs 9243 http://127.0.0.1:5194
 node Tests/car-driving-browser-check.mjs 9243 http://127.0.0.1:5194
 ```
+
+To run the driving checks against the standalone project, start `RaceImperialis`
+and use `node Tests/car-driving-browser-check.mjs 9243 http://localhost:5026 --standalone`.
+This checks direct startup at `/` and skips the Examples-only return to exploration.
+For headless Edge, include `--enable-unsafe-webgpu` and
+`--autoplay-policy=no-user-gesture-required` when launching the browser.
 
 The game smoke check covers startup, movement, input capture, UI-rendered hands
 and their F gesture, map switching, texture cleanup, and failed-load recovery.

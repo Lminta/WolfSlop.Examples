@@ -1,0 +1,48 @@
+{
+  "type": "spriteGroup",
+  "id": 579,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "sprites": [
+    {
+      "spriteId": 520,
+      "offset": {
+        "x": -0.34,
+        "y": 0.25,
+        "z": 1.5
+      },
+      "scale": {
+        "x": 2.2,
+        "y": 4
+      }
+    },
+    {
+      "spriteId": 529,
+      "offset": {
+        "x": 0.3,
+        "y": 0.16,
+        "z": 1.166667
+      },
+      "scale": {
+        "x": 2.833333,
+        "y": 3.333333
+      }
+    },
+    {
+      "spriteId": 530,
+      "offset": {
+        "x": 0.03,
+        "y": -0.33,
+        "z": 1.833334
+      },
+      "scale": {
+        "x": 2.566667,
+        "y": 4.666667
+      }
+    }
+  ],
+  "impactMaterial": "wood"
+}

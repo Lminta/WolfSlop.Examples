@@ -1,0 +1,36 @@
+{
+  "type": "spriteGroup",
+  "id": 702,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 502,
+  "sprites": [
+    {
+      "spriteId": 523,
+      "offset": {
+        "x": -0.5,
+        "y": 0,
+        "z": -0.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 0.8
+      }
+    },
+    {
+      "spriteId": 523,
+      "offset": {
+        "x": 0.5,
+        "y": 0,
+        "z": -0.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 0.8
+      }
+    }
+  ],
+  "impactMaterial": "metal"
+}

@@ -83,7 +83,7 @@ public partial class Home
             await Renderer.InitializeAsync(_canvasElement, shaders, _lifetime.Token);
             Wolf.AttachUi(await BrowserUiHost.CreateAsync(UiRuntime, _canvas, _lifetime.Token));
 
-            var initialMap = ShowcaseMap;
+            var initialMap = Wolf.DefaultMapPath;
             if (!string.IsNullOrWhiteSpace(RequestedMap))
             {
                 if (!System.Text.RegularExpressions.Regex.IsMatch(RequestedMap, "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$"))

@@ -1,0 +1,16 @@
+{
+  "type": "wall",
+  "id": 596,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 595,
+  "textures": {
+    "north": "textures/wolf/wood.png",
+    "east": "textures/wolf/wood.png",
+    "south": "textures/wolf/wood.png",
+    "west": "textures/wolf/wood.png"
+  },
+  "impactMaterial": "wood"
+}

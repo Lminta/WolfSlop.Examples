@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 510,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/forest-boundary.png",
+    "east": "textures/raceway/forest-boundary.png",
+    "south": "textures/raceway/forest-boundary.png",
+    "west": "textures/raceway/forest-boundary.png"
+  }
+}

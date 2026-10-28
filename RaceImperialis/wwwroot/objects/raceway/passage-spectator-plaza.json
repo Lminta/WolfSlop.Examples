@@ -1,0 +1,11 @@
+{
+  "type": "passage",
+  "id": 593,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "floorTexture": "textures/glassworks/limestone-floor.png",
+  "surface": "mud",
+  "ceilingMode": "sky"
+}

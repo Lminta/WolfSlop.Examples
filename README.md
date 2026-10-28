@@ -2,26 +2,49 @@
 
 Raycasting framework with a platform-independent .NET 10 engine and a Blazor WebAssembly/WebGPU provider. The current examples require a browser/device with WebGPU support.
 
+The solution uses the independent **WolfSlop** engine repository as the `Engine/` Git submodule.
+Its current source is the separate local repository at
+`C:/Users/lmint/RiderProjects/WolfSlop`. Initialize this local setup with:
+
+```powershell
+git -c protocol.file.allow=always submodule update --init --recursive
+```
+
+The file-transport setting applies only to that command. Before sharing a clone
+with another machine, publish the engine repository and set the hosted URL with
+`git submodule set-url Engine <engine-repository-url>`. Also update the engine's
+own remote using `git -C Engine remote set-url origin <engine-repository-url>`.
+Once hosted, normal `git clone --recurse-submodules <repository-url>` and
+`git submodule update --init --recursive` work without the local-transport option.
+
 The solution contains:
 
-- `WolfNET.Engine/`: portable worlds, scenes/components, input state, physics,
+- `Engine/WolfNET.Engine/`: portable worlds, scenes/components, input state, physics,
   cameras, retained UI, animation, audio policy and provider contracts. A plain
   .NET library without browser or UI-framework dependencies.
-- `WolfNET.Engine.Browser/`: WebGPU rendering, Canvas UI, browser input, frame
+- `Engine/WolfNET.Engine.Browser/`: WebGPU rendering, Canvas UI, browser input, frame
   scheduling, Web Audio, JavaScript and shaders, packaged as a Razor class library.
 - `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
   and example assets in `wwwroot`. It references Engine and the browser provider.
-- `Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
+- `RaceImperialis/`: standalone Pine Loop racing game with its own gameplay and
+  assets, referencing only Engine and the browser provider.
+- `Engine/Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
 - `Tests/`: compiler, simulation, and browser regression checks.
 
 Build the solution with `dotnet build WolfNET.slnx`.
 
 Start the examples with `dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj`.
-Open `/` for exploration/racing or `/viewer` for a procedural scene with twelve
+Open `/` to race Pine Loop directly or `/viewer` for a procedural scene with twelve
 moving objects and an orbiting camera, using the engine without a player or race.
 Open `/ui` for the interactive UI control gallery.
 
-See [the engine guide](WolfNET.Engine/README.md) for consumption, extension points,
+Start the standalone racing project with
+`dotnet run --project RaceImperialis/RaceImperialis.csproj`, then open
+`http://localhost:5026`. It loads Pine Loop directly and includes opponents,
+difficulty, lap timing, results, restart, cameras, music, and sound effects.
+See [the racing project](RaceImperialis/README.md) for controls and settings.
+
+See [the engine guide](Engine/WolfNET.Engine/README.md) for consumption, extension points,
 asset hosting, timing, and ownership. Browser shaders and JavaScript are served from
 `_content/WolfNET.Engine.Browser/`; applications supply their own content. The engine
 accepts arbitrary dynamic sprites and screen overlays, configurable input actions,
@@ -31,7 +54,7 @@ presentation belong to Examples.
 
 Android and native Windows providers are planned future work. Keep platform APIs
 inside providers, with dependencies pointing toward Engine. The
-[platform architecture guide](WolfNET.Engine/PLATFORMS.md) records the boundary,
+[platform architecture guide](Engine/WolfNET.Engine/PLATFORMS.md) records the boundary,
 extension contracts, and requirements for future providers. Only the browser
 provider is implemented today.
 
@@ -40,7 +63,7 @@ layout, themes, text/wrapping, cropped images, vector widgets, buttons, toggles,
 sliders, text input, scrolling, keyboard focus and modal scopes. Hands, cockpit,
 lap timing, the race minimap, countdown and results now use this shared system.
 The browser renderer uses a DPI-aware canvas plus an accessibility/input bridge,
-independently of WebGPU world rendering. See the [UI guide](WolfNET.Engine/UI/README.md).
+independently of WebGPU world rendering. See the [UI guide](Engine/WolfNET.Engine/UI/README.md).
 
 Maps now use optional `spawn` instead of `playerStart`; object interactions use
 `interactionTarget` instead of `interactionMap`, and the example starting signal
@@ -48,8 +71,9 @@ uses `tag: "race-start-light"` instead of `raceStartLight: true`. Shipped maps,
 objects, generation tools, and checks have been migrated together. Map metadata
 such as `race` and `raceMinimap` is interpreted and validated by Examples.
 
-The default level is **Showcase**, a gallery of materials, doors, objects, and
-movement examples, with a parked car in its annex for entering Pine Loop.
+The default level is **Pine Loop**, ready to race after clicking the game.
+**Showcase** is a gallery of materials, doors, objects, and movement examples,
+available from the examples' map selector or `?map=showcase`.
 **The Glassworks** is a compact abandoned botanical station
 built around a central glasshouse. Explore its potting room and pump room, then
 find the maintenance shortcut that links the rooms. See the
@@ -150,8 +174,10 @@ Run the regular regression checks from the repository root:
 
 ```powershell
 dotnet run --project Tests/WolfNET.MapTests.csproj
-dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs Tests/ui.test.mjs
+dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
+dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
+node --test Engine/Tests/sprite-sort.test.mjs Engine/Tests/texture-upload.test.mjs Engine/Tests/sfx-mixer.test.mjs Engine/Tests/ui.test.mjs
+node --test Tests/sprite-sort.test.mjs
 ```
 
 Run the C# suite first because it generates the sprite ordering reference files.

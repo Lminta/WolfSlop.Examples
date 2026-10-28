@@ -1,0 +1,12 @@
+{
+  "type": "sprite",
+  "id": 523,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/fence.png",
+  "textureLayer": 103,
+  "planeAxis": "x"
+}

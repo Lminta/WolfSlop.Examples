@@ -1,0 +1,12 @@
+{
+  "type": "sprite",
+  "id": 637,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/billboard-mud-club.svg",
+  "textureLayer": 139,
+  "planeAxis": "x"
+}

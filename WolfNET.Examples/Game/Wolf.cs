@@ -18,6 +18,8 @@ namespace WolfNET.Examples.Game;
 /// <summary>Coordinates browser frames, scene loading, and renderer lifetime.</summary>
 public sealed class Wolf : IDisposable
 {
+    public const string DefaultMapPath = "maps/pine-loop.json";
+
     private readonly ISceneRenderer _renderer;
     private readonly GameSceneLoader _loader;
     private readonly HttpClient _http;
@@ -88,7 +90,7 @@ public sealed class Wolf : IDisposable
     }
 
     public Task StartAsync(HTMLCanvasElement canvas, CancellationToken cancellationToken = default) =>
-        _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, "maps/showcase.json", cancellationToken);
+        _scene != null ? Task.CompletedTask : SwitchMapAsync(canvas, DefaultMapPath, cancellationToken);
 
     public async Task SwitchMapAsync(HTMLCanvasElement canvas, string mapPath, CancellationToken cancellationToken = default,
         Func<string, Task>? reportProgress = null, RaceDifficulty? difficulty = null)

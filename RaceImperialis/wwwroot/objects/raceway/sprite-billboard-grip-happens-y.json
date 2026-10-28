@@ -1,0 +1,12 @@
+{
+  "type": "sprite",
+  "id": 634,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/billboard-grip-happens.svg",
+  "textureLayer": 137,
+  "planeAxis": "y"
+}

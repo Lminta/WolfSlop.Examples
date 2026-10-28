@@ -1,0 +1,205 @@
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #111;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    container-type: size;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game-viewport {
+    position: relative;
+    /* Fit the page while keeping the backing buffer and its aspect ratio. */
+    width: min(100cqw, calc(100cqh * var(--render-width) / var(--render-height)));
+    aspect-ratio: var(--render-width) / var(--render-height);
+    flex-shrink: 0;
+    container-type: size;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    outline: none;
+}
+
+.map-switcher,
+.controls-hint {
+    right: 16px;
+    width: min(330px, calc(100vw - 32px));
+}
+
+.map-switcher {
+    position: fixed;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923ee;
+    color: #e0e8ee;
+    font: 13px/1.45 system-ui, sans-serif;
+    z-index: 20;
+}
+
+.map-switcher nav {
+    display: flex;
+    gap: 8px;
+}
+
+.map-switcher button {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #657a8c;
+    border-radius: 4px;
+    background: #23313d;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.map-switcher button[aria-pressed="true"] {
+    border-color: #45bfff;
+    background: #194a64;
+}
+
+.map-switcher button:disabled {
+    cursor: default;
+}
+
+.map-switcher button:focus-visible {
+    outline: 2px solid #45bfff;
+    outline-offset: 2px;
+}
+
+.map-switcher p { margin: 10px 0 0; }
+.race-difficulty { margin-top: 12px; }
+.difficulty-options { display: flex; gap: 8px; margin: 6px 0; }
+.race-difficulty small { color: #b7c7d4; }
+.race-restart { width: 100%; margin-top: 10px; }
+.controls-hint {
+    position: fixed;
+    bottom: 16px;
+    padding: 12px;
+    border: 1px solid #82919e;
+    border-radius: 8px;
+    background: #111923ee;
+    color: #adbeca;
+    font: 13px/1.45 system-ui, sans-serif;
+    pointer-events: none;
+    z-index: 20;
+}
+.controls-hint strong { color: #e0e8ee; }
+.controls-hint p { margin: 6px 0 0; }
+
+.showcase-guide { margin: 10px 0 0; padding-left: 18px; }
+.showcase-guide li + li { margin-top: 5px; }
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #0b1119ed;
+    color: #e0e8ee;
+    font: 15px/1.5 system-ui, sans-serif;
+    text-align: center;
+}
+
+.loading-card h1 {
+    margin: 24px 0 8px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.loading-card p {
+    margin: 0;
+    color: #adbeca;
+}
+
+.loading-spinner {
+    width: 56px;
+    height: 56px;
+    margin: auto;
+    border: 4px solid #2a3e50;
+    border-top-color: #45bfff;
+    border-radius: 50%;
+    animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner { animation: none; }
+}
+
+.game-error {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    max-width: 90vw;
+    max-height: 70vh;
+    overflow: auto;
+    padding: 16px;
+    background: #400;
+    color: white;
+    font-family: monospace;
+    white-space: pre-wrap;
+    z-index: 100;
+}
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px;
+    background: #621c1c;
+    color: white;
+    font-family: monospace;
+    z-index: 1000;
+}
+
+#blazor-error-ui a {
+    color: white;
+}
+
+.scene-viewer {
+    width: min(100vw, calc((100vh - 110px) * 16 / 9), 1000px);
+    padding: 16px;
+    color: #e0e8ee;
+    font: 14px/1.5 system-ui, sans-serif;
+}
+.scene-viewer p { margin: 0 0 12px; }
+.scene-viewer a, .viewer-link { color: #8ad6ff; }
+.scene-viewer button { margin-left: 8px; padding: 4px 12px; cursor: pointer; }
+.scene-viewer canvas { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.viewer-link { display: inline-block; margin-top: 10px; }
+.viewer-link + .viewer-link { margin-left: 12px; }
+.ui-gallery { width: 100%; height: 100%; padding: 12px; color: #e0e8ee; font: 14px/1.5 system-ui, sans-serif; }
+.ui-gallery header { display: flex; align-items: baseline; gap: 24px; height: 50px; }
+.ui-gallery h1 { margin: 0; font-size: 22px; }
+.ui-gallery a { color: #8ad6ff; }
+.ui-gallery-viewport { position: relative; width: 100%; height: calc(100% - 50px); }

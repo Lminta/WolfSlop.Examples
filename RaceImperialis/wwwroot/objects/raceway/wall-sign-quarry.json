@@ -1,0 +1,15 @@
+{
+  "type": "wall",
+  "id": 600,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/landmark-quarry.svg",
+    "east": "textures/raceway/landmark-quarry.svg",
+    "south": "textures/raceway/landmark-quarry.svg",
+    "west": "textures/raceway/landmark-quarry.svg"
+  }
+}

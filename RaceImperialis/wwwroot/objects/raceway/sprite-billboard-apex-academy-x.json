@@ -1,0 +1,12 @@
+{
+  "type": "sprite",
+  "id": 639,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/billboard-apex-academy.svg",
+  "textureLayer": 140,
+  "planeAxis": "x"
+}

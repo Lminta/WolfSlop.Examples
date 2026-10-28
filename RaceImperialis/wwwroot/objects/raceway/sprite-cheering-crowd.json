@@ -1,0 +1,39 @@
+{
+  "type": "sprite",
+  "id": 631,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "texture": "textures/raceway/festival-crowd-atlas.png",
+  "textureLayer": 133,
+  "atlas": {
+    "directions": 1,
+    "frames": [
+      {
+        "x": 0,
+        "y": 0,
+        "width": 512,
+        "height": 512
+      },
+      {
+        "x": 512,
+        "y": 0,
+        "width": 512,
+        "height": 512
+      },
+      {
+        "x": 1024,
+        "y": 0,
+        "width": 512,
+        "height": 512
+      }
+    ]
+  },
+  "animation": {
+    "framesPerSecond": 4,
+    "phaseSeconds": 0
+  },
+  "ambientSound": "crowd"
+}

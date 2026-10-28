@@ -7,15 +7,16 @@ This Blazor WebAssembly application references portable `WolfNET.Engine` and its
 dotnet run --project WolfNET.Examples/WolfNET.Examples.csproj
 ```
 
-`/` runs the exploration and racing examples, retaining the existing maps,
-movement, doors, cameras, artwork, audio, opponents, and race UI. `/viewer` runs a
+`/` opens Pine Loop directly, with opponents, difficulty, lap timing, and race UI.
+The map selector and `?map=showcase`, `?map=glassworks`, or `?map=level1` retain
+the exploration examples, movement, doors, cameras, artwork, and audio. `/viewer` runs a
 procedural scene with an orbiting camera and twelve moving sprites, using only
 engine scene systems and rendering. The viewer has no actor spawn or game rules.
 `/ui` demonstrates text, images, vector drawing, buttons, toggles, sliders, native
 text editing, scrolling, modal focus, and responsive layout without a game scene.
 
 The engine's public API and ownership contracts are documented in
-[WolfNET.Engine/README.md](../WolfNET.Engine/README.md).
+[WolfNET.Engine/README.md](../Engine/WolfNET.Engine/README.md).
 
 ## Application composition
 
@@ -61,25 +62,27 @@ are serialized by `Wolf`; the renderer expects one scene preparation at a time.
 `Pages/Home.razor` contains the application shell and map selection, with browser
 startup in `Home.razor.cs`. `Wolf` owns the UI host and resets its document on map
 switches. Shader requests run together and use the page's cancellation token.
-See the [UI guide](../WolfNET.Engine/UI/README.md) for layout, input and ownership.
+See the [UI guide](../Engine/WolfNET.Engine/UI/README.md) for layout, input and ownership.
 
 Run the regression suite from the repository root:
 
 ```powershell
 dotnet build WolfNET.slnx
 dotnet run --project Tests/WolfNET.MapTests.csproj
-dotnet run --project Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
-node --test Tests/sprite-sort.test.mjs Tests/texture-upload.test.mjs Tests/sfx-mixer.test.mjs Tests/ui.test.mjs
+dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
+dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
+node --test Engine/Tests/sprite-sort.test.mjs Engine/Tests/texture-upload.test.mjs Engine/Tests/sfx-mixer.test.mjs Engine/Tests/ui.test.mjs
+node --test Tests/sprite-sort.test.mjs
 ```
 
 The C# suite references the built Engine and Examples assemblies. Only device
 input is substituted in movement fixtures. The independent engine consumer in
-`Tests/EngineConsumer` references Engine alone.
+`Engine/Tests/EngineConsumer` references Engine alone.
 Browser implementations live under `WolfNET.Engine.Browser.*`, and their static
 assets are served from `_content/WolfNET.Engine.Browser/`. Future Android and
 native Windows hosts should supply their own providers; see
-[platform architecture](../WolfNET.Engine/PLATFORMS.md).
-`Tests/EngineChecks.cs` covers input transitions, timing, ownership, scene assembly,
-cancellation, and door state after edits. Run the C# suite before the Node checks
+[platform architecture](../Engine/WolfNET.Engine/PLATFORMS.md).
+`Engine/Tests/EngineTests` covers portable behavior; `Tests/SceneChecks.cs` covers
+application scene assembly, cancellation, character presentation, and interaction. Run the C# suite before the Node checks
 so the sprite ordering reference files are available. The retained browser smoke
 checks and performance tools are described in [Tests/README.md](../Tests/README.md).

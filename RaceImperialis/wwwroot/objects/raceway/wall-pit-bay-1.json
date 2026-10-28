@@ -1,0 +1,16 @@
+{
+  "type": "wall",
+  "id": 514,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 504,
+  "textures": {
+    "north": "textures/glassworks/limestone-wall.png",
+    "east": "textures/glassworks/teal-wall.png",
+    "south": "textures/glassworks/limestone-wall.png",
+    "west": "textures/raceway/pit-bay-1.svg"
+  },
+  "impactMaterial": "metal"
+}

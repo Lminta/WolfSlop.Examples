@@ -1,0 +1,16 @@
+{
+  "type": "wall",
+  "id": 613,
+  "raycastTransparent": false,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 501,
+  "textures": {
+    "north": "textures/raceway/container-blue.svg",
+    "east": "textures/raceway/container-blue.svg",
+    "south": "textures/raceway/container-blue.svg",
+    "west": "textures/raceway/container-blue.svg"
+  },
+  "impactMaterial": "metal"
+}

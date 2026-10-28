@@ -1,0 +1,57 @@
+@page "/"
+@using SpawnDev.BlazorJS
+@using WolfNET.Engine.Graphics
+
+@inject HttpClient Http
+@inject IJSRuntime UiRuntime
+@inject RendererSettings Settings
+
+@implements IDisposable
+
+<PageTitle>Race Imperialis — Pine Loop</PageTitle>
+
+<div class="game-viewport" style="--render-width: @Settings.Width; --render-height: @Settings.Height;">
+    <canvas @ref="_canvas" width="@Settings.Width" height="@Settings.Height" tabindex="0" aria-label="Pine Loop racing circuit"></canvas>
+</div>
+
+@if (_loading)
+{
+    <div class="loading-overlay" role="status" aria-live="polite" aria-atomic="true">
+        <div class="loading-card">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <h1>Loading Pine Loop</h1>
+            <p>@_loadingMessage</p>
+        </div>
+    </div>
+}
+
+<aside class="map-switcher" aria-label="Race options">
+    <strong>Race Imperialis</strong>
+    <p>Pine Loop: race two rivals through the forest circuit, tunnel, and tire-lined bends.</p>
+    <div class="race-difficulty">
+        <span>Difficulty</span>
+        <div class="difficulty-options" role="group" aria-label="Race difficulty">
+            <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Normal)"
+                    aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Normal ? "true" : "false")"
+                    @onclick="() => SelectDifficultyAsync(RaceDifficulty.Normal)">Normal</button>
+            <button type="button" disabled="@(_loading || Wolf.Difficulty == RaceDifficulty.Easy)"
+                    aria-pressed="@(Wolf.Difficulty == RaceDifficulty.Easy ? "true" : "false")"
+                    @onclick="() => SelectDifficultyAsync(RaceDifficulty.Easy)">Easy</button>
+        </div>
+        <small>Changing difficulty restarts the race.</small>
+    </div>
+    <button type="button" class="race-restart" disabled="@_loading" @onclick="RestartRaceAsync">Restart race</button>
+</aside>
+
+<aside class="controls-hint" aria-label="Driving controls">
+    <strong>Controls</strong>
+    <p>W accelerate &middot; A/D or arrows steer</p>
+    <p>S brake/reverse &middot; Space brake &middot; V camera</p>
+    <p>Mouse orbits in third person.</p>
+    <p role="status">@(_observedMouse?.CaptureError ?? "Click the game to start racing. Esc pauses and releases the mouse.")</p>
+</aside>
+
+@if (_error != null)
+{
+    <pre class="game-error">@_error</pre>
+}

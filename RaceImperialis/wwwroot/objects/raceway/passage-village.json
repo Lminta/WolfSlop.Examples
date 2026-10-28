@@ -1,0 +1,12 @@
+{
+  "type": "passage",
+  "id": 595,
+  "raycastTransparent": true,
+  "collides": false,
+  "jumpable": false,
+  "crouchable": false,
+  "floorTexture": "textures/wolf/wood.png",
+  "surface": "mud",
+  "ceilingMode": "texture",
+  "ceilingTexture": "textures/wolf/wood.png"
+}

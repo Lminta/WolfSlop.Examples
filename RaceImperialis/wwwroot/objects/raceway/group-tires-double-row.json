@@ -1,0 +1,132 @@
+{
+  "type": "spriteGroup",
+  "id": 585,
+  "raycastTransparent": true,
+  "collides": true,
+  "jumpable": false,
+  "crouchable": false,
+  "passageId": 502,
+  "sprites": [
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": -0.58,
+        "y": -0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 531,
+      "offset": {
+        "x": -0.58,
+        "y": 0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 531,
+      "offset": {
+        "x": -0.29,
+        "y": -0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": -0.29,
+        "y": 0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": 0,
+        "y": -0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 531,
+      "offset": {
+        "x": 0,
+        "y": 0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 531,
+      "offset": {
+        "x": 0.29,
+        "y": -0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": 0.29,
+        "y": 0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 521,
+      "offset": {
+        "x": 0.58,
+        "y": -0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    },
+    {
+      "spriteId": 531,
+      "offset": {
+        "x": 0.58,
+        "y": 0.145,
+        "z": -0.35
+      },
+      "scale": {
+        "x": 0.27,
+        "y": 0.3
+      }
+    }
+  ],
+  "impactMaterial": "rubber"
+}
