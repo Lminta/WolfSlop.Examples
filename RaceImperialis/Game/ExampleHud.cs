@@ -9,13 +9,14 @@ public sealed class ExampleHud : IDisposable
 {
     private readonly bool _car;
     private readonly RaceMinimapDefinition? _route;
-    private readonly UiPanel _view, _hud, _timing, _speed, _resultsMask, _results;
+    private readonly UiPanel _view, _hud, _mapViewport, _timing, _speed, _resultsMask, _results;
     private readonly UiImage[] _images;
-    private readonly UiCanvas _minimap;
+    private readonly UiCanvas _minimap, _course;
     private readonly UiText _laps, _total, _lap, _last, _gap, _speedValue, _pause, _countdown, _fps, _resultTotal;
     private readonly UiPanel _countdownPanel, _standingsBody, _lapBody;
     private readonly UiScrollView _resultScroll;
     private readonly UiButton _restart;
+    private Vector2 _viewport;
     private RacePhase? _phase;
     private RaceStatus? _race;
     private float _statusClock = 100, _mapClock = 100;
@@ -37,8 +38,20 @@ public sealed class ExampleHud : IDisposable
 
         _hud = Document.Root.Add(new UiPanel("race-hud") { ClassName = "race-minimap", Label = "Race minimap and timing",
             Visible = route != null, Style = new() { Position = new(12), Layout = UiLayoutMode.Column, Gap = 8, Width = 240 } });
-        _minimap = _hud.Add(new UiCanvas("race-map") { ClassName = "race-minimap-viewport", Role = "img", Label = "Nearby track and vehicle positions",
+        _mapViewport = _hud.Add(new UiPanel("race-map-viewport") { ClassName = "race-minimap-viewport", Role = "group", Label = "Race map viewport",
             Style = new() { Width = 240, Height = 240, Clip = true, CornerRadius = 120 } });
+        _course = _mapViewport.Add(new UiCanvas("race-course") { Style = UiStyle.Fill });
+        _minimap = _mapViewport.Add(new UiCanvas("race-map") { Role = "img", Label = "Nearby track and vehicle positions",
+            Style = UiStyle.Fill });
+        if (route != null)
+        {
+            var course = new UiDrawingBuilder();
+            var points = route.Route.Select(point => new Vector2(point[0], point[1])).ToArray();
+            course.Polyline(points, "#071018", 4).Polyline(points, "#edf4f8", 2.8f);
+            foreach (var shortcut in route.Shortcuts)
+                course.Polyline(shortcut.Select(point => new Vector2(point[0], point[1])), "#e6bb68", 1.8f);
+            _course.Drawing = course.Build();
+        }
         _timing = _hud.Add(new UiPanel("race-timing") { ClassName = "race-timing", Label = "Lap counter and race timers",
             Style = new() { Layout = UiLayoutMode.Column, Gap = 2, Width = UiLength.Percent(1) } });
         _laps = Timing("Laps", "race-laps"); _total = Timing("Total", "race-total");
@@ -92,12 +105,15 @@ public sealed class ExampleHud : IDisposable
 
     public void Update(GameScene scene, ExampleRenderFrame frame, Vector2 viewport, int? fps, float milliseconds)
     {
+        var resized = viewport != _viewport;
+        _viewport = viewport;
         var view = frame.FirstPerson;
         _view.Visible = view.Kind != FirstPersonViewKind.None;
         if (_car)
         {
             _images[0].Style = UiStyle.Fill;
-            _images[1].Style = new() { Anchor = new(.42f, .86f), Pivot = new(.5f), Width = viewport.X * .28f, Height = viewport.X * .28f,
+            if (resized || _view.Visible && _images[1].Style.Rotation != view.WheelRotation)
+                _images[1].Style = new() { Anchor = new(.42f, .86f), Pivot = new(.5f), Width = viewport.X * .28f, Height = viewport.X * .28f,
                 TransformOrigin = new(.5f), Rotation = view.WheelRotation };
         }
         else for (var i = 0; i < _images.Length; i++)
@@ -114,16 +130,19 @@ public sealed class ExampleHud : IDisposable
         }
         _fps.Text = (fps?.ToString(CultureInfo.InvariantCulture) ?? "—") + " FPS";
         _speedValue.Text = scene.Player is CarObject car ? MathF.Round(car.Controller.Speed * CarSettings.MetersPerBlock * 3.6f).ToString(CultureInfo.InvariantCulture) : "0";
-        _speedValue.Font = _speedValue.Font! with { Size = Math.Clamp(viewport.Y / 12, 28, 72) };
+        if (resized) _speedValue.Font = _speedValue.Font! with { Size = Math.Clamp(viewport.Y / 12, 28, 72) };
         var phase = scene.PlayerRaceState;
         var finished = phase?.Phase == RacePhase.Finished;
         _pause.Visible = _car && scene.Paused && !finished;
         _countdownPanel.Visible = phase?.CountdownNumber != null || phase is { ShowGo: true, Phase: RacePhase.Racing };
         _countdown.Text = phase?.CountdownNumber?.ToString(CultureInfo.InvariantCulture) ?? "GO";
         _countdown.ClassName = "race-countdown-number" + (phase?.CountdownNumber == null ? " race-go" : "");
-        _countdown.Font = _countdown.Font! with { Size = Math.Clamp(viewport.Y / 4, 44, 180) };
+        if (resized) _countdown.Font = _countdown.Font! with { Size = Math.Clamp(viewport.Y / 4, 44, 180) };
         var fraction = phase is { Phase: RacePhase.Countdown } countdown ? (countdown.CountdownProgress * 5) % 1 : 0;
-        _countdown.Style = _countdown.Style with { Opacity = MathF.Max(.05f, 1 - fraction), Color = phase?.CountdownNumber == null ? "#79ff88" : "#ffffff" };
+        var opacity = MathF.Max(.05f, 1 - fraction);
+        var color = phase?.CountdownNumber == null ? "#79ff88" : "#ffffff";
+        if (_countdown.Style.Opacity != opacity || _countdown.Style.Color != color)
+            _countdown.Style = _countdown.Style with { Opacity = opacity, Color = color };
         _resultsMask.Visible = finished;
         if (finished && _phase != RacePhase.Finished) { Document.ModalRoot = _results; Document.Input.Focus(_restart); }
         _statusClock += milliseconds;
@@ -133,18 +152,21 @@ public sealed class ExampleHud : IDisposable
             if (finished && _race is { } race) UpdateResults(race);
         }
         _phase = phase?.Phase;
-        var height = Math.Clamp(viewport.Y - 170, 64, 240);
-        var mapSize = MathF.Min(height, viewport.X * .35f);
-        _hud.Style = _hud.Style with { Width = MathF.Max(mapSize, 170) };
-        _minimap.Style = _minimap.Style with { Width = mapSize, Height = mapSize, CornerRadius = mapSize / 2 };
-        var textSize = Math.Clamp(viewport.Y / 25, 12, 24);
-        foreach (var text in _timing.DescendantsAndSelf().OfType<UiText>())
+        if (resized)
         {
-            text.Font = new("ui-monospace, monospace", textSize, text.Font?.Weight ?? 400, text.Font?.Italic ?? false);
-            if (text.Id.EndsWith("-label", StringComparison.Ordinal)) text.Style = text.Style with { Width = textSize * 3.5f };
+            var height = Math.Clamp(viewport.Y - 170, 64, 240);
+            var mapSize = MathF.Min(height, viewport.X * .35f);
+            _hud.Style = _hud.Style with { Width = MathF.Max(mapSize, 170) };
+            _mapViewport.Style = _mapViewport.Style with { Width = mapSize, Height = mapSize, CornerRadius = mapSize / 2 };
+            var textSize = Math.Clamp(viewport.Y / 25, 12, 24);
+            foreach (var text in _timing.DescendantsAndSelf().OfType<UiText>())
+            {
+                text.Font = new("ui-monospace, monospace", textSize, text.Font?.Weight ?? 400, text.Font?.Italic ?? false);
+                if (text.Id.EndsWith("-label", StringComparison.Ordinal)) text.Style = text.Style with { Width = textSize * 3.5f };
+            }
+            _results.Style = _results.Style with { Width = MathF.Min(620, viewport.X - 24) };
+            _resultScroll.Style = _resultScroll.Style with { Height = Math.Clamp(viewport.Y - 160, 32, 420) };
         }
-        _results.Style = _results.Style with { Width = MathF.Min(620, viewport.X - 24) };
-        _resultScroll.Style = _resultScroll.Style with { Height = Math.Clamp(viewport.Y - 160, 32, 420) };
         _mapClock += milliseconds;
         if (_route != null && (_mapClock >= 50 || _mapPose == null))
         {
@@ -169,11 +191,9 @@ public sealed class ExampleHud : IDisposable
     private void UpdateMap(Vector2 position, Vector2 direction, Vector2? blue, Vector2? green)
     {
         var matrix = RaceMinimapProjection.Create(position, direction);
-        var draw = new UiDrawingBuilder { Transform = matrix };
-        var route = _route!.Route.Select(point => new Vector2(point[0], point[1])).ToArray();
-        draw.Polyline(route, "#071018", 4).Polyline(route, "#edf4f8", 2.8f);
-        foreach (var shortcut in _route.Shortcuts) draw.Polyline(shortcut.Select(point => new Vector2(point[0], point[1])), "#e6bb68", 1.8f);
-        var finish = Vector2.Transform(new(_route.StartFinish[0], _route.StartFinish[1]), matrix);
+        _course.DrawingTransform = matrix;
+        var draw = new UiDrawingBuilder();
+        var finish = Vector2.Transform(new(_route!.StartFinish[0], _route.StartFinish[1]), matrix);
         draw.Transform = Matrix3x2.Identity;
         draw.Rectangle(new(finish.X - 2, finish.Y - 2, 4, 4), "#fff", "#101923", .4f);
         draw.Rectangle(new(finish.X - 2, finish.Y - 2, 2, 2), "#101923").Rectangle(new(finish.X, finish.Y, 2, 2), "#101923");
