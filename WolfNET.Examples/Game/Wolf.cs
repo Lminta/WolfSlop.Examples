@@ -188,6 +188,7 @@ public sealed class Wolf : IDisposable
         if (!IsCurrent(generation)) return;
         try
         {
+            using var capture = _input!.Mouse.SampleForFrame();
             var wasPaused = _scene!.Paused;
             _scene.SetPaused(!_input!.Mouse.IsLocked);
             // Recapture resumes from the preserved pose, without spending the
