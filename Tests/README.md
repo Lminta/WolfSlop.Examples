@@ -21,9 +21,9 @@ each suite generates the reference data used by its own JavaScript checks.
 `WolfNET.MapTests` checks the shipped maps, application scene assembly and
 cancellation, character presentation, car interaction, checkpoint/lap timing,
 racing pause/restart, opponents/difficulty, race props, game sound configuration,
-and SFX policy. `RacingProjectChecks` loads Race Imperialis's own settings,
-map, and assets and exercises countdown, both difficulties, driving, pause/resume,
-fresh race state, and ordered finishing. Pine Loop's 25 authored sprite viewpoints
+and SFX policy. Race Imperialis's integration and browser checks live in
+[its own repository](https://github.com/Lminta/RaceImperialis).
+Pine Loop's 25 authored sprite viewpoints
 remain a game integration check in `Tests/sprite-sort.test.mjs`, using the engine
 repository's independent native selection oracle.
 
@@ -65,9 +65,6 @@ node Tests/browser-check.mjs 9243 http://127.0.0.1:5194
 node Tests/car-driving-browser-check.mjs 9243 http://127.0.0.1:5194
 ```
 
-To run the driving checks against the standalone project, start `RaceImperialis`
-and use `node Tests/car-driving-browser-check.mjs 9243 https://localhost:7280 --standalone`.
-This checks direct startup at `/` and skips the Examples-only return to exploration.
 For headless Edge, include `--enable-unsafe-webgpu` and
 `--autoplay-policy=no-user-gesture-required` when launching the browser.
 

@@ -10,6 +10,5 @@
     <Compile Include="../Engine/Tests/Shared/ReferenceSpriteSelection.cs" Link="ReferenceSpriteSelection.cs" />
     <ProjectReference Include="../Engine/WolfSlop.Engine/WolfNET.Engine.csproj" />
     <ProjectReference Include="../WolfNET.Examples/WolfNET.Examples.csproj" />
-    <ProjectReference Include="../RaceImperialis/RaceImperialis.csproj" />
   </ItemGroup>
 </Project>

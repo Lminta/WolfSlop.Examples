@@ -21,8 +21,6 @@ The solution contains:
   scheduling, Web Audio, JavaScript and shaders, packaged as a Razor class library.
 - `WolfNET.Examples/`: exploration and racing, application rules/UI, launch profiles,
   and example assets in `wwwroot`. It references Engine and the browser provider.
-- `RaceImperialis/`: standalone Pine Loop racing game with its own gameplay and
-  assets, referencing only Engine and the browser provider.
 - `Engine/Tests/EngineConsumer/`: an independent public API consumer that references Engine alone.
 - `Tests/`: compiler, simulation, and browser regression checks.
 
@@ -33,11 +31,9 @@ Open `/` for Showcase at `https://localhost:7279`, or `/viewer` for a procedural
 moving objects and an orbiting camera, using the engine without a player or race.
 Open `/ui` for the interactive UI control gallery.
 
-Start the standalone racing project with
-`dotnet run --project RaceImperialis/RaceImperialis.csproj`, then open
-`https://localhost:7280`. It loads Pine Loop directly and includes opponents,
-difficulty, lap timing, results, restart, cameras, music, and sound effects.
-See [the racing project](RaceImperialis/README.md) for controls and settings.
+[Race Imperialis](https://github.com/Lminta/RaceImperialis) is maintained in its
+own repository and solution, with WolfSlop as its engine submodule. It loads Pine
+Loop directly and owns its game assets, tests, and HTTPS launch configuration.
 
 See [the engine guide](Engine/WolfSlop.Engine/README.md) for consumption, extension points,
 asset hosting, timing, and ownership. Browser shaders and JavaScript are served from

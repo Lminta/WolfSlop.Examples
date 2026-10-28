@@ -1,9 +1,0 @@
-{
-  "width": 1920,
-  "height": 1080,
-  "targetFPS": 60,
-  "maxAnisotropy": 4,
-  "fovDegrees": 90,
-  "renderDistance": 60,
-  "fogStartDistance": 35
-}

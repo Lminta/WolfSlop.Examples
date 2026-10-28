@@ -1,13 +1,12 @@
-// node Tests/car-driving-browser-check.mjs 9260 http://127.0.0.1:53727
+// node Tests/car-driving-browser-check.mjs 9260 https://localhost:7279
 import assert from 'node:assert/strict';
 import {uiInspectionSource} from './ui-browser-helpers.mjs';
 import fs from 'node:fs';
 
 const port = process.argv[2] ?? '9260';
-const base = process.argv[3] ?? 'http://127.0.0.1:53727';
-const standalone = process.argv.includes('--standalone');
-const racePath = standalone ? '/' : '/?map=pine-loop';
-const project = standalone ? 'RaceImperialis' : 'WolfNET.Examples';
+const base = process.argv[3] ?? 'https://localhost:7279';
+const racePath = '/?map=pine-loop';
+const project = 'WolfNET.Examples';
 const carDefinition = JSON.parse(fs.readFileSync(`${project}/wwwroot/objects/sprites/sprite-directional-car.json`, 'utf8'));
 const carSettings = JSON.parse(fs.readFileSync(`${project}/wwwroot/gameplay-settings.json`, 'utf8')).car;
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {method: 'PUT'})).json();
@@ -171,11 +170,6 @@ try {
     await send('Page.navigate', {url: base + racePath});
     await send('Page.bringToFront');
     await waitFor(`window.__camera && !document.querySelector('.loading-overlay') && window.__uiImages.length === 2 && document.querySelector('.car-paused')`);
-    if (standalone) {
-        assert(requests.has('/maps/pine-loop.json'), 'Standalone root did not load Pine Loop directly');
-        assert(![...requests].some(url => /maps\/(showcase|glassworks|level1)\.json/.test(url)),
-            'Standalone startup requested an exploration map');
-    }
     assert.equal(await evaluate(`document.querySelectorAll('.car-cockpit, .player-hands').length`), 0, 'First-person images still use DOM overlays');
     assert.equal(await evaluate('window.__uiImageCount'), 2, 'Car did not upload its two first-person textures');
     fs.mkdirSync('artifacts/car-driving', {recursive: true});
@@ -384,29 +378,27 @@ try {
 
     await evaluate('document.exitPointerLock()');
     await waitFor('!document.pointerLockElement');
-    if (!standalone) {
-        await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button => button.textContent.trim() === 'Showcase').click()`);
-        await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-timing')`);
-        await waitFor(`window.__mapInfo?.[0] === 34 && !document.querySelector('.loading-overlay') && document.querySelector('.controls-hint').textContent.includes('Space jump')`);
-        assert.equal(await evaluate('document.querySelectorAll(".car-cockpit, .car-paused, .race-minimap").length'), 0,
-            'Race overlays survived leaving the race map');
-        assert([...requests].some(url => /main-character-atlas/.test(url)), 'Exploration map did not restore the human character');
-        await waitFor(`window.__uiImages.length === 2 && window.__uiImageCount === 1`);
-        assert.equal(await evaluate('window.__uiImageCount'), 1, 'Car first-person textures survived switching to the human scene');
-        assert(requests.has('/textures/characters/first-person-hands.png'), 'Human hands were not uploaded on returning to exploration');
-        await capture();
-        await key('Space'); await waitFor('window.__camera[9] > .05'); await key('Space', false);
-        await waitFor('window.__camera[9] === 0');
-        assert.deepEqual(errors, []);
-        // Showcase deliberately includes four missing textures to exercise the pink fallback.
-        const showcaseFallbacks = new Set(['sprite', 'floor', 'ceiling', 'wall'].map(kind => `/textures/showcase-missing-${kind}.png`));
-        assert.deepEqual(missing.filter(url => !showcaseFallbacks.has(new URL(url).pathname)), []);
-        console.log('PASS scene isolation: leaving removes race overlays and controls, restores human textures, and restores jumping.');
-    }
+    await evaluate(`Array.from(document.querySelectorAll('.map-switcher button')).find(button => button.textContent.trim() === 'Showcase').click()`);
+    await waitFor(`!document.querySelector('.loading-overlay') && !document.querySelector('.race-timing')`);
+    await waitFor(`window.__mapInfo?.[0] === 34 && !document.querySelector('.loading-overlay') && document.querySelector('.controls-hint').textContent.includes('Space jump')`);
+    assert.equal(await evaluate('document.querySelectorAll(".car-cockpit, .car-paused, .race-minimap").length'), 0,
+        'Race overlays survived leaving the race map');
+    assert([...requests].some(url => /main-character-atlas/.test(url)), 'Exploration map did not restore the human character');
+    await waitFor(`window.__uiImages.length === 2 && window.__uiImageCount === 1`);
+    assert.equal(await evaluate('window.__uiImageCount'), 1, 'Car first-person textures survived switching to the human scene');
+    assert(requests.has('/textures/characters/first-person-hands.png'), 'Human hands were not uploaded on returning to exploration');
+    await capture();
+    await key('Space'); await waitFor('window.__camera[9] > .05'); await key('Space', false);
+    await waitFor('window.__camera[9] === 0');
+    assert.deepEqual(errors, []);
+    // Showcase deliberately includes four missing textures to exercise the pink fallback.
+    const showcaseFallbacks = new Set(['sprite', 'floor', 'ceiling', 'wall'].map(kind => `/textures/showcase-missing-${kind}.png`));
+    assert.deepEqual(missing.filter(url => !showcaseFallbacks.has(new URL(url).pathname)), []);
+    console.log('PASS scene isolation: leaving removes race overlays and controls, restores human textures, and restores jumping.');
 
     // Keep real map geometry, car physics, rendering and UI, but shorten the
     // invisible gate sequence and configure two laps to verify gameplay settings.
-    await send('Page.navigate', {url: base + racePath + (standalone ? '?short-race' : '&short-race')});
+    await send('Page.navigate', {url: base + racePath + '&short-race'});
     await waitFor(`!document.querySelector('.loading-overlay') && !!document.querySelector('.race-timing') && !!document.querySelector('.car-paused')`);
     await selectDifficulty('Easy');
     await capture();

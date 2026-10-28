@@ -43,7 +43,6 @@ using (var malformedHttp = new HttpClient(new FileHandler(webRoot, path => path 
 }
 
 assertions += await SceneChecks.RunAsync(http);
-assertions += await RacingProjectChecks.RunAsync(root);
 assertions += await CarInteractionChecks.RunAsync(http);
 assertions += await RaceSessionChecks.RunAsync(http, webRoot);
 assertions += await OpponentChecks.RunAsync(http);

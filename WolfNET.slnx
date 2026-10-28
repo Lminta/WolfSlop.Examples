@@ -3,7 +3,6 @@
   <Project Path="Engine/WolfSlop.Engine.Browser/WolfNET.Engine.Browser.csproj" />
   <Project Path="Engine/Tests/EngineTests/WolfNET.EngineTests.csproj" />
   <Project Path="WolfNET.Examples/WolfNET.Examples.csproj" />
-  <Project Path="RaceImperialis/RaceImperialis.csproj" />
   <Project Path="Tests/WolfNET.MapTests.csproj" />
   <Project Path="Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj" />
 </Solution>
