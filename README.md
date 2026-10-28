@@ -1,46 +1,87 @@
-# WolfSlop.Examples
+<p align="center"><strong>This project is entirely AI-generated.</strong></p>
 
-Playable examples for [WolfSlop](https://github.com/Lminta/WolfSlop), a .NET raycasting engine with a Blazor WebAssembly host and WebGPU rendering. Explore three walking maps or take a car onto an outdoor racing circuit.
+<h1 align="center">WolfSlop.Examples</h1>
 
-## Maps
+<p align="center">
+  Three worlds to explore. One circuit to race.<br>
+  Playable examples for the <a href="https://github.com/Lminta/WolfSlop">WolfSlop</a> raycasting engine.
+</p>
 
-All screenshots below were captured from the running application. The page's navigation and help panels are hidden; the in-game HUD is shown.
+<p align="center">
+  <strong>.NET 10</strong> &nbsp; · &nbsp; <strong>Blazor WebAssembly</strong> &nbsp; · &nbsp; <strong>WebGPU</strong>
+</p>
 
-### Showcase
+<p align="center">
+  <a href="#maps">Maps</a> &nbsp; / &nbsp;
+  <a href="#run-locally">Quick start</a> &nbsp; / &nbsp;
+  <a href="#controls">Controls</a> &nbsp; / &nbsp;
+  <a href="#other-examples">Other examples</a> &nbsp; / &nbsp;
+  <a href="#project-and-documentation">Documentation</a>
+</p>
 
-![Showcase: blue stone and timber flooring, textured pillars, and the first-person exploration HUD](docs/screenshots/showcase.png)
+---
 
-The default map is a hands-on gallery of engine features: wall and floor materials, glass and steel doors, sprite groups, collision rules, jump and crouch obstacles, and an open-sky annex with a directional car sprite.
+<h2 align="center">Maps</h2>
 
-**Open:** `/?map=showcase` · [Map guide](WolfSlop.Examples/wwwroot/maps/showcase.md)
+<p align="center"><sub>Captured in the running application, with the in-game HUD and without the page's help panels.</sub></p>
 
-### The Glassworks
+<h3 align="center">Showcase</h3>
 
-![The Glassworks: a central fern beneath the glasshouse roof, surrounded by botanical mosaic paths](docs/screenshots/glassworks.png)
+<p align="center">
+  <a href="docs/screenshots/showcase.png"><img src="docs/screenshots/showcase.png" width="960" alt="Showcase: blue stone and timber flooring, textured pillars, and the first-person exploration HUD"></a>
+</p>
 
-An abandoned botanical station built around a glasshouse. Limestone walls, teal rooms, potted ferns, workbenches, and pumping equipment give its connected wings distinct character. Explore the potting room, herbarium, and cistern, then find the maintenance shortcuts.
+<p align="center">
+  A hands-on gallery of materials, doors, sprites, and movement.<br>
+  Test collision rules, jump and crouch obstacles, or explore the open-sky car annex.
+</p>
 
-**Open:** `/?map=glassworks` · [Map guide](WolfSlop.Examples/wwwroot/maps/glassworks.md)
+<p align="center"><code>/?map=showcase</code> &nbsp; · &nbsp; <a href="WolfSlop.Examples/wwwroot/maps/showcase.md">Map guide</a> &nbsp; · &nbsp; <strong>Default map</strong></p>
 
-### The Brickyard
+<h3 align="center">The Glassworks</h3>
 
-![The Brickyard: the motor depot courtyard, utility hut, and covered stone arcade](docs/screenshots/level1.png)
+<p align="center">
+  <a href="docs/screenshots/glassworks.png"><img src="docs/screenshots/glassworks.png" width="960" alt="The Glassworks: a central fern beneath the glasshouse roof, surrounded by botanical mosaic paths"></a>
+</p>
 
-An old motor depot with brick loading bays, covered arcades, barrel stores, and a courtyard utility hut. Follow the main route through the warehouse or take the service passage toward the parked car in the motor yard.
+<p align="center">
+  An abandoned botanical station beneath a broken glass roof.<br>
+  Follow mosaic paths through the potting room, herbarium, and cistern, then find the maintenance shortcuts.
+</p>
 
-**Open:** `/?map=level1` · [Map guide](WolfSlop.Examples/wwwroot/maps/level1.md)
+<p align="center"><code>/?map=glassworks</code> &nbsp; · &nbsp; <a href="WolfSlop.Examples/wwwroot/maps/glassworks.md">Map guide</a></p>
 
-### Pine Loop
+<h3 align="center">The Brickyard</h3>
 
-![Pine Loop: the starting straight from the cockpit, with grandstands, trackside fencing, and the racing HUD](docs/screenshots/pine-loop.png)
+<p align="center">
+  <a href="docs/screenshots/level1.png"><img src="docs/screenshots/level1.png" width="960" alt="The Brickyard: the motor depot courtyard, utility hut, and covered stone arcade"></a>
+</p>
 
-A 256 × 512 outdoor circuit through forest lanes, broad passing sections, a long straight, and a tunnel. Race against two AI opponents with lap timing, a local route minimap, cockpit and chase cameras, and Normal or Easy difficulty. Grandstands, pit boxes, animated spectators, and trackside props line the course.
+<p align="center">
+  An old motor depot of brick loading bays, stone arcades, and barrel stores.<br>
+  Cross the courtyard or take the service passage toward the parked car in the motor yard.
+</p>
 
-**Open:** `/?map=pine-loop` · [Circuit guide](WolfSlop.Examples/wwwroot/maps/pine-loop.md)
+<p align="center"><code>/?map=level1</code> &nbsp; · &nbsp; <a href="WolfSlop.Examples/wwwroot/maps/level1.md">Map guide</a></p>
 
-You can also enter Pine Loop by facing a parked car in any walking map and pressing **F**.
+<h3 align="center">Pine Loop</h3>
 
-## Run locally
+<p align="center">
+  <a href="docs/screenshots/pine-loop.png"><img src="docs/screenshots/pine-loop.png" width="960" alt="Pine Loop: the starting straight from the cockpit, with grandstands, trackside fencing, and the racing HUD"></a>
+</p>
+
+<p align="center">
+  A 256 × 512 outdoor circuit through forest lanes, fast straights, and a tunnel.<br>
+  Race two AI opponents with lap timing, a route minimap, cockpit and chase cameras, and two difficulty levels.
+</p>
+
+<p align="center"><code>/?map=pine-loop</code> &nbsp; · &nbsp; <a href="WolfSlop.Examples/wwwroot/maps/pine-loop.md">Circuit guide</a></p>
+
+<p align="center"><sub>Find a parked car in any walking map, face it, and press <strong>F</strong> to enter Pine Loop.</sub></p>
+
+---
+
+<h2 align="center">Run locally</h2>
 
 You need the **.NET 10 SDK** and a browser/device with **WebGPU support** and hardware acceleration enabled.
 
@@ -60,7 +101,7 @@ dotnet build WolfSlop.Examples.slnx
 
 Choose a walking map using the on-screen selector, or append one of the map URLs above to the local address. WebGPU needs a secure context; see [local development](docs/local-development.md) for HTTP localhost and LAN setup.
 
-## Controls
+<h2 align="center">Controls</h2>
 
 Click the game to capture the mouse. **Esc** releases it; driving pauses until you click the game again.
 
@@ -76,14 +117,14 @@ Click the game to capture the mouse. **Esc** releases it; driving pauses until y
 
 Use the Pine Loop side panel to change difficulty or restart the race.
 
-## Other examples
+<h2 align="center">Other examples</h2>
 
 | Route | Example |
 | --- | --- |
 | `/viewer` | A procedural scene with twelve moving sprites and an orbiting camera, without a player or race rules. |
 | `/ui` | An interactive gallery of text, images, buttons, sliders, text editing, scrolling, and modal dialogs. |
 
-## Project and documentation
+<h2 align="center">Project and documentation</h2>
 
 | Path | Contents |
 | --- | --- |
@@ -98,4 +139,9 @@ Use the Pine Loop side panel to change difficulty or restart the race.
 - [Tests and performance tools](Tests/README.md)
 - [Local development and screenshot capture](docs/local-development.md)
 
-[Race Imperialis](https://github.com/Lminta/RaceImperialis) is a separate game built on the same engine, with its own repository and solution.
+---
+
+<p align="center">
+  Built on <a href="https://github.com/Lminta/WolfSlop">WolfSlop</a>.<br>
+  Also see <a href="https://github.com/Lminta/RaceImperialis">Race Imperialis</a>, a separate game built on the same engine.
+</p>

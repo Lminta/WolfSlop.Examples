@@ -27,3 +27,8 @@ also be opened independently using `Engine/WolfSlop.slnx`. Use Rider's
 configuration also builds its target project before launching. Browser selection
 uses Rider's local settings, so shared configurations contain no machine-specific
 browser IDs or executable paths.
+
+After the solution rename, reopen `WolfSlop.Examples.slnx` using **File | Open**.
+An existing Rider window can retain the old `WolfSlop.slnx` path and report
+`MSB1009: Project file does not exist` when building or launching a configuration.
+Reloading the old solution does not switch it to the new filename.
