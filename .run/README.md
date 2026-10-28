@@ -21,7 +21,7 @@ Race Imperialis's solution and launch configurations live in
 [its own repository](https://github.com/Lminta/RaceImperialis).
 Configurations use project-relative paths and are stored here for version control.
 
-Open `WolfSlop.slnx` in Rider for the games and all test runners. The engine can
+Open `WolfSlop.Examples.slnx` in Rider for the games and all test runners. The engine can
 also be opened independently using `Engine/WolfSlop.slnx`. Use Rider's
 **Build Solution** or **Rebuild Solution** for a solution-wide build; each run/debug
 configuration also builds its target project before launching. Browser selection

@@ -67,7 +67,7 @@ See the [UI guide](../Engine/WolfSlop.Engine/UI/README.md) for layout, input and
 Run the regression suite from the repository root:
 
 ```powershell
-dotnet build WolfSlop.slnx
+dotnet build WolfSlop.Examples.slnx
 dotnet run --project Tests/WolfSlop.MapTests.csproj
 dotnet run --project Engine/Tests/EngineTests/WolfNET.EngineTests.csproj
 dotnet run --project Engine/Tests/EngineConsumer/WolfNET.EngineConsumer.csproj
